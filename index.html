@@ -13730,6 +13730,8 @@ const MARKORER = "X×✕✗✓✔■●▪◼★☒☑→⇒»>*+•";
 const RE_FRAGA_PUNKT = /^\s*(?:fråga\s*)?(\d{1,3})\s*[.):]\s*(.*\S)?\s*$/i;
 const RE_FRAGA_BLANK = /^\s*(\d{1,3})\s+(\S.{7,})$/;
 const RE_FRAGA_ENSAM = /^\s*(\d{1,3})\s*$/;          // numret på egen rad, texten under
+/* Vissa exportformat skriver frågenumret två gånger: "12   12" */
+const RE_FRAGA_DUBBEL = /^\s*(\d{1,3})\s+\1\s*[a-zA-Z]?\s*$/;
 const RE_ENDAST_SYMBOL = /^[^\p{L}\p{N}]{1,3}$/u;      // punktlista före ett alternativ
 const RE_ALT = /^\s*(\S{1,3}\s+)?[(\[]?\s*([a-hA-H])\s*[.)\]:]\s+(.*\S)\s*$/;
 const RE_RATTSVAR = /^\s*(?:rätt(?:a)?\s*svar(?:et)?|korrekt(?:a)?\s*svar|svar|facit)\s*(?:är)?\s*[:：]?\s*([a-hA-H])\s*[.)\]]?\s*$/i;
@@ -13756,7 +13758,7 @@ async function pdfSidData(sida) {
   /* Operatorlistan ger både fontberoenden, vektorgrafik och bilder.
      Transformationsmatrisen måste följas för att grafiken ska hamna rätt. */
   const ol = await sida.getOperatorList();
-  const markeringar = [], bilder = [];
+  const markeringar = [], bilder = [], overstrykningar = [];
   let ctm = [1, 0, 0, 1, 0, 0];
   const stack = [];
   let fyll = null, strek = null;
@@ -13787,6 +13789,14 @@ async function pdfSidData(sida) {
       }
       if (!isFinite(x0)) continue;
       const b = x1 - x0, h = y1 - y0;
+      const ff = fyll || strek || [0, 0, 0];
+      const fmax = Math.max(ff[0], ff[1], ff[2]), fmin = Math.min(ff[0], ff[1], ff[2]);
+      /* Överstrykning: en bred, låg, tydligt kulört platta som ligger bakom en
+         textrad. Det är den vanligaste handmarkeringen i ett facit. */
+      if (b > 40 && h >= 5 && h <= 34 && (fmax - fmin) > 40 && fmax > 120) {
+        overstrykningar.push({ x0, y0, x1, y1 });
+        continue;
+      }
       /* bara små figurer — inte ramar, linjer eller diagram */
       if (b > 34 || h > 34 || (b < 2 && h < 2)) continue;
       const f = fyll || strek || [0, 0, 0];
@@ -13841,7 +13851,14 @@ async function pdfSidData(sida) {
     };
   }).filter(r => r.text);
 
-  return { rader, markeringar: markeringar.filter(m => !m.ljus), bilder };
+  /* markera de rader som ligger under en överstrykning */
+  rader.forEach(r => {
+    r.struken = overstrykningar.some(o =>
+      o.y0 <= r.y + r.h * 0.55 && o.y1 >= r.y + 1 &&
+      o.x1 > r.x0 + 2 && o.x0 < r.x1 + r.h * 6);
+  });
+
+  return { rader, markeringar: markeringar.filter(m => !m.ljus), bilder, overstrykningar };
 }
 
 /* Radioknappar och kryssrutor upprepas en gång per alternativ och är alltså
@@ -13910,9 +13927,13 @@ async function pdfLasTenta(bytes, onProgress) {
   sidor.forEach(s => s.rader.forEach(r => rader.push({ ...r, sida: s.nr })));
 
   const antalValj = rader.filter(r => RE_VALJ.test(r.text)).length;
-  const resultat = antalValj >= 2
-    ? parsaAnkarläge(rader, sidor)
-    : parsaBokstavsläge(rader, sidor);
+  const antalNamn = rader.filter(r => r.fet && RE_FRAGA_NAMN.test(r.text)).length;
+  const lage = antalNamn >= 3 ? "namngiven" : antalValj >= 2 ? "digital" : "bokstäver";
+  const resultat = lage === "namngiven"
+    ? { fragor: parsaNamntLage(rader) }
+    : lage === "digital"
+      ? parsaAnkarläge(rader, sidor)
+      : parsaBokstavsläge(rader, sidor);
 
   /* ---- figurer: fånga bilden som hör till frågan ---- */
   await fangaFigurer(doc, resultat.fragor, sidor, onProgress);
@@ -13925,7 +13946,7 @@ async function pdfLasTenta(bytes, onProgress) {
       sidor: doc.numPages,
       rader: rader.length,
       skannad: false,
-      lage: antalValj >= 2 ? "digital" : "bokstäver",
+      lage,
       utanFacit: ut.filter(f => f.svar === null).length,
       oense: ut.filter(f => f.oense).length,
       flersvar: ut.filter(f => f.flersvar).length,
@@ -13935,13 +13956,137 @@ async function pdfLasTenta(bytes, onProgress) {
   };
 }
 
+
+/* ---------- läge C: namngivna frågor med typ och poäng ----------
+   Formatet ser ut så här:
+
+     Modul 4 biokemi 5 poäng (Håkan)          ← avsnittsrubrik, fet
+     Socker-kort-1 (HA, 2 p)                  ← frågerubrik, fet
+     Vilken sockerart visas nedan? …          ← frågetext
+     Svar: isomaltos; glukos-alfa-1,6-glukos  ← facit för skrivfråga
+
+     Motilin-SBA-3 (DF, 1 p)
+     Vilken effekt ger motilin under fasta?
+        • Aktiverar MMC …                     ← överstruket = rätt svar
+        • Hämmar MMC …
+
+   Typen står i rubriken (SBA, kort, essä) och poängen i parentesen.
+   Textextraktionen strör in mellanslag lite hur som helst, därför är
+   uttrycket tolerant mot blanksteg runt bindestrecken. */
+
+const RE_FRAGA_NAMN = new RegExp(
+  "^\\s*(.{1,70}?)\\s*[-–—]\\s*(SBA|MCQ|kort|essä|essa|fritext|uppsats)\\s*[-–—]?\\s*(\\d{1,3})?\\s*" +
+  "\\(([^)]{1,40})\\)\\s*[:.]?\\s*$", "i");
+const RE_POANG = /(\d+(?:[.,]\d+)?)\s*p\b/i;
+const RE_FACITSTART = /^\s*(svar|svarsaspekter|svarsmall|svarsförslag|svarsförslag|bedömning|bedömningsmall|rättningsmall|kommentar|lösning)\s*[:：]\s*(.*)$/i;
+const RE_PUNKTALT = /^\s*[•▪◦‣·o]\s+(.*\S)\s*$/;
+const RE_AVSNITT = /^\s*(modul|avsnitt|del|tema|område)\b/i;
+
+function typAvOrd(ord) {
+  const o = (ord || "").toLowerCase();
+  if (o === "sba" || o === "mcq") return "sba";
+  return "text";
+}
+function sortAvOrd(ord) {
+  const o = (ord || "").toLowerCase();
+  if (o === "sba" || o === "mcq") return "SBA";
+  if (o === "kort") return "kortsvar";
+  return "essä";
+}
+
+function parsaNamntLage(rader) {
+  const fragor = [];
+  let nu = null, avsnitt = "", iFacit = false, sistaAlt = null;
+
+  const stang = () => {
+    if (!nu) return;
+    nu.q = (nu.q || "").trim();
+    nu.facit = (nu.facit || "").trim();
+    if (nu.q || nu.alternativ.length) fragor.push(nu);
+    nu = null; iFacit = false; sistaAlt = null;
+  };
+
+  rader.forEach(rad => {
+    const t = rad.text;
+    if (!t) return;
+
+    const rubrik = t.match(RE_FRAGA_NAMN);
+    if (rubrik) {
+      stang();
+      const p = (rubrik[4] || "").match(RE_POANG);
+      nu = {
+        namn: (rubrik[1] || "").replace(/\s+/g, " ").trim(),
+        typ: typAvOrd(rubrik[2]),
+        sort: sortAvOrd(rubrik[2]),
+        nr: rubrik[3] ? +rubrik[3] : fragor.length + 1,
+        poang: p ? Number(String(p[1]).replace(",", ".")) : 1,
+        avsnitt, q: "", facit: "", alternativ: [], sida: rad.sida, y: rad.y
+      };
+      return;
+    }
+
+    /* fet rad som inte är en frågerubrik: avsnittsrubrik */
+    if (rad.fet && (RE_AVSNITT.test(t) || (!nu && t.length < 90))) {
+      stang();
+      avsnitt = t.replace(/\s*\([^)]*\)\s*$/, "").trim();
+      return;
+    }
+
+    if (!nu) return;
+
+    const facit = t.match(RE_FACITSTART);
+    if (facit) {
+      iFacit = true; sistaAlt = null;
+      nu.facitrubrik = facit[1];
+      nu.facit = (nu.facit ? nu.facit + "\n" : "") + (facit[2] || "").trim();
+      return;
+    }
+
+    const alt = t.match(RE_PUNKTALT);
+    if (alt && !iFacit) {
+      nu.alternativ.push({ text: alt[1].trim(), struken: !!rad.struken });
+      sistaAlt = nu.alternativ[nu.alternativ.length - 1];
+      return;
+    }
+
+    if (iFacit) { nu.facit += (nu.facit ? "\n" : "") + t; return; }
+    if (sistaAlt && rad.x0 > 80) { sistaAlt.text += " " + t; return; }
+    if (nu.q.length < 1200) nu.q += (nu.q ? " " : "") + t;
+  });
+  stang();
+
+  return fragor.map((f, i) => {
+    const rattIndex = f.alternativ.findIndex(a => a.struken);
+    const arSba = f.typ === "sba" && f.alternativ.length >= 2;
+    return {
+      id: "f" + (i + 1),
+      nr: f.nr || i + 1,
+      namn: f.namn,
+      typ: arSba ? "sba" : "text",
+      sort: f.sort,
+      poang: f.poang || 1,
+      avsnitt: f.avsnitt || "",
+      q: f.q,
+      bild: null,
+      options: arSba ? f.alternativ.map(a => a.text) : [],
+      svar: arSba && rattIndex >= 0 ? rattIndex : null,
+      facit: f.facit || "",
+      hur: arSba && rattIndex >= 0 ? "överstrykning" : (f.facit ? "facittext" : null),
+      oense: false,
+      flersvar: false,
+      sida: f.sida, y: f.y,
+      mal: null, konf: null
+    };
+  }).filter(f => f.q || f.options.length);
+}
+
 /* ---------- läge A: "Välj ett alternativ" ---------- */
 function parsaAnkarläge(rader, sidor) {
   const markPerSida = {};
   sidor.forEach(s => { markPerSida[s.nr] = silaGranssnitt(s.markeringar); });
 
   const fragor = [];
-  let nu = null, iAlt = false;
+  let nu = null, iAlt = false, sistaNr = 0;
 
   const stang = () => {
     if (nu && nu.altRader.length >= 2) {
@@ -13960,17 +14105,25 @@ function parsaAnkarläge(rader, sidor) {
     }
     if (iAlt && RE_SLUT.test(t)) { stang(); return; }
 
+    /* Mitt i en alternativlista kan ett alternativ mycket väl inledas med en
+       siffra ("24 (12 pariga)", "1) höger hypokondrium"). Där godtas ett nytt
+       frågenummer bara om det är just nästa nummer i ordningen. */
     const nf = t.match(RE_FRAGA_PUNKT) || t.match(RE_FRAGA_BLANK);
-    if (nf && nf[2] && nf[2].length > 7) {
+    if (nf && nf[2] && nf[2].length > 7 && (!iAlt || +nf[1] === sistaNr + 1)) {
       stang();
-      nu = { nr: +nf[1], qRader: [nf[2].trim()], altRader: [], sida: rad.sida, flersvar: false };
+      sistaNr = +nf[1];
+      nu = { nr: +nf[1], qRader: [nf[2].trim()], altRader: [], sida: rad.sida, y: rad.y, flersvar: false };
       return;
     }
-    /* vissa frågor har numret på egen rad och texten på nästa */
-    const ne = t.match(RE_FRAGA_ENSAM);
+    /* Vissa frågor har numret på egen rad och texten på nästa. Mitt i en
+       alternativlista får en ensam siffra däremot inte tolkas som ett nytt
+       frågenummer — svarsalternativen kan själva vara rena tal. */
+    const nd = t.match(RE_FRAGA_DUBBEL);
+    const ne = nd || (iAlt ? null : t.match(RE_FRAGA_ENSAM));
     if (ne && rad.x0 < 90) {
       stang();
-      nu = { nr: +ne[1], qRader: [], altRader: [], sida: rad.sida, flersvar: false };
+      sistaNr = +ne[1];
+      nu = { nr: +ne[1], qRader: [], altRader: [], sida: rad.sida, y: rad.y, flersvar: false };
       return;
     }
     if (!nu) return;
@@ -14044,7 +14197,7 @@ function parsaAnkarläge(rader, sidor) {
       id: "f" + (i + 1), nr: f.nr, q: f.q,
       options: alternativ.map(a => a.text),
       svar: vald >= 0 ? vald : null,
-      hur, oense, sida: f.sida, flersvar: !!f.flersvar,
+      hur, oense, sida: f.sida, y: f.y, flersvar: !!f.flersvar,
       yTopp: alternativ.length ? alternativ[0].y : null,
       yBotten: alternativ.length ? alternativ[alternativ.length - 1].y0 : null,
       mal: null, konf: null
@@ -14118,7 +14271,7 @@ function parsaBokstavsläge(rader, sidor) {
     const nf = t.match(RE_FRAGA_PUNKT);
     if (nf && nf[2] && nf[2].length > 8 && (!nu || nu.alternativ.length >= 2 || nu.alternativ.length === 0)) {
       stang();
-      nu = { nr: +nf[1], q: nf[2].trim(), alternativ: [], explicit: null, sida: rad.sida };
+      nu = { nr: +nf[1], q: nf[2].trim(), alternativ: [], explicit: null, sida: rad.sida, y: rad.y };
       sistaAlt = null;
       return;
     }
@@ -14150,22 +14303,108 @@ function parsaBokstavsläge(rader, sidor) {
       options: f.alternativ.map(a => a.text),
       svar: b ? b.i : null, hur: b ? b.hur : null,
       oense: kand.length > 1 && kand.some(k => k.i !== b.i),
-      sida: f.sida, flersvar: false, mal: null, konf: null
+      sida: f.sida, y: f.y, flersvar: false, mal: null, konf: null
     };
   });
   return { fragor: ut };
 }
 
 /* ---------- figurer i frågorna ---------- */
+/* En bildruta som PDF:en anger är ofta större än själva teckningen: den kan ha
+   tom marginal under sig, och nästa fråga eller facitraden ligger då ovanpå
+   bilden. Här klipps rutan till det högsta vågräta band som inte innehåller
+   någon textrad — texten står ju redan i frågan och ska inte med i bilden. */
+function klippMotText(ruta, rader) {
+  const hojd = ruta.y1 - ruta.y0;
+  if (hojd < 60) return ruta;
+  const hinder = rader.filter(r => {
+    if (!r.text || r.text.length < 2) return false;
+    const nedre = r.y - r.h * 0.4, ovre = r.y + r.h * 1.15;
+    if (ovre <= ruta.y0 + 1 || nedre >= ruta.y1 - 1) return false;      // ligger helt utanför
+    return r.x1 + r.h * 4 > ruta.x0 && r.x0 < ruta.x1;                  // korsar bilden i sidled
+  }).map(r => ({ nedre: r.y - r.h * 0.4, ovre: r.y + r.h * 1.15 }))
+    .sort((a, b) => a.nedre - b.nedre);
+  if (!hinder.length) return ruta;
+
+  /* fria band mellan hindren, nedifrån och upp */
+  const band = [];
+  let golv = ruta.y0;
+  hinder.forEach(h => {
+    if (h.nedre - golv > 0) band.push({ y0: golv, y1: Math.min(h.nedre, ruta.y1) });
+    golv = Math.max(golv, h.ovre);
+  });
+  if (ruta.y1 - golv > 0) band.push({ y0: golv, y1: ruta.y1 });
+
+  const bast = band.sort((a, b) => (b.y1 - b.y0) - (a.y1 - a.y0))[0];
+  if (!bast) return ruta;
+  const nyHojd = bast.y1 - bast.y0;
+  /* Blir det bara en smal remsa kvar går teckningen antagligen rakt igenom
+     texten — då är hela rutan ett ärligare val än en avklippt bild. */
+  if (nyHojd < 45 || nyHojd < hojd * 0.22) return ruta;
+  return { x0: ruta.x0, x1: ruta.x1, y0: bast.y0, y1: bast.y1 };
+}
+
+/* Slår ihop bildrutor som hör ihop — en figur kan vara ritad som flera
+   bilder bredvid eller ovanpå varandra. */
+function slaIhopRutor(rutor) {
+  const ut = [];
+  rutor.slice().sort((a, b) => b.y1 - a.y1).forEach(r => {
+    const nara = ut.find(o =>
+      r.x0 < o.x1 + 24 && o.x0 < r.x1 + 24 &&
+      r.y0 < o.y1 + 18 && o.y0 < r.y1 + 18);
+    if (nara) {
+      nara.x0 = Math.min(nara.x0, r.x0); nara.x1 = Math.max(nara.x1, r.x1);
+      nara.y0 = Math.min(nara.y0, r.y0); nara.y1 = Math.max(nara.y1, r.y1);
+    } else ut.push({ ...r });
+  });
+  return ut;
+}
+
+/* Skär bort enfärgad marginal runt en färdigritad bild. Kanten läses av, och
+   allt som har samma färg som kanten räknas som tomrum. */
+function trimmaKanter(duk) {
+  const k = duk.getContext("2d", { willReadFrequently: true });
+  let d;
+  try { d = k.getImageData(0, 0, duk.width, duk.height).data; } catch (e) { return duk; }
+  const px = (x, y) => (y * duk.width + x) * 4;
+  const h = px(0, 0);
+  const bg = [d[h], d[h + 1], d[h + 2]];
+  const tom = (x, y) => {
+    const i = px(x, y);
+    return Math.abs(d[i] - bg[0]) < 14 && Math.abs(d[i + 1] - bg[1]) < 14 && Math.abs(d[i + 2] - bg[2]) < 14;
+  };
+  let x0 = 0, y0 = 0, x1 = duk.width - 1, y1 = duk.height - 1;
+  const radTom = y => { for (let x = x0; x <= x1; x++) if (!tom(x, y)) return false; return true; };
+  const kolTom = x => { for (let y = y0; y <= y1; y++) if (!tom(x, y)) return false; return true; };
+  while (y0 < y1 && radTom(y0)) y0++;
+  while (y1 > y0 && radTom(y1)) y1--;
+  while (x0 < x1 && kolTom(x0)) x0++;
+  while (x1 > x0 && kolTom(x1)) x1--;
+  const m = 6;
+  x0 = Math.max(0, x0 - m); y0 = Math.max(0, y0 - m);
+  x1 = Math.min(duk.width - 1, x1 + m); y1 = Math.min(duk.height - 1, y1 + m);
+  const b = x1 - x0 + 1, hh = y1 - y0 + 1;
+  if (b < 24 || hh < 24 || (b === duk.width && hh === duk.height)) return duk;
+  const ny = document.createElement("canvas");
+  ny.width = b; ny.height = hh;
+  ny.getContext("2d").drawImage(duk, x0, y0, b, hh, 0, 0, b, hh);
+  return ny;
+}
+
 async function fangaFigurer(doc, fragor, sidor, onProgress) {
   const medBild = [];
   sidor.forEach(s => {
     if (!s.bilder.length) return;
-    s.bilder.forEach(ruta => {
-      /* frågan på samma sida vars text ligger ovanför bilden */
-      const kandidater = fragor.filter(f => f.sida === s.nr);
-      if (!kandidater.length) return;
-      medBild.push({ fraga: kandidater[0], sida: s.nr, ruta, sidhojd: s.hojd });
+    const pasidan = fragor.filter(f => f.sida === s.nr);
+    if (!pasidan.length) return;
+    slaIhopRutor(s.bilder).forEach(ruta => {
+      /* Bilden hör till frågan närmast ovanför den — inte till den första på
+         sidan. En sida med tre frågor och två figurer ska få rätt par. */
+      const ovanfor = pasidan
+        .filter(f => typeof f.y === "number" && f.y > ruta.y1 - 6)
+        .sort((a, b) => a.y - b.y)[0];
+      const fraga = ovanfor || pasidan[0];
+      medBild.push({ fraga, sida: s.nr, ruta: klippMotText(ruta, s.rader), sidhojd: s.hojd });
     });
   });
   if (!medBild.length) return;
@@ -14183,15 +14422,18 @@ async function fangaFigurer(doc, fragor, sidor, onProgress) {
       const duk = document.createElement("canvas");
       duk.width = Math.ceil(vp.width); duk.height = Math.ceil(vp.height);
       await sida.render({ canvasContext: duk.getContext("2d"), viewport: vp }).promise;
-      const marg = 6 * skala;
+      const marg = 2 * skala;
       const cx = Math.max(0, ruta.x0 * skala - marg);
       const cy = Math.max(0, (sidhojd - ruta.y1) * skala - marg);
       const cb = Math.min(duk.width - cx, (ruta.x1 - ruta.x0) * skala + marg * 2);
       const ch = Math.min(duk.height - cy, (ruta.y1 - ruta.y0) * skala + marg * 2);
       if (cb < 30 || ch < 30) { sida.cleanup(); continue; }
-      const ut = document.createElement("canvas");
+      let ut = document.createElement("canvas");
       ut.width = Math.round(cb); ut.height = Math.round(ch);
-      ut.getContext("2d").drawImage(duk, cx, cy, cb, ch, 0, 0, ut.width, ut.height);
+      const kt = ut.getContext("2d");
+      kt.fillStyle = "#fff"; kt.fillRect(0, 0, ut.width, ut.height);
+      kt.drawImage(duk, cx, cy, cb, ch, 0, 0, ut.width, ut.height);
+      ut = trimmaKanter(ut);
       const url = ut.toDataURL("image/jpeg", 0.72);
       if (url.length < budget) { fraga.bild = url; budget -= url.length; }
       try { sida.cleanup(); } catch (e) {}
@@ -14425,6 +14667,13 @@ function normaliseraTenta(t) {
       bild: f.bild || null,
       options: (f.options || []).map(o => String(o).trim()).filter(Boolean),
       svar: (f.svar === null || f.svar === undefined || f.svar === "") ? null : Number(f.svar),
+      typ: f.typ === "text" ? "text" : "sba",
+      sort: f.sort || "",
+      namn: f.namn || "",
+      poang: Number(f.poang) > 0 ? Number(f.poang) : 1,
+      facit: typeof f.facit === "string" ? f.facit : "",
+      facitrubrik: f.facitrubrik || "",
+      avsnitt: f.avsnitt || "",
       mal: f.mal || null,
       konf: f.konf || null,
       kalla: f.kalla || ""
@@ -14432,16 +14681,31 @@ function normaliseraTenta(t) {
   };
 }
 
-/* Autokopplar alla frågor som saknar lärandemål. */
+/* Autokopplar alla frågor som saknar lärandemål. Kopplingen är ett extra, inte
+   ett krav: hittas inget mål fungerar tentan ändå, den rättas mot sitt eget
+   facit och redovisas på tentans egna avsnitt i stället för på moduler. */
 function autokoppla(tenta) {
   tenta.fragor.forEach(f => {
     if (f.mal) return;
     const r = kopplaFraga(f);
-    f.mal = r.mal;
-    f.konf = r.konf;
+    /* En "låg" träff är oftast bara ett ordsammanträffande. Hellre ingen
+       koppling alls än en som skickar dig till fel avsnitt. */
+    f.mal = r.konf === "låg" ? null : r.mal;
+    f.konf = f.mal ? r.konf : null;
   });
   return tenta;
 }
+
+/* Hur mycket tentan faktiskt hör hemma i kursen. En tenta från en annan kurs
+   får svaga träffar rakt igenom, och då ska modulanalysen inte visas som om
+   den betydde något. */
+function kopplingsgrad(t) {
+  const fr = (t && t.fragor) || [];
+  if (!fr.length) return 0;
+  const starka = fr.filter(f => f.mal && (!f.konf || f.konf === "hög" || f.konf === "manuell")).length;
+  return starka / fr.length;
+}
+function egenKurs(t) { return kopplingsgrad(t) >= 0.35; }
 
 /* ---------- textparser för inklistrad tenta ---------- */
 function parseTentaText(raw) {
@@ -14545,6 +14809,7 @@ function startaForsok(tenta, opt) {
     slutar: Date.now() + minuter * 60000,
     svar: {},
     flagg: {},
+    poang: {},
     facitSumma: facitSumma(t.fragor),
     duell: opt.duell || null,
     pos: 0
@@ -14559,54 +14824,108 @@ function aktivTenta() {
   return a.snapshot ? normaliseraTenta(a.snapshot) : tentaById(a.tentaId);
 }
 
-/* Rättar ett försök och bygger hela resultatstrukturen. */
+/* Rättar ett försök. Hanterar både kryssfrågor och skrivfrågor, och räknar
+   i poäng — en fyrapoängsessä väger fyra gånger så tungt som en SBA. För en
+   tenta där allt är ettpoängs-SBA blir siffrorna exakt som förut. */
 function ratta(forsok, tenta) {
   const fragor = tenta.fragor;
+  const satta = forsok.poang || {};
+
   const rader = forsok.ordning.map((fi, plats) => {
     const f = fragor[fi];
+    const text = f.typ === "text";
     const svarat = forsok.svar[fi];
-    const harSvar = svarat !== undefined && svarat !== null;
-    const bedombar = f.svar !== null && f.svar !== undefined;
-    const ratt = bedombar && harSvar && svarat === f.svar;
+    const harSvar = text
+      ? typeof svarat === "string" && svarat.trim().length > 0
+      : (svarat !== undefined && svarat !== null);
+
+    /* bedömningsbar = det finns något att jämföra mot */
+    const bedombar = text ? !!(f.facit && f.facit.trim()) : (f.svar !== null && f.svar !== undefined);
+    const poangMax = Number(f.poang) > 0 ? Number(f.poang) : 1;
+
+    let poangFatt = null, ratt = false, bedomd = false;
+    if (text) {
+      const s = satta[fi];
+      if (typeof s === "number" && isFinite(s)) {
+        poangFatt = Math.max(0, Math.min(poangMax, s));
+        bedomd = true;
+        ratt = poangFatt >= poangMax;                 /* full poäng räknas som rätt */
+      }
+    } else {
+      ratt = bedombar && harSvar && svarat === f.svar;
+      if (bedombar && harSvar) { poangFatt = ratt ? poangMax : 0; bedomd = true; }
+    }
+
     const ref = f.mal ? malRef(f.mal) : null;
     return {
       plats: plats + 1, fi, fraga: f, svarat, harSvar, bedombar, ratt,
+      text, poangMax, poangFatt, bedomd,
       ref, modulNr: ref ? ref.modul.nr : null,
+      avsnitt: f.avsnitt || "",
       flaggad: !!forsok.flagg[fi]
     };
   });
 
   const bedombara = rader.filter(r => r.bedombar);
   const antalRatt = rader.filter(r => r.ratt).length;
-  const totalProcent = bedombara.length ? Math.round(antalRatt / bedombara.length * 100) : 0;
+  const raknade = rader.filter(r => r.bedombar && r.harSvar && r.bedomd);
+  const poangFatt = raknade.reduce((n, r) => n + r.poangFatt, 0);
+  const poangGrund = raknade.reduce((n, r) => n + r.poangMax, 0);
+  const poangMax = bedombara.reduce((n, r) => n + r.poangMax, 0);
+  const obedomda = rader.filter(r => r.text && r.bedombar && r.harSvar && !r.bedomd);
+  /* Totalen är hela tentan: obesvarade frågor ger noll poäng, precis som på en
+     riktig skrivning. Skrivsvar som ännu inte bedömts hålls utanför tills de
+     fått sina poäng — de redovisas separat i stället för att dras av. */
+  const poangRaknad = bedombara
+    .filter(r => !(r.harSvar && !r.bedomd))
+    .reduce((n, r) => n + r.poangMax, 0);
+  const totalProcent = poangRaknad ? Math.round(poangFatt / poangRaknad * 100) : 0;
 
-  /* Per modul: nämnaren är besvarade OCH bedömningsbara frågor i modulen. */
+  /* Grupperar resultatet. Är frågorna kopplade till kursens lärandemål blir
+     grupperna kursens moduler; annars tentans egna avsnittsrubriker. */
+  const grupp = (namn, iGrupp, extra) => {
+    const rak = iGrupp.filter(r => r.bedombar && r.harSvar && r.bedomd);
+    const fatt = rak.reduce((n, r) => n + r.poangFatt, 0);
+    const av = rak.reduce((n, r) => n + r.poangMax, 0);
+    return Object.assign({
+      namn,
+      antal: iGrupp.length,
+      grundbara: rak.length,
+      ratt: rak.filter(r => r.ratt).length,
+      poang: fatt,
+      poangAv: av,
+      obesvarade: iGrupp.filter(r => r.bedombar && !r.harSvar).length,
+      obedomda: iGrupp.filter(r => r.text && r.bedombar && r.harSvar && !r.bedomd).length,
+      procent: av ? Math.round(fatt / av * 100) : null,
+      testad: iGrupp.length > 0,
+      godkand: av ? (fatt / av) >= 0.70 : null
+    }, extra || {});
+  };
+
   const moduler = [];
   const k = kursById(tenta.kurs) || KURSER[0];
-  k.moduler.forEach(m => {
+  (k ? k.moduler : []).forEach(m => {
     const iModul = rader.filter(r => r.modulNr === m.nr);
-    const grundbara = iModul.filter(r => r.bedombar && r.harSvar);
-    const ratta = grundbara.filter(r => r.ratt).length;
-    const obesvarade = iModul.filter(r => r.bedombar && !r.harSvar).length;
     const malTestade = [...new Set(iModul.map(r => r.fraga.mal).filter(Boolean))];
-    moduler.push({
+    moduler.push(grupp("Modul " + m.nr, iModul, {
       modul: m,
-      antal: iModul.length,
-      grundbara: grundbara.length,
-      ratt: ratta,
-      obesvarade,
-      procent: grundbara.length ? Math.round(ratta / grundbara.length * 100) : null,
-      testad: iModul.length > 0,
-      godkand: grundbara.length ? (ratta / grundbara.length) >= 0.70 : null,
       malTestade,
-      felMal: [...new Set(grundbara.filter(r => !r.ratt).map(r => r.fraga.mal).filter(Boolean))]
-    });
+      felMal: [...new Set(iModul.filter(r => r.bedombar && r.harSvar && r.bedomd && !r.ratt)
+        .map(r => r.fraga.mal).filter(Boolean))]
+    }));
   });
+
+  /* tentans egna avsnitt — används när frågorna inte är kopplade till mål */
+  const avsnittsNamn = [...new Set(rader.map(r => r.avsnitt).filter(Boolean))];
+  const avsnitt = avsnittsNamn.map(namn => grupp(namn, rader.filter(r => r.avsnitt === namn)));
+
   const okopplade = rader.filter(r => !r.ref).length;
 
   return {
     rader, antalRatt, antalFragor: rader.length, bedombara: bedombara.length,
-    totalProcent, godkand: totalProcent >= 70, moduler, okopplade,
+    poangFatt, poangGrund, poangMax, poangRaknad,
+    totalProcent, godkand: totalProcent >= 70,
+    moduler, avsnitt, obedomda: obedomda.length, okopplade,
     svarade: rader.filter(r => r.harSvar).length
   };
 }
@@ -14617,18 +14936,24 @@ function lamnaIn(auto) {
   const t = aktivTenta();
   if (!t) { tstore.aktivt = null; tsave(); go("#/tenta"); return; }
   const nuSumma = facitSumma(t.fragor);
+  /* Skrivsvaren bedöms mot facit direkt, så att totalen är komplett när
+     resultatet visas. Finns en AI-koppling skärps bedömningen strax efter. */
+  a.poang = a.poang || {};
+  bedomForsokLokalt(a, t);
   const res = ratta(a, t);
   const forsok = {
     id: a.id, tentaId: a.tentaId, titel: a.titel, kurs: a.kurs,
     snapshot: a.snapshot || t,
-    ordning: a.ordning, svar: a.svar, flagg: a.flagg,
+    ordning: a.ordning, svar: a.svar, flagg: a.flagg, poang: a.poang || {},
+    bedomning: a.bedomning || {},
     minuter: a.minuter, startad: a.startad, slutad: Date.now(),
     anvandTid: Math.min(a.minuter * 60000, Date.now() - a.startad),
     auto: !!auto,
     facitOk: nuSumma === a.facitSumma,
     sammanfattning: {
       ratt: res.antalRatt, antal: res.antalFragor, procent: res.totalProcent,
-      godkand: res.godkand, svarade: res.svarade
+      godkand: res.godkand, svarade: res.svarade,
+      poang: res.poangFatt, poangAv: res.poangRaknad, obedomda: res.obedomda
     }
   };
   forsok.duell = a.duell || null;
@@ -14652,9 +14977,287 @@ function fmtDatum(ms) {
   const d = new Date(ms);
   return d.toLocaleDateString("sv-SE") + " " + d.toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
 }
+/* =====================================================================
+   BEDÖMNING AV SKRIVSVAR
+   Ett skrivsvar rättas inte genom att studenten själv får peta på en
+   poängknapp — då blir det bara en gissning till. I stället bedöms svaret
+   automatiskt mot facit: facittexten delas i de aspekter den faktiskt
+   innehåller, och varje aspekt bär sin del av poängen. Finns en riktig
+   AI-koppling görs bedömningen där i stället, eftersom den kan läsa
+   resonemang och inte bara ord. Poängen går att ändra i efterhand, men
+   den är satt innan man ber om det.
+   ===================================================================== */
 
+/* Facit skrivs nästan alltid som en uppräkning: "isomaltos; glukos-alfa-1,6"
+   eller punkter under varandra. Varje del är en aspekt som bär sin andel av
+   poängen — två aspekter på en tvåpoängsfråga blir en poäng styck. */
+function facitAspekter(facit) {
+  const txt = String(facit || "").trim();
+  if (!txt) return [];
+  let delar = txt.split(/\s*[;\n]+\s*|\s+•\s+|\s+samt\s+/i).map(s => s.trim()).filter(Boolean);
+  if (delar.length === 1) {
+    /* ingen tydlig uppräkning: pröva komma, men bara om delarna bär innehåll */
+    const k = txt.split(/\s*,\s*/).map(s => s.trim()).filter(s => tokens(s).length >= 1);
+    if (k.length >= 2 && k.every(s => s.length >= 6)) delar = k;
+  }
+  return delar.map(d => ({ text: d.replace(/^[-–—•\s]+/, "").trim(), ord: nyckelOrd(d) }))
+    .filter(a => a.text)
+    .slice(0, 12);
+}
+
+/* Nyckelord ur en textbit: långa ord på sin stam, plus siffror och
+   grekiska bokstäver som ofta är hela poängen i ett biokemisvar. */
+function nyckelOrd(txt) {
+  const ut = new Map();
+  tokens(txt).forEach(t => {
+    if (t.length < 4 && !/\d/.test(t)) return;
+    const stam = t.length > 6 ? t.slice(0, 6) : t;
+    if (!ut.has(stam) || t.length < ut.get(stam).length) ut.set(stam, t);
+  });
+  String(txt).toLowerCase().replace(/\d+\s*[,.]\s*\d+|\balfa\b|\bbeta\b|α|β/g, m => {
+    const n = m.replace(/\s+/g, "");
+    ut.set("#" + n, n); return "";
+  });
+  return [...ut.entries()].map(([stam, ord]) => ({ stam, ord }));
+}
+
+/* Hur väl täcker svaret en aspekt? Stammatchning gör att böjningar och de
+   flesta stavfel går igenom — det är sakinnehållet som ska bedömas. */
+function aspektTraff(aspekt, svarStammar, svarText) {
+  if (!aspekt.ord.length) return 0;
+  let tr = 0;
+  aspekt.ord.forEach(o => {
+    if (o.stam[0] === "#") { if (svarText.indexOf(o.ord) >= 0) tr++; return; }
+    if (svarStammar.has(o.stam)) tr++;
+  });
+  return tr / aspekt.ord.length;
+}
+
+/* Lokal bedömning: används direkt vid inlämning, och är kvar som svar när
+   ingen AI finns. Returnerar poäng, motivering och vad som saknades. */
+function bedomLokalt(facit, svar, maxPoang) {
+  const asp = facitAspekter(facit);
+  const max = Number(maxPoang) > 0 ? Number(maxPoang) : 1;
+  const svarText = String(svar || "").toLowerCase();
+  const stammar = new Set(tokens(svar).map(t => t.length > 6 ? t.slice(0, 6) : t));
+  if (!asp.length) return { poang: 0, motiv: "Facit saknar text att jämföra mot.", traffar: [], saknade: [] };
+
+  const bedomda = asp.map(a => ({ ...a, andel: aspektTraff(a, stammar, svarText) }));
+  const del = max / asp.length;
+  let poang = 0;
+  bedomda.forEach(a => {
+    /* helt rätt aspekt ger full delpoäng, halvt täckt ger halva */
+    const v = a.andel >= 0.6 ? 1 : a.andel >= 0.3 ? 0.5 : 0;
+    poang += del * v;
+  });
+  poang = Math.min(max, Math.round(poang * 2) / 2);
+
+  const traffar = bedomda.filter(a => a.andel >= 0.6).map(a => a.text);
+  const halva = bedomda.filter(a => a.andel >= 0.3 && a.andel < 0.6).map(a => a.text);
+  const saknade = bedomda.filter(a => a.andel < 0.3).map(a => a.text);
+  const bitar = [];
+  if (traffar.length) bitar.push(`${traffar.length} av ${asp.length} delar i facit finns med`);
+  if (halva.length) bitar.push(`${halva.length} är delvis med`);
+  if (saknade.length) bitar.push(`saknas: ${saknade.join("; ").slice(0, 160)}`);
+  return {
+    poang,
+    motiv: (bitar.join(" · ") || "Ingen del av facit hittades i svaret") + ".",
+    traffar, halva, saknade
+  };
+}
+
+/* AI-bedömning. Samma facit och samma poängtak, men den kan läsa ett
+   resonemang som säger rätt sak med andra ord. */
+async function bedomMedAI(fraga, svar, maxPoang) {
+  const max = Number(maxPoang) > 0 ? Number(maxPoang) : 1;
+  const prompt =
+`Du rättar en tentamensfråga åt en läkarstudent på Karolinska Institutet. Sätt poäng på svaret genom att jämföra det med facit.
+
+FRÅGA:
+${String(fraga || "").slice(0, 1500)}
+
+FACIT (frågan är värd ${fmtPoang(max)} poäng):
+${String(svar.facit || "").slice(0, 2000)}
+
+STUDENTENS SVAR:
+${String(svar.text || "").slice(0, 3000)}
+
+Så här bedömer du:
+- Sakinnehållet avgör, inte formuleringen. Rätt begrepp uttryckt med egna ord ger full poäng, och stavfel straffas inte.
+- Täcker svaret bara en del av facit ges poäng för den delen. Facit med flera delar delar poängen mellan sig.
+- Ett resonemang som leder rätt räknas även om ett enskilt facitord saknas. Ett svar som säger något sakfel drar ned.
+- Poängen sätts i steg om 0,5 mellan 0 och ${fmtPoang(max)}.
+
+Svara med enbart en rad JSON, utan kodstaket:
+{"poang": <tal>, "motiv": "<en eller två meningar på svenska som säger vad som fanns med och vad som saknades>"}`;
+
+  const { text } = await fragaAI([{ role: "user", content: prompt }], {});
+  const m = String(text || "").match(/\{[\s\S]*\}/);
+  if (!m) throw new Error("oläsbart svar");
+  const j = JSON.parse(m[0]);
+  let p = Number(String(j.poang).replace(",", "."));
+  if (!isFinite(p)) throw new Error("ingen poäng i svaret");
+  p = Math.max(0, Math.min(max, Math.round(p * 2) / 2));
+  return { poang: p, motiv: String(j.motiv || "").slice(0, 400) };
+}
+
+/* Poängstegen man kan välja mellan om man vill ändra bedömningen. */
+function poangSteg(max) {
+  const steg = max <= 3 ? 0.5 : max <= 6 ? 0.5 : 1;
+  const ut = [];
+  for (let v = 0; v <= max + 0.0001; v += steg) ut.push(Math.round(v * 2) / 2);
+  return ut;
+}
+
+function fmtPoang(v) {
+  const n = Math.round(Number(v) * 2) / 2;
+  return (Math.abs(n - Math.round(n)) < 0.01 ? String(Math.round(n)) : String(n).replace(".", ","));
+}
+
+/* Sätter poäng på alla besvarade skrivfrågor som ännu inte bedömts. Körs vid
+   inlämning så att totalen är komplett direkt. */
+function bedomForsokLokalt(forsok, tenta) {
+  let andrat = false;
+  forsok.poang = forsok.poang || {};
+  forsok.bedomning = forsok.bedomning || {};
+  forsok.ordning.forEach(fi => {
+    const f = tenta.fragor[fi];
+    if (!f || f.typ !== "text" || !(f.facit && f.facit.trim())) return;
+    const svar = forsok.svar[fi];
+    if (typeof forsok.poang[fi] === "number") return;
+    if (!(typeof svar === "string" && svar.trim())) {
+      forsok.poang[fi] = 0;
+      forsok.bedomning[fi] = { kalla: "lokal", motiv: "Frågan lämnades obesvarad." };
+      andrat = true;
+      return;
+    }
+    const b = bedomLokalt(f.facit, svar, f.poang);
+    forsok.poang[fi] = b.poang;
+    forsok.bedomning[fi] = { kalla: "lokal", motiv: b.motiv };
+    andrat = true;
+  });
+  return andrat;
+}
+
+/* Låter AI:n gå igenom skrivsvaren och skärpa bedömningen, ett svar i taget.
+   Körs bara en gång per försök, och bara där studenten faktiskt skrivit något. */
+const _aiBedomd = {};
+async function bedomForsokMedAI(forsokId, ritaOm) {
+  if (!motor || _aiBedomd[forsokId] === "kör" || _aiBedomd[forsokId] === "klar") return;
+  const post = tstore.forsok.find(x => x.id === forsokId);
+  if (!post) return;
+  const tenta = forsokTenta(post);
+  if (!tenta) return;
+  const kvar = post.ordning.filter(fi => {
+    const f = tenta.fragor[fi];
+    const svar = post.svar[fi];
+    return f && f.typ === "text" && f.facit && f.facit.trim() &&
+      typeof svar === "string" && svar.trim() &&
+      (post.bedomning || {})[fi]?.kalla !== "ai" && (post.bedomning || {})[fi]?.kalla !== "jag";
+  });
+  if (!kvar.length) { _aiBedomd[forsokId] = "klar"; return; }
+  _aiBedomd[forsokId] = "kör";
+  post.bedomning = post.bedomning || {};
+  for (const fi of kvar) {
+    const f = tenta.fragor[fi];
+    try {
+      const b = await bedomMedAI(f.q, { facit: f.facit, text: post.svar[fi] }, f.poang);
+      post.poang[fi] = b.poang;
+      post.bedomning[fi] = { kalla: "ai", motiv: b.motiv };
+    } catch (e) {
+      post.bedomning[fi] = Object.assign({}, post.bedomning[fi], { aiFel: String(e && e.message || e).slice(0, 120) });
+    }
+    uppdateraSammanfattning(post, tenta);
+    tsave();
+    if (ritaOm) ritaOm(fi);
+  }
+  _aiBedomd[forsokId] = "klar";
+}
+
+function uppdateraSammanfattning(post, tenta) {
+  const r = ratta(post, tenta);
+  post.sammanfattning = {
+    ratt: r.antalRatt, antal: r.antalFragor, procent: r.totalProcent,
+    godkand: r.godkand, svarade: r.svarade,
+    poang: r.poangFatt, poangAv: r.poangRaknad, obedomda: r.obedomda
+  };
+  if (post.duell) { try { duellRegistrera(post, r, post.duell); } catch (e) {} }
+  return r;
+}
+
+/* Kortet som visas för en skrivfråga i resultatvyn. */
+function skrivsvarKort(rad, forsokId) {
+  const f = rad.fraga;
+  const svar = typeof rad.svarat === "string" ? rad.svarat : "";
+  const post = tstore.forsok.find(x => x.id === forsokId);
+  const bed = ((post && post.bedomning) || {})[rad.fi] || null;
+  const vantar = !!motor && !!(f.facit && f.facit.trim()) && !!svar.trim()
+    && (!bed || (bed.kalla !== "ai" && bed.kalla !== "jag" && !bed.aiFel));
+
+  const stycke = (rubrik, text, farg) => `
+    <div style="margin-top:10px">
+      <div style="font-size:11.5px; letter-spacing:.08em; text-transform:uppercase;
+        color:var(--ink-3); font-family:var(--mono)">${esc(rubrik)}</div>
+      <div style="white-space:pre-wrap; overflow-wrap:anywhere; font-size:14.5px; line-height:1.6;
+        margin-top:3px${farg ? "; color:" + farg : ""}">${text}</div>
+    </div>`;
+
+  return `
+    ${stycke("Ditt svar", svar ? esc(svar) : `<i style="color:var(--ink-3)">obesvarad</i>`, "")}
+    ${stycke(f.facitrubrik || "Facit",
+      f.facit ? esc(f.facit) : `<i style="color:var(--ink-3)">facit saknas</i>`, "var(--ok)")}
+    <div data-bed="${rad.fi}">${bedomningsPanel(rad, bed, vantar)}</div>`;
+}
+
+/* Själva bedömningsrutan — byts ut för sig när AI:n blir klar. */
+function bedomningsPanel(rad, bed, vantar) {
+  const f = rad.fraga;
+  const satt = rad.bedomd ? rad.poangFatt : null;
+  if (!f.facit || !f.facit.trim()) {
+    return `<div class="expl"><b>Ingen facittext för den här frågan.</b>
+      Den går därför inte att bedöma mot något. Vill du ändå ge den poäng gör du det här nedan.</div>
+      ${poangRad(rad, satt, true)}`;
+  }
+  const kalla = bed ? bed.kalla : null;
+  const etikett = kalla === "ai" ? "bedömd mot facit"
+    : kalla === "jag" ? "din poäng"
+    : "ordjämförelse";
+  return `
+    <div class="panel" style="margin-top:12px">
+      <h4 style="display:flex; align-items:center; gap:9px; flex-wrap:wrap">
+        ${satt === null ? "Obedömd" : `Poäng ${fmtPoang(satt)} av ${fmtPoang(rad.poangMax)}`}
+        <span class="chip${satt !== null && satt >= rad.poangMax ? " done" : ""}">${esc(etikett)}</span>
+        ${vantar ? `<span class="chip accent">ser över svaret…</span>` : ""}
+      </h4>
+      ${bed && bed.motiv ? `<p style="font-size:13.5px; color:var(--ink-2); margin:0 0 4px">${esc(bed.motiv)}</p>` : ""}
+      ${bed && bed.aiFel ? `<p style="font-size:12.5px; color:var(--ink-3); margin:0 0 4px">
+        Den utförliga bedömningen gick inte att hämta (${esc(bed.aiFel)}), så poängen kommer från
+        ordjämförelsen.</p>` : ""}
+      ${kalla === "lokal" && !motor ? `<p style="font-size:12.5px; color:var(--ink-3); margin:6px 0 0">
+        Poängen är satt genom att jämföra orden i ditt svar med facit. Den ser ord, inte resonemang —
+        lägg in en API-nyckel i Fråga-panelen så bedöms svaren på innehåll i stället.</p>` : ""}
+      <details style="margin-top:10px">
+        <summary style="cursor:pointer; font-size:13px; color:var(--ink-3)">Ändra poängen</summary>
+        ${poangRad(rad, satt, false)}
+      </details>
+    </div>`;
+}
+
+function poangRad(rad, satt, oppen) {
+  return `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:${oppen ? "12px" : "10px"}">
+    ${poangSteg(rad.poangMax).map(v => `
+      <button class="btn${satt !== null && Math.abs(satt - v) < 0.01 ? " primary" : ""}"
+        data-satt="${rad.fi}:${v}">${fmtPoang(v)}</button>`).join("")}
+  </div>`;
+}
 /* ---------- vyer: tentamenssimulator ---------- */
 let _tentaTimer = null, _tentaTangent = null;
+/* Ett svar räknas som avgivet om det är ett valt alternativ eller text man skrivit. */
+function harSvarat(v) {
+  if (typeof v === "string") return v.trim().length > 0;
+  return v !== undefined && v !== null;
+}
+
 function stoppaTimer() {
   if (_tentaTimer) { clearInterval(_tentaTimer); _tentaTimer = null; }
   if (_tentaTangent) { document.removeEventListener("keydown", _tentaTangent); _tentaTangent = null; }
@@ -14845,8 +15448,9 @@ function viewTentaNy() {
           PDF-filer — exportera tentan som PDF och försök igen.`);
         return;
       }
-      res = await pdfLasTenta(buf, (s, n) => {
-        prog.innerHTML = `<b>Läser ${esc(f.name)}</b> — sida ${s} av ${n}…
+      res = await pdfLasTenta(buf, (s, n, steg) => {
+        const vad = steg === "figurer" ? `figur ${s} av ${n}` : `sida ${s} av ${n}`;
+        prog.innerHTML = `<b>Läser ${esc(f.name)}</b> — ${vad}…
           <span class="bar" style="display:block; margin-top:9px"><i style="width:${Math.round(s / n * 100)}%"></i></span>`;
       });
     } catch (e) {
@@ -14864,12 +15468,21 @@ function viewTentaNy() {
     }
     if (!res.fragor.length) {
       fel("Inga frågor kunde tolkas",
-        `PDF:en har text (${res.diagnos.rader} rader på ${res.diagnos.sidor} sidor), men inga frågor med
-         numrering och svarsalternativ i formen <b>a) b) c)</b> hittades. Ligger frågorna i två spalter,
-         eller används en annan numrering? Skicka filen till mig i chatten så tittar jag på den.`);
+        `PDF:en har text (${res.diagnos.rader} rader på ${res.diagnos.sidor} sidor), men ingen av de
+         tre uppställningar läsaren känner igen hittades: numrerade frågor med <b>a) b) c)</b>,
+         frågor med <b>Välj ett alternativ</b>, eller namngivna frågor av typen
+         <b>Ämne-SBA-3 (HA, 1 p)</b>. Ligger frågorna i två spalter, eller ser numreringen annorlunda
+         ut? Skicka filen till mig i chatten så lägger jag till formatet.`);
       return;
     }
-    visaGranskning(f.name, res);
+    try {
+      visaGranskning(f.name, res);
+    } catch (e) {
+      fel("Frågorna lästes, men granskningen kunde inte visas",
+        `${res.fragor.length} frågor kom fram ur PDF:en, men något gick fel när de skulle ritas upp:
+         <b>${esc(String(e && e.message || e))}</b>. Skicka filen till mig i chatten med det
+         felmeddelandet, så rättar jag det.`);
+    }
   }
 
   function visaGranskning(filnamn, res) {
@@ -14878,12 +15491,20 @@ function viewTentaNy() {
     const HUR = { textrad: "rätt svar-rad", kryss: "kryss", markering: "markering",
       fetstil: "fetstil", facitlista: "facitlista", bock: "bock i facit", manuell: "valt av dig" };
 
+    /* En fråga saknar facit om det inte finns något att rätta mot: för en
+       kryssfråga inget markerat alternativ, för en skrivfråga ingen facittext. */
+    const saknarFacit = f => f.typ === "text" ? !(f.facit && f.facit.trim()) : f.svar === null;
+
     const rita = () => {
-      const utan = F.filter(f => f.svar === null).length;
+      const summaPoang = F.reduce((n, f) => n + (Number(f.poang) > 0 ? Number(f.poang) : 1), 0);
+      const skriv = F.filter(f => f.typ === "text").length;
+      const utan = F.filter(saknarFacit).length;
       const oense = F.filter(f => f.oense).length;
       status.innerHTML = `
         <div class="note" style="margin-top:20px">
-          <b>${F.length} frågor lästes ur ${esc(filnamn)}</b> (${d.sidor} sidor).
+          <b>${F.length} frågor lästes ur ${esc(filnamn)}</b> (${d.sidor} sidor${
+            summaPoang !== F.length ? `, ${fmtPoang(summaPoang)} poäng` : ""}${
+            skriv ? `, varav ${skriv} ${skriv === 1 ? "skrivfråga" : "skrivfrågor"}` : ""}).
           ${F.length - utan} har facit${utan ? `, <b style="color:var(--warn)">${utan} saknar</b>` : ""}.
           ${oense ? `<b style="color:var(--warn)">${oense} har motstridiga markeringar</b> och är flaggade.` : ""}
           ${Object.keys(d.metoder).length ? `<br><span style="font-size:13px; color:var(--ink-2)">Hittat via:
@@ -14903,10 +15524,10 @@ function viewTentaNy() {
             <span>Tid</span>
             <select id="ttid" style="font:inherit; padding:9px 12px; border-radius:9px;
               border:1px solid var(--line-strong); background:var(--paper); color:var(--ink)">
-              ${[30, 60, 90, 120, 180, 240].map(v => `<option value="${v}"${v === narmastTid(F.length) ? " selected" : ""}>${v} minuter</option>`).join("")}
+              ${[30, 60, 90, 120, 180, 240].map(v => `<option value="${v}"${v === narmastTid(F) ? " selected" : ""}>${v} minuter</option>`).join("")}
             </select>
           </label>
-          <button class="btn primary" id="sparaPdf">Spara och koppla till lärandemål</button>
+          <button class="btn primary" id="sparaPdf">Spara tentan</button>
           <button class="btn" id="visaUtan"${utan ? "" : " hidden"}>Visa bara de ${utan} utan facit</button>
         </div>
 
@@ -14919,49 +15540,83 @@ function viewTentaNy() {
         F[i].oense = false;
         rita();
       }));
+
+      /* Facittexten går att skriva om direkt i granskningen. Ändringen sparas
+         löpande i frågan utan omritning, så markören stannar kvar i rutan. */
+      status.querySelectorAll("[data-facit]").forEach(ta => ta.addEventListener("input", () => {
+        F[+ta.dataset.facit].facit = ta.value;
+      }));
+
       const vu = document.getElementById("visaUtan");
       if (vu) vu.addEventListener("click", () => {
         const pa = vu.dataset.pa === "1";
         vu.dataset.pa = pa ? "" : "1";
         vu.textContent = pa ? `Visa bara de ${utan} utan facit` : "Visa alla frågor";
         status.querySelectorAll("[data-fraga]").forEach(k => {
-          k.hidden = !pa && F[+k.dataset.fraga].svar !== null;
+          k.hidden = !pa && !saknarFacit(F[+k.dataset.fraga]);
         });
       });
-      document.getElementById("sparaPdf").addEventListener("click", () => {
-        const t = autokoppla(normaliseraTenta({
+
+      document.getElementById("sparaPdf").addEventListener("click", async () => {
+        const knapp = document.getElementById("sparaPdf");
+        knapp.disabled = true; knapp.textContent = "Sparar…";
+        const t = normaliseraTenta({
           id: tid(),
           titel: document.getElementById("tnamn").value.trim() || filnamn,
           kurs: KURSER[0].id,
           tid: +document.getElementById("ttid").value,
           ordning: "fast",
           kalla: filnamn,
-          fragor: F.map(f => ({ id: f.id, q: f.q, options: f.options, svar: f.svar,
-            bild: f.bild || null, kalla: `${filnamn}, sida ${f.sida}` }))
-        }));
+          fragor: F.map(f => ({
+            id: f.id, q: f.q, options: f.options, svar: f.svar,
+            typ: f.typ, sort: f.sort, namn: f.namn, nr: f.nr,
+            poang: f.poang, facit: f.facit, facitrubrik: f.facitrubrik,
+            avsnitt: f.avsnitt, bild: f.bild || null,
+            kalla: `${filnamn}, sida ${f.sida}`
+          }))
+        });
+        /* Kopplingen till kursens lärandemål är ett extra, inte ett krav: en tenta
+           från en annan kurs sparas precis lika bra utan den. Den görs efter en
+           paus så att knappen hinner rita om sig på mobilen. */
+        await new Promise(r => setTimeout(r, 30));
+        try { autokoppla(t); } catch (e) {}
         tstore.egna.unshift(t); tsave();
         go("#/tenta/" + encodeURIComponent(t.id));
       });
     };
 
-    const kort = (f, i) => `
+    const kort = (f, i) => {
+      const text = f.typ === "text";
+      return `
       <div class="qcard" data-fraga="${i}" style="max-width:none">
-        <div class="qnum">Fråga ${f.nr} · sida ${f.sida}
-          ${f.svar === null
-            ? `<span class="chip" style="margin-left:8px; background:color-mix(in srgb, var(--warn) 14%, transparent); color:var(--warn); border-color:transparent">saknar facit</span>`
-            : `<span class="chip done" style="margin-left:8px">${HUR[f.hur] || "valt av dig"}</span>`}
+        <div class="qnum">Fråga ${f.nr} · sida ${f.sida}${f.poang > 1 || text ? ` · ${f.poang} p` : ""}${
+          f.sort ? ` · ${esc(f.sort)}` : ""}${f.avsnitt ? ` · ${esc(f.avsnitt)}` : ""}
+          ${text
+            ? (f.facit
+                ? `<span class="chip done" style="margin-left:8px">facittext</span>`
+                : `<span class="chip" style="margin-left:8px; background:color-mix(in srgb, var(--warn) 14%, transparent); color:var(--warn); border-color:transparent">saknar facit</span>`)
+            : f.svar === null
+              ? `<span class="chip" style="margin-left:8px; background:color-mix(in srgb, var(--warn) 14%, transparent); color:var(--warn); border-color:transparent">saknar facit</span>`
+              : `<span class="chip done" style="margin-left:8px">${HUR[f.hur] || "valt av dig"}</span>`}
           ${f.oense ? `<span class="chip accent" style="margin-left:6px">motstridiga markeringar</span>` : ""}
         </div>
         <div class="qtext" style="font-size:15.5px">${esc(f.q)}</div>
         ${f.bild ? `<img class="fragebild" src="${f.bild}" alt="Figur till fråga ${f.nr}">` : ""}
-        <div class="opts">
+        ${text ? `
+          <div style="margin-top:10px">
+            <span style="font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); font-family:var(--mono)">${esc(f.facitrubrik || "Facit")}</span>
+            <textarea data-facit="${i}" rows="4" placeholder="Klistra in eller skriv facit för den här frågan…"
+              style="${KODSTIL}; font-family:var(--body); font-size:13.5px; white-space:pre-wrap; margin-top:6px">${esc(f.facit || "")}</textarea>
+          </div>`
+          : `<div class="opts">
           ${f.options.map((o, oi) => `
             <button class="opt${f.svar === oi ? " correct" : ""}" data-svar="${i}:${oi}"
               aria-pressed="${f.svar === oi}">
               <span class="lt">${String.fromCharCode(65 + oi)}</span><span>${esc(o)}</span>
             </button>`).join("")}
-        </div>
+        </div>`}
       </div>`;
+    };
 
     rita();
   }
@@ -14975,8 +15630,12 @@ function viewTentaNy() {
       .trim() || "Tenta";
   }
 
-  function narmastTid(n) {
-    const onskad = Math.max(30, Math.round(n * 1.5));
+  /* Tidsförslag: ungefär tre minuter per poäng när tentan är poängsatt, annars
+     halvannan minut per fråga. En essätenta på 50 poäng ska inte få 30 minuter. */
+  function narmastTid(fragor) {
+    const n = fragor.length;
+    const poang = fragor.reduce((s, f) => s + (Number(f.poang) > 0 ? Number(f.poang) : 1), 0);
+    const onskad = Math.max(30, Math.round(poang > n ? poang * 3 : n * 1.5));
     return [30, 60, 90, 120, 180, 240].reduce((a, b) => Math.abs(b - onskad) < Math.abs(a - onskad) ? b : a);
   }
 }
@@ -14989,29 +15648,40 @@ function viewTentaStart(id) {
     <div class="empty"><b>Den här tentan finns inte längre</b>
     Den kan ha tagits bort. Gå tillbaka och välj en annan.</div>`; return; }
 
-  const bedombara = t.fragor.filter(f => f.svar !== null).length;
+  /* En fråga går att rätta om den har något facit — ett markerat alternativ
+     eller, för en skrivfråga, en facittext. */
+  const harFacit = f => f.typ === "text" ? !!(f.facit && f.facit.trim()) : f.svar !== null;
+  const bedombara = t.fragor.filter(harFacit).length;
+  const skrivfragor = t.fragor.filter(f => f.typ === "text").length;
+  const summaPoang = t.fragor.reduce((n, f) => n + (Number(f.poang) > 0 ? Number(f.poang) : 1), 0);
   const okopplade = t.fragor.filter(f => !f.mal).length;
   const laga = t.fragor.filter(f => f.mal && f.konf === "låg").length;
+  const hor = egenKurs(t);
+
+  /* Listan över lärandemål är lång och likadan för varje rad — den byggs en gång. */
+  const malVal = malLista()
+    .map(x => `<option value="${esc(x.id)}">${esc(x.id)} ${esc(x.mal.titel.slice(0, 52))}</option>`).join("");
 
   const rader = t.fragor.map((f, i) => {
     const ref = f.mal ? malRef(f.mal) : null;
-    const kand = f.mal ? [] : hittaMal([f.q, ...f.options].join(" "), 5);
-    const alternativ = malLista();
     return `
       <tr>
         <td style="vertical-align:top; white-space:nowrap; color:var(--ink-3)">${i + 1}</td>
         <td style="vertical-align:top">
           <div style="font-size:13.5px">${esc(f.q.slice(0, 130))}${f.q.length > 130 ? "…" : ""}</div>
           <div style="font-size:12px; color:var(--ink-3); margin-top:3px">
-            ${f.svar === null ? `<b style="color:var(--warn)">saknar facit</b>` : `facit: ${String.fromCharCode(65 + f.svar)}`}
+            ${!harFacit(f) ? `<b style="color:var(--warn)">saknar facit</b>`
+              : f.typ === "text" ? `facittext${f.poang > 1 ? ` · ${fmtPoang(f.poang)} p` : ""}`
+              : `facit: ${String.fromCharCode(65 + f.svar)}${f.poang > 1 ? ` · ${fmtPoang(f.poang)} p` : ""}`}
             ${f.konf ? ` · koppling: ${f.konf}` : ""}
           </div>
         </td>
         <td style="vertical-align:top; min-width:230px">
-          <select data-map="${i}" style="width:100%; font:inherit; font-size:13px; padding:6px 8px;
+          <select data-map="${i}" data-vald="${esc(f.mal || "")}"
+            style="width:100%; font:inherit; font-size:13px; padding:6px 8px;
             border-radius:7px; border:1px solid var(--line-strong); background:var(--paper); color:var(--ink)">
-            <option value=""${f.mal ? "" : " selected"}>— ingen koppling —</option>
-            ${alternativ.map(x => `<option value="${esc(x.id)}"${x.id === f.mal ? " selected" : ""}>${esc(x.id)} ${esc(x.mal.titel.slice(0, 52))}</option>`).join("")}
+            <option value="">— ingen koppling —</option>
+            ${malVal}
           </select>
           ${ref ? `<div style="font-size:11.5px; color:var(--ink-3); margin-top:4px">Modul ${ref.modul.nr} · ${esc(ref.sub.titel)}</div>` : ""}
         </td>
@@ -15025,24 +15695,42 @@ function viewTentaStart(id) {
 
     <div class="split">
       <div>
-        <p class="lede">Kontrollera kopplingen till lärandemål innan du börjar. Kopplingen styr
-        både förklaringarna och modulanalysen i resultatet.</p>
+        ${hor
+          ? `<p class="lede">Kontrollera kopplingen till lärandemål innan du börjar. Kopplingen styr
+             både förklaringarna och modulanalysen i resultatet.</p>`
+          : `<p class="lede">Tentan rättas mot sitt eget facit — ${bedombara} av ${t.fragor.length} frågor
+             har ett, och resultatet redovisas på tentans egna avsnitt. Frågorna behöver alltså
+             <b>inte</b> vara kopplade till kursens lärandemål för att tentan ska fungera.</p>`}
 
-        ${okopplade || laga ? `<div class="note" style="margin-top:14px">
+        ${hor && (okopplade || laga) ? `<div class="note" style="margin-top:14px">
           <b>Granska ${okopplade + laga} frågor.</b>
           ${okopplade ? `${okopplade} saknar koppling.` : ""}
           ${laga ? ` ${laga} har låg säkerhet i matchningen.` : ""}
           De påverkar modulanalysen, så det lönar sig att rätta dem nu.</div>` : ""}
         ${bedombara < t.fragor.length ? `<div class="note">
-          <b>${t.fragor.length - bedombara} frågor saknar facit</b> och räknas varken i poängen eller
-          i modulprocenten. De visas ändå med sitt lärandemål efter provet.</div>` : ""}
+          <b>${t.fragor.length - bedombara === 1 ? "En fråga saknar facit" : `${t.fragor.length - bedombara} frågor saknar facit`}</b>
+          och räknas varken i poängen eller i procenten. Frågan ställs ändå — du får bara ingen
+          rättning på den.</div>` : ""}
 
         <div class="rule"></div>
-        <h3>Koppling per fråga</h3>
-        <div class="tablewrap" style="max-height:520px; overflow:auto">
-          <table><thead><tr><th>#</th><th>Fråga</th><th>Lärandemål</th></tr></thead>
-          <tbody>${rader}</tbody></table>
-        </div>
+        ${hor
+          ? `<h3>Koppling per fråga</h3>
+             <div class="tablewrap" style="max-height:520px; overflow:auto">
+               <table><thead><tr><th>#</th><th>Fråga</th><th>Lärandemål</th></tr></thead>
+               <tbody>${rader}</tbody></table>
+             </div>`
+          : `<details class="panel">
+               <summary style="cursor:pointer; font-weight:600; font-family:var(--display); font-size:16px">
+                 Frågorna i tentan${okopplade === t.fragor.length ? "" : ` · ${t.fragor.length - okopplade} kopplade till lärandemål`}</summary>
+               <p style="font-size:13.5px; color:var(--ink-2); margin:10px 0 0">
+                 Den här tentan verkar inte höra till ${esc((kursById(t.kurs) || KURSER[0]).titel)} —
+                 för få frågor matchar lärandemålen. Du kan koppla enskilda frågor själv om du vill att de
+                 ska räknas in i modulanalysen, men det är helt frivilligt.</p>
+               <div class="tablewrap" style="max-height:520px; overflow:auto; margin-top:12px">
+                 <table><thead><tr><th>#</th><th>Fråga</th><th>Lärandemål</th></tr></thead>
+                 <tbody>${rader}</tbody></table>
+               </div>
+             </details>`}
       </div>
 
       <aside class="aside">
@@ -15071,8 +15759,14 @@ function viewTentaStart(id) {
           <h4>Innehåll</h4>
           <ul class="delmal">
             <li><span class="dot"></span><span>${t.fragor.length} frågor, varav ${bedombara} med facit</span></li>
-            <li><span class="dot"></span><span>${t.fragor.length - okopplade} kopplade till lärandemål</span></li>
-            <li><span class="dot"></span><span>Godkäntgräns 70 % per modul</span></li>
+            ${summaPoang !== t.fragor.length
+              ? `<li><span class="dot"></span><span>${fmtPoang(summaPoang)} poäng totalt</span></li>` : ""}
+            ${skrivfragor
+              ? `<li><span class="dot"></span><span>${skrivfragor} ${skrivfragor === 1 ? "skrivfråga" : "skrivfrågor"} — du sätter poängen själv mot facit</span></li>` : ""}
+            <li><span class="dot"></span><span>${hor
+              ? `${t.fragor.length - okopplade} kopplade till lärandemål`
+              : "Redovisas på tentans egna avsnitt"}</span></li>
+            <li><span class="dot"></span><span>Godkäntgräns 70 %</span></li>
           </ul>
         </div>
         ${t.inbyggd ? "" : `<button class="btn wide" id="taBort">Ta bort tentan</button>`}
@@ -15080,11 +15774,14 @@ function viewTentaStart(id) {
       </aside>
     </div>`;
 
-  view.querySelectorAll("[data-map]").forEach(sel => sel.addEventListener("change", () => {
-    const i = +sel.dataset.map;
-    sattMal(t.id, t.fragor[i].id, sel.value || null);
-    render();
-  }));
+  view.querySelectorAll("[data-map]").forEach(sel => {
+    sel.value = sel.dataset.vald || "";
+    sel.addEventListener("change", () => {
+      const i = +sel.dataset.map;
+      sattMal(t.id, t.fragor[i].id, sel.value || null);
+      render();
+    });
+  });
   document.getElementById("start").addEventListener("click", () => {
     startaForsok(t, {
       minuter: +document.getElementById("mtid").value,
@@ -15118,7 +15815,7 @@ function viewTentaKor() {
   const fi = a.ordning[pos];
   const f = t.fragor[fi];
   const valt = a.svar[fi];
-  const svarade = Object.keys(a.svar).length;
+  const svarade = a.ordning.filter(oi => harSvarat(a.svar[oi])).length;
 
   view.innerHTML = `
     <div class="tentahead">
@@ -15135,26 +15832,34 @@ function viewTentaKor() {
 
     <div class="tgrid" id="tgrid" role="navigation" aria-label="Frågeöversikt">
       ${a.ordning.map((oi, p) => `
-        <button class="tnum${p === pos ? " nu" : ""}${a.svar[oi] !== undefined ? " svarad" : ""}${a.flagg[oi] ? " flagg" : ""}"
-          data-pos="${p}" aria-label="Fråga ${p + 1}${a.svar[oi] !== undefined ? ", besvarad" : ""}${a.flagg[oi] ? ", flaggad" : ""}"
+        <button class="tnum${p === pos ? " nu" : ""}${harSvarat(a.svar[oi]) ? " svarad" : ""}${a.flagg[oi] ? " flagg" : ""}"
+          data-pos="${p}" aria-label="Fråga ${p + 1}${harSvarat(a.svar[oi]) ? ", besvarad" : ""}${a.flagg[oi] ? ", flaggad" : ""}"
           aria-current="${p === pos}">${p + 1}</button>`).join("")}
     </div>
 
     <div class="qcard" style="max-width:none; margin-top:20px">
-      <div class="qnum">Fråga ${pos + 1} av ${n}</div>
+      <div class="qnum">Fråga ${pos + 1} av ${n}${f.poang > 1 ? ` · ${f.poang} p` : ""}${
+        f.sort ? ` · ${esc(f.sort)}` : ""}${f.avsnitt ? ` · ${esc(f.avsnitt)}` : ""}</div>
       <div class="qtext">${esc(f.q)}</div>
       ${f.bild ? `<img class="fragebild" src="${f.bild}" alt="Figur till frågan">` : ""}
-      <div class="opts" id="topts" role="radiogroup" aria-label="Svarsalternativ">
+      ${f.typ === "text" ? `
+        <textarea id="tskriv" rows="${f.poang >= 3 ? 12 : 6}" placeholder="Skriv ditt svar här…"
+          style="${INPSTIL}; width:100%; margin-top:12px; line-height:1.6; resize:vertical"
+          >${esc(typeof valt === "string" ? valt : "")}</textarea>
+        <p style="font-size:12.5px; color:var(--ink-3); margin:8px 0 0">
+          Skrivsvar rättas efter inlämning: du får se facit bredvid ditt svar och sätter poängen själv,
+          med hjälp av vilka begrepp som saknas.</p>`
+        : `<div class="opts" id="topts" role="radiogroup" aria-label="Svarsalternativ">
         ${f.options.map((o, oi) => `
           <button class="opt${valt === oi ? " vald" : ""}" data-o="${oi}" role="radio" aria-checked="${valt === oi}">
             <span class="lt">${String.fromCharCode(65 + oi)}</span><span>${esc(o)}</span>
           </button>`).join("")}
-      </div>
+      </div>`}
       <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; align-items:center">
         <button class="btn" id="prev"${pos === 0 ? " disabled" : ""}>← Föregående</button>
         <button class="btn" id="next"${pos === n - 1 ? " disabled" : ""}>Nästa →</button>
         <button class="btn${a.flagg[fi] ? " done" : ""}" id="flagga">${a.flagg[fi] ? "Flaggad för granskning" : "Flagga för granskning"}</button>
-        ${valt !== undefined ? `<button class="btn" id="rensa">Rensa svaret</button>` : ""}
+        ${harSvarat(valt) ? `<button class="btn" id="rensa">Rensa svaret</button>` : ""}
       </div>
     </div>
 
@@ -15165,11 +15870,30 @@ function viewTentaKor() {
   const gaTill = p => { a.pos = Math.max(0, Math.min(p, n - 1)); tsave(); render(); };
   const fb = view.querySelector(".fragebild");
   if (fb) fb.addEventListener("click", () => visaStor(fb.src.replace(/^data:image\/jpeg;base64,/, ""), "Figur"));
-  view.querySelector("#topts").addEventListener("click", e => {
+  const optsRuta = view.querySelector("#topts");
+  if (optsRuta) optsRuta.addEventListener("click", e => {
     const b = e.target.closest(".opt"); if (!b) return;
     a.svar[fi] = +b.dataset.o; tsave();
     if (pos < n - 1) gaTill(pos + 1); else render();
   });
+  const svarsruta = document.getElementById("tskriv");
+  if (svarsruta) {
+    let spar = null;
+    svarsruta.addEventListener("input", () => {
+      a.svar[fi] = svarsruta.value;
+      clearTimeout(spar);
+      spar = setTimeout(() => { tsave(); uppdateraRutnat(); }, 400);
+    });
+    svarsruta.addEventListener("blur", () => { clearTimeout(spar); tsave(); uppdateraRutnat(); });
+  }
+  /* frågeöversikten ska visa att en skrivfråga blivit besvarad */
+  function uppdateraRutnat() {
+    const knapp = view.querySelector(`.tnum[data-pos="${pos}"]`);
+    if (knapp) knapp.classList.toggle("svarad", harSvarat(a.svar[fi]));
+    const chip = document.getElementById("tsvar");
+    if (chip) chip.textContent =
+      `${a.ordning.filter(x => harSvarat(a.svar[x])).length} av ${n} besvarade`;
+  }
   document.getElementById("prev").addEventListener("click", () => gaTill(pos - 1));
   document.getElementById("next").addEventListener("click", () => gaTill(pos + 1));
   document.getElementById("flagga").addEventListener("click", () => {
@@ -15181,7 +15905,7 @@ function viewTentaKor() {
     const b = e.target.closest(".tnum"); if (b) gaTill(+b.dataset.pos);
   });
   document.getElementById("lamna").addEventListener("click", async () => {
-    const kvar = n - Object.keys(a.svar).length;
+    const kvar = n - a.ordning.filter(oi => harSvarat(a.svar[oi])).length;
     if (kvar && !await bekrafta(`${kvar} ${kvar === 1 ? "fråga är" : "frågor är"} obesvarade. Lämna in ändå?`, "Lämna in")) return;
     lamnaIn(false);
   });
@@ -15228,7 +15952,31 @@ function viewTentaResultat(fid) {
     <div class="empty"><b>Underlaget är borttaget</b>Resultatet kan inte visas i detalj.</div>`; return; }
   const r = ratta(f, t);
 
+  /* Hör tentan till kursen visas modulanalysen. Gör den inte det redovisas
+     resultatet på tentans egna avsnitt, och lärandemålen hålls utanför. */
+  const hor = egenKurs(t);
   const otestade = r.moduler.filter(m => !m.testad);
+  const avsnittRader = r.avsnitt.filter(a => a.testad).map(a => {
+    const pr = a.procent;
+    const farg = pr === null ? "var(--ink-3)" : pr >= 70 ? "var(--ok)" : "var(--err)";
+    return `
+      <tr>
+        <td style="vertical-align:top"><b>${esc(a.namn)}</b></td>
+        <td style="vertical-align:top; white-space:nowrap">
+          ${pr === null ? "—" : `<b>${fmtPoang(a.poang)} av ${fmtPoang(a.poangAv)} p – ${pr} %</b>`}
+          ${a.obesvarade ? `<br><span style="font-size:12px;color:var(--ink-3)">${a.obesvarade} obesvarade räknas inte</span>` : ""}
+          ${a.obedomda ? `<br><span style="font-size:12px;color:var(--warn)">${a.obedomda} väntar på bedömning</span>` : ""}
+        </td>
+        <td style="vertical-align:top; width:130px">
+          <span class="bar" style="display:block; margin:8px 0 0; min-width:90px"><i style="width:${pr || 0}%; background:${farg}"></i></span>
+        </td>
+        <td style="vertical-align:top">
+          ${pr === null ? `<span class="chip">Inget bedömt än</span>`
+            : pr >= 70 ? `<span class="chip done">${TICK} Målet uppnått</span>`
+            : `<span class="chip" style="background:color-mix(in srgb, var(--err) 12%, transparent); color:var(--err); border-color:transparent">Träna extra på det här avsnittet</span>`}
+        </td>
+      </tr>`;
+  }).join("");
   const modulRader = r.moduler.filter(m => m.testad).map(m => {
     const p = m.procent;
     const farg = p === null ? "var(--ink-3)" : p >= 70 ? "var(--ok)" : "var(--err)";
@@ -15237,7 +15985,9 @@ function viewTentaResultat(fid) {
         <td style="vertical-align:top"><b>Modul ${m.modul.nr}</b><br>
           <span style="font-size:12.5px;color:var(--ink-3)">${esc(m.modul.titel)}</span></td>
         <td style="vertical-align:top; white-space:nowrap">
-          ${p === null ? "—" : `<b>${m.ratt} av ${m.grundbara} rätt – ${p} %</b>`}
+          ${p === null ? "—" : `<b>${m.poangAv !== m.grundbara
+            ? `${fmtPoang(m.poang)} av ${fmtPoang(m.poangAv)} p`
+            : `${m.ratt} av ${m.grundbara} rätt`} – ${p} %</b>`}
           ${m.obesvarade ? `<br><span style="font-size:12px;color:var(--ink-3)">${m.obesvarade} obesvarade räknas inte</span>` : ""}
         </td>
         <td style="vertical-align:top; width:130px">
@@ -15258,20 +16008,31 @@ function viewTentaResultat(fid) {
 
   const fragelista = r.rader.map(rad => {
     const f2 = rad.fraga;
-    const ref = rad.ref;
+    /* På en tenta utanför kursen visas bara de kopplingar som är riktigt säkra
+       eller satta för hand — annars blir varje fråga garnerad med ett
+       lärandemål som bara råkar dela några ord. */
+    const ref = (hor || f2.konf === "manuell" || f2.konf === "hög") ? rad.ref : null;
     const forkl = ref ? forklaringUrMal(ref, f2) : null;
-    const dittSvar = rad.harSvar ? `${String.fromCharCode(65 + rad.svarat)}. ${esc(f2.options[rad.svarat])}` : "<i>obesvarad</i>";
-    const rattSvar = rad.bedombar ? `${String.fromCharCode(65 + f2.svar)}. ${esc(f2.options[f2.svar])}` : "<i>facit saknas</i>";
+    const dittSvar = rad.text ? "" : (rad.harSvar
+      ? `${String.fromCharCode(65 + rad.svarat)}. ${esc(f2.options[rad.svarat])}` : "<i>obesvarad</i>");
+    const rattSvar = rad.text ? "" : (rad.bedombar
+      ? `${String.fromCharCode(65 + f2.svar)}. ${esc(f2.options[f2.svar])}` : "<i>facit saknas</i>");
     return `
       <div class="qcard tres" data-status="${!rad.bedombar ? "obedomd" : rad.ratt ? "ratt" : "fel"}" style="max-width:none">
-        <div class="qnum">Fråga ${rad.plats}
-          ${!rad.bedombar ? `<span class="chip" style="margin-left:8px">ej bedömningsbar</span>`
+        <div class="qnum">Fråga ${rad.plats}${rad.poangMax > 1 || rad.text ? ` · ${fmtPoang(rad.poangMax)} p` : ""}${
+            f2.sort ? ` · ${esc(f2.sort)}` : ""}
+          ${rad.text
+            ? (!rad.bedomd
+                ? `<span class="chip accent" style="margin-left:8px">${rad.harSvar ? "bedöms…" : "obesvarad"}</span>`
+                : `<span class="chip${rad.ratt ? " done" : ""}" style="margin-left:8px">${fmtPoang(rad.poangFatt)} av ${fmtPoang(rad.poangMax)} p</span>`)
+            : !rad.bedombar ? `<span class="chip" style="margin-left:8px">ej bedömningsbar</span>`
             : rad.ratt ? `<span class="chip done" style="margin-left:8px">Rätt</span>`
             : `<span class="chip" style="margin-left:8px; background:color-mix(in srgb, var(--err) 12%, transparent); color:var(--err); border-color:transparent">Fel</span>`}
           ${rad.flaggad ? `<span class="chip accent" style="margin-left:6px">flaggad</span>` : ""}
         </div>
         <div class="qtext" style="font-size:16px">${esc(f2.q)}</div>
         ${f2.bild ? `<img class="fragebild" src="${f2.bild}" alt="Figur till frågan">` : ""}
+        ${rad.text ? skrivsvarKort(rad, f.id) : `
         <div class="tablewrap" style="margin:10px 0 0">
           <table class="wtable">
             <tr><td style="color:var(--ink-3); width:110px">Ditt svar</td>
@@ -15279,7 +16040,7 @@ function viewTentaResultat(fid) {
             <tr><td style="color:var(--ink-3)">Rätt svar</td>
                 <td style="text-align:left; font-family:inherit; color:var(--ok)">${rattSvar}</td></tr>
           </table>
-        </div>
+        </div>`}
         ${ref ? `
           <div class="expl">
             <div style="font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); font-family:var(--mono)">
@@ -15296,10 +16057,10 @@ function viewTentaResultat(fid) {
               <b>Delmål:</b> ${ref.mal.delmal.map(d => esc(d)).join(" · ")}</div>
             <button class="btn" style="margin-top:10px" data-go="${malLank(ref)}">Öppna lärandemålet →</button>
           </div>`
-          : `<div class="expl"><b>Ingen koppling till lärandemål.</b>
+          : hor ? `<div class="expl"><b>Ingen koppling till lärandemål.</b>
              Frågan kunde inte matchas mot bibliotekets innehåll — antingen för att ämnet ännu inte är
              inlagt, eller för att frågan är för kort för att matcha. Sätt kopplingen manuellt på
-             tentans startsida så räknas den med i modulanalysen nästa gång.</div>`}
+             tentans startsida så räknas den med i modulanalysen nästa gång.</div>` : ""}
       </div>`;
   }).join("");
 
@@ -15311,10 +16072,16 @@ function viewTentaResultat(fid) {
     ${f.facitOk === false ? `<div class="note" style="background:color-mix(in srgb, var(--err) 10%, transparent)">
       <b>Facit ändrades under försöket.</b> Resultatet kan inte verifieras och bör tolkas med försiktighet.</div>` : ""}
 
+    ${r.obedomda ? `<div class="note" style="background:color-mix(in srgb, var(--warn) 12%, transparent)">
+      <b>${r.obedomda} skrivsvar bedöms just nu.</b> Poängen sätts mot facit och totalen fylls i
+      allteftersom.</div>` : ""}
+
     <div class="tsum">
       <div class="tsum-box">
-        <span class="tsum-n">${r.antalRatt} / ${r.bedombara}</span>
-        <span class="tsum-l">rätt av bedömningsbara frågor</span>
+        <span class="tsum-n">${r.poangMax !== r.bedombara
+          ? `${fmtPoang(r.poangFatt)} / ${fmtPoang(r.poangRaknad)}`
+          : `${r.antalRatt} / ${r.bedombara}`}</span>
+        <span class="tsum-l">${r.poangMax !== r.bedombara ? "poäng av bedömda" : "rätt av bedömningsbara frågor"}</span>
       </div>
       <div class="tsum-box">
         <span class="tsum-n" style="color:${r.godkand ? "var(--ok)" : "var(--err)"}">${r.totalProcent} %</span>
@@ -15332,15 +16099,31 @@ function viewTentaResultat(fid) {
 
     <div class="note" style="margin-top:16px; background:${r.godkand ? "var(--teal-soft)" : "var(--accent-soft)"}">
       ${r.godkand
-        ? `<b>Du klarade 70 %-gränsen totalt.</b> Kontrollera ändå modultabellen nedan — målet är
-           minst 70 % i <i>varje</i> modul.`
-        : `<b>Under 70 % totalt.</b> Modultabellen visar var poängen försvann.`}
+        ? `<b>Du klarade 70 %-gränsen totalt.</b> ${hor
+            ? "Kontrollera ändå modultabellen nedan — målet är minst 70 % i <i>varje</i> modul."
+            : avsnittRader
+              ? "Kontrollera ändå avsnittstabellen nedan — ett svagt avsnitt kan gömma sig bakom en bra total."
+              : "Gå ändå igenom frågorna nedan — en bra total kan gömma ett helt område du missade."}`
+        : `<b>Under 70 % totalt.</b> ${hor ? "Modultabellen" : avsnittRader ? "Avsnittstabellen" : "Frågelistan"}
+           nedan visar var poängen försvann.`}
     </div>
 
+    ${avsnittRader ? `
+      <div class="rule"></div>
+      <h2>Resultat per avsnitt</h2>
+      <p style="font-size:14px; color:var(--ink-2); max-width:66ch">
+        Tentans egen indelning. Procenten räknas som <b>poäng delat med poäng på de frågor du
+        besvarat och som blivit bedömda</b> i avsnittet.</p>
+      <div class="tablewrap" style="margin-top:14px">
+        <table><thead><tr><th>Avsnitt</th><th>Resultat</th><th></th><th>Status</th></tr></thead>
+        <tbody>${avsnittRader}</tbody></table>
+      </div>` : ""}
+
+    ${hor ? `
     <div class="rule"></div>
     <h2>Resultat per modul</h2>
     <p style="font-size:14px; color:var(--ink-2); max-width:66ch">
-      Procenten räknas som <b>antal rätt delat med antal besvarade och bedömningsbara frågor i modulen</b>.
+      Procenten räknas som <b>poäng delat med poäng på de besvarade och bedömda frågorna i modulen</b>.
       Obesvarade frågor räknas alltså inte in i nämnaren men redovisas separat.</p>
     <div class="tablewrap" style="margin-top:14px">
       <table><thead><tr><th>Modul</th><th>Resultat</th><th></th><th>Status och testade mål</th></tr></thead>
@@ -15348,11 +16131,27 @@ function viewTentaResultat(fid) {
     </div>
     ${otestade.length ? `<p style="font-size:13px; color:var(--ink-3); margin-top:12px">
       <b>Modulen testades inte i den här tentan</b> — och får därför ingen procentsats:
-      ${otestade.map(m => `modul ${m.modul.nr}`).join(", ")}.</p>` : ""}
+      ${otestade.map(m => `modul ${m.modul.nr}`).join(", ")}.</p>` : ""}` : `
+    <div class="rule"></div>
+    <div class="note">
+      <b>Den här tentan hör inte till ${esc((kursById(t.kurs) || KURSER[0]).titel)}.</b>
+      För få frågor matchar kursens lärandemål, så någon modulanalys görs inte — det skulle bara ge
+      dig siffror som ser meningsfulla ut utan att vara det. Tentan rättas mot sitt eget facit
+      ${avsnittRader ? "och redovisas per avsnitt ovan" : "och redovisas som helhet"}.
+      Vill du ändå ha med enskilda frågor i modulanalysen kan du koppla dem för hand på tentans
+      startsida.</div>`}
 
     <div class="rule"></div>
     <h2>Det här behöver du träna mer på</h2>
-    ${svaga.length ? `
+    ${!hor ? `<div class="note">
+        <b>Gå igenom de frågor du fick fel på nedan.</b> Utan koppling till kursens lärandemål kan
+        biblioteket inte peka ut vilket avsnitt du ska läsa om — men frågorna med facit bredvid är
+        ändå det bästa underlaget du har.
+        ${r.avsnitt.filter(a => a.testad && a.procent !== null && a.procent < 70).length
+          ? ` Svagast just nu: ${r.avsnitt.filter(a => a.testad && a.procent !== null && a.procent < 70)
+              .map(a => `<b>${esc(a.namn)}</b> (${a.procent} %)`).join(", ")}.` : ""}
+      </div>`
+      : svaga.length ? `
       <p style="font-size:14px; color:var(--ink-2); max-width:66ch">Följande moduler ligger under 70 %.
       Klicka på lärandemålen för att gå direkt till avsnittet.</p>
       <div class="goals" style="margin-top:12px">
@@ -15401,6 +16200,60 @@ function viewTentaResultat(fid) {
     </div>`;
 
   kopplaDelaIgen();
+  view.querySelectorAll("[data-satt]").forEach(b => b.addEventListener("click", () => {
+    const [fi, v] = b.dataset.satt.split(":");
+    const post = tstore.forsok.find(x => x.id === f.id);
+    if (!post) return;
+    post.poang = post.poang || {};
+    post.bedomning = post.bedomning || {};
+    if (v === "x") { delete post.poang[fi]; delete post.bedomning[fi]; }
+    else {
+      post.poang[fi] = Number(v);
+      post.bedomning[fi] = { kalla: "jag", motiv: "Du satte poängen själv." };
+    }
+    uppdateraSammanfattning(post, t);
+    tsave();
+    render();
+  }));
+
+  /* Skrivsvar som ännu inte bedömts — gamla försök från före den automatiska
+     bedömningen — får sin poäng nu, och AI:n ser över dem om den finns. */
+  const post = tstore.forsok.find(x => x.id === f.id);
+  if (post) {
+    if (bedomForsokLokalt(post, t)) { uppdateraSammanfattning(post, t); tsave(); render(); return; }
+    bedomForsokMedAI(f.id, () => {
+      /* rita om bara bedömningsrutorna, så att sidan inte hoppar under tiden */
+      const rr = parse();
+      if (rr.name !== "tentares" || rr.id !== f.id) return;
+      const r2 = ratta(post, t);
+      r2.rader.forEach(rad => {
+        const ruta = view.querySelector(`[data-bed="${rad.fi}"]`);
+        if (!ruta || !rad.text) return;
+        const bed = (post.bedomning || {})[rad.fi] || null;
+        const vantar = !!motor && !!(rad.fraga.facit || "").trim()
+          && typeof post.svar[rad.fi] === "string" && !!post.svar[rad.fi].trim()
+          && (!bed || (bed.kalla !== "ai" && bed.kalla !== "jag" && !bed.aiFel));
+        ruta.innerHTML = bedomningsPanel(rad, bed, vantar);
+        ruta.querySelectorAll("[data-satt]").forEach(b => b.addEventListener("click", () => {
+          const [fi, v] = b.dataset.satt.split(":");
+          post.poang[fi] = Number(v);
+          post.bedomning[fi] = { kalla: "jag", motiv: "Du satte poängen själv." };
+          uppdateraSammanfattning(post, t); tsave(); render();
+        }));
+      });
+      const topp = view.querySelector(".tsum");
+      if (topp) {
+        const p = view.querySelectorAll(".tsum-n");
+        if (p[0]) p[0].textContent = r2.poangMax !== r2.bedombara
+          ? `${fmtPoang(r2.poangFatt)} / ${fmtPoang(r2.poangRaknad)}`
+          : `${r2.antalRatt} / ${r2.bedombara}`;
+        if (p[1]) {
+          p[1].textContent = r2.totalProcent + " %";
+          p[1].style.color = r2.godkand ? "var(--ok)" : "var(--err)";
+        }
+      }
+    });
+  }
   const filt = document.getElementById("filter");
   filt.addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
@@ -15688,7 +16541,7 @@ Facit:
 }
 
 function viewTentaTest() {
-  const T = tentaTester().concat(pdfRegexTester()).concat(duellTester());
+  const T = tentaTester().concat(pdfRegexTester()).concat(blandadeTester()).concat(duellTester());
   const fel = T.filter(t => !t.ok).length;
   view.innerHTML = `
     ${tentaCrumbs([{ t: "Tester" }])}
@@ -17617,6 +18470,166 @@ function viewDuellRensa() {
     setTimeout(render, 200);
     render();
   });
+}
+
+
+/* ---------- självtester: blandade tentor ---------- */
+function blandadeTester() {
+  const T = [];
+  const ok = (namn, villkor, detalj) => T.push({ namn, ok: !!villkor, detalj: detalj || "" });
+
+  /* frågerubriker med typ och poäng */
+  const rubriker = [
+    ["Socker-kort-1 (HA, 2 p)", "kort", 2],
+    ["Enzym inhibering-SBA -1 (HA, 1 p)", "SBA", 1],
+    ["CCK -essä-1 (DF, 3 p)", "essä", 3],
+    ["Elektrontransport-essä-3 (ML, 4 p):", "essä", 4],
+    ["FAD-kort-4 (ML, 2p)", "kort", 2],
+    ["Glykogen-SBA-6 (ML, 1 p)", "SBA", 1]
+  ];
+  rubriker.forEach(([rad, typ, p]) => {
+    const m = rad.match(RE_FRAGA_NAMN);
+    const poang = m && (m[4] || "").match(RE_POANG);
+    ok(`Rubriken "${rad.slice(0, 26)}…" tolkas`,
+      !!m && m[2].toLowerCase() === typ.toLowerCase() && poang && Number(poang[1].replace(",", ".")) === p,
+      m ? `${m[2]} / ${poang ? poang[1] : "?"} p` : "ingen träff");
+  });
+  ok("En vanlig rubrik utan typ tolkas inte som fråga", !RE_FRAGA_NAMN.test("Modul 4 biokemi 5 poäng (Håkan)"));
+
+  /* dubblerade frågenummer och rena sifferalternativ */
+  ok("Dubblerat frågenummer känns igen", RE_FRAGA_DUBBEL.test("31   31"));
+  ok("Dubblerat nummer med skräptecken känns igen", RE_FRAGA_DUBBEL.test("85   85t"));
+  ok("Två olika tal är inte ett frågenummer", !RE_FRAGA_DUBBEL.test("31   32"));
+
+  /* facitrubriker */
+  ["Svar: isomaltos", "Svarsaspekter:", "Svarsmall: NADH från glykolys", "Bedömning: 1p per del"]
+    .forEach(rad => ok(`Facitraden "${rad.slice(0, 18)}…" känns igen`, RE_FACITSTART.test(rad)));
+
+  /* poängskala */
+  ok("Poängstegen för 2 p går i halvpoäng",
+    JSON.stringify(poangSteg(2)) === JSON.stringify([0, 0.5, 1, 1.5, 2]), JSON.stringify(poangSteg(2)));
+  ok("Poängstegen för 1 p ger tre val",
+    JSON.stringify(poangSteg(1)) === JSON.stringify([0, 0.5, 1]), JSON.stringify(poangSteg(1)));
+  ok("Poäng formateras med komma", fmtPoang(1.5) === "1,5" && fmtPoang(2) === "2", fmtPoang(1.5));
+
+  /* facit delas i de aspekter det faktiskt innehåller */
+  ok("Facit med semikolon delas i två aspekter",
+    facitAspekter("isomaltos; glukos-alfa-1,6-glukos").length === 2,
+    facitAspekter("isomaltos; glukos-alfa-1,6-glukos").map(a => a.text).join(" | "));
+  ok("Facit på flera rader delas per rad",
+    facitAspekter("I-II: enantiomerer\nII-III: epimerer").length === 2);
+  ok("Ett enda påstående förblir en aspekt",
+    facitAspekter("Histamin binder H2-receptorn på parietalcellen").length === 1);
+
+  /* automatisk bedömning mot facit */
+  const b1 = bedomLokalt("isomaltos; glukos-alfa-1,6-glukos",
+    "Det är isomaltos, alltså glukos alfa-1,6 glukos", 2);
+  ok("Ett svar som täcker hela facit ger full poäng", b1.poang === 2, String(b1.poang));
+  const b2 = bedomLokalt("isomaltos; glukos-alfa-1,6-glukos", "Isomaltos", 2);
+  ok("Halva facit ger halva poängen", b2.poang === 1, String(b2.poang));
+  ok("Det som saknas skrivs ut", b2.saknade.length === 1, b2.saknade.join(" | "));
+  const b3 = bedomLokalt("Glukos tas upp via GLUT2 och ATP stänger kaliumkanaler", "vet inte", 3);
+  ok("Ett tomt svar ger noll", b3.poang === 0, String(b3.poang));
+  const b4 = bedomLokalt("Histamin från ECL-celler binder H2-receptorer i parietalcellerna",
+    "Histamin binder H2-receptorer på parietalcellerna", 2);
+  ok("Böjningar och omskrivningar godtas", b4.poang >= 1, String(b4.poang));
+  ok("Bedömningen motiveras i ord", /facit|hittades/.test(b4.motiv), b4.motiv);
+
+  /* hela försöket bedöms utan att någon behöver klicka */
+  const skrivT = normaliseraTenta({
+    id: "sk", kurs: KURSER[0].id, tid: 10, ordning: "fast",
+    fragor: [
+      { id: "s1", q: "Vilken sockerart?", typ: "text", poang: 2, facit: "isomaltos; glukos-alfa-1,6-glukos" },
+      { id: "s2", q: "Beskriv", typ: "text", poang: 2, facit: "enantiomerer; epimerer" }
+    ]
+  });
+  const skrivF = { ordning: [0, 1], svar: { 0: "isomaltos, glukos-alfa-1,6-glukos" }, flagg: {}, poang: {} };
+  bedomForsokLokalt(skrivF, skrivT);
+  ok("Besvarad skrivfråga får poäng automatiskt", skrivF.poang[0] === 2, String(skrivF.poang[0]));
+  ok("Obesvarad skrivfråga sätts till noll", skrivF.poang[1] === 0, String(skrivF.poang[1]));
+  ok("Varje bedömning får en källa", skrivF.bedomning[0].kalla === "lokal", JSON.stringify(skrivF.bedomning[0]));
+  const rSkriv = ratta(skrivF, skrivT);
+  ok("Inget lämnas obedömt efter inlämning", rSkriv.obedomda === 0, String(rSkriv.obedomda));
+  ok("Totalen räknas på hela tentan", rSkriv.totalProcent === 50, `${rSkriv.totalProcent} %`);
+
+  /* rättning av en blandad tenta */
+  const bl = normaliseraTenta({
+    id: "bl", kurs: KURSER[0].id, tid: 30, ordning: "fast",
+    fragor: [
+      { id: "a", q: "SBA ett", options: ["r", "f", "f", "f"], svar: 0, poang: 1, typ: "sba", avsnitt: "Del A" },
+      { id: "b", q: "SBA två", options: ["f", "r", "f", "f"], svar: 1, poang: 1, typ: "sba", avsnitt: "Del A" },
+      { id: "c", q: "Skriv om saken", typ: "text", poang: 4, facit: "ett svar med flera begrepp", avsnitt: "Del B" },
+      { id: "d", q: "Skriv mer", typ: "text", poang: 2, facit: "ytterligare facit", avsnitt: "Del B" }
+    ]
+  });
+  const f1 = { ordning: [0, 1, 2, 3], svar: { 0: 0, 1: 0, 2: "mitt svar" }, flagg: {}, poang: {} };
+  const r1 = ratta(f1, bl);
+  ok("Skrivfrågor räknas som obedömda tills poäng satts", r1.obedomda === 1, String(r1.obedomda));
+  ok("Obedömda skrivsvar hålls utanför nämnaren", r1.poangRaknad === 4, `${r1.poangRaknad}`);
+  ok("Rätt SBA ger sin poäng", r1.poangFatt === 1, String(r1.poangFatt));
+
+  const f2 = { ordning: [0, 1, 2, 3], svar: { 0: 0, 1: 0, 2: "mitt svar" }, flagg: {}, poang: { 2: 3 } };
+  const r2 = ratta(f2, bl);
+  ok("Satt poäng räknas in", r2.poangFatt === 4, String(r2.poangFatt));
+  ok("Nämnaren växer när skrivsvaret bedömts", r2.poangRaknad === 8, String(r2.poangRaknad));
+  ok("Totalprocenten räknas på poäng", r2.totalProcent === 50, `${r2.totalProcent} %`);
+  ok("Obesvarad skrivfråga ger noll men räknas med",
+    r2.rader[3].poangFatt === null && r2.rader[3].bedombar, JSON.stringify(r2.rader[3].poangFatt));
+
+  const delA = r2.avsnitt.find(a => a.namn === "Del A");
+  const delB = r2.avsnitt.find(a => a.namn === "Del B");
+  ok("Tentans egna avsnitt blir grupper", !!delA && !!delB, r2.avsnitt.map(a => a.namn).join(", "));
+  ok("Avsnitt A: en rätt av två", delA && delA.poang === 1 && delA.poangAv === 2, delA ? `${delA.poang}/${delA.poangAv}` : "–");
+  ok("Avsnitt B: tre poäng av fyra bedömda", delB && delB.poang === 3 && delB.poangAv === 4, delB ? `${delB.poang}/${delB.poangAv}` : "–");
+  ok("Full poäng på en skrivfråga räknas som rätt",
+    ratta({ ordning: [0, 1, 2, 3], svar: { 2: "svar" }, flagg: {}, poang: { 2: 4 } }, bl).rader[2].ratt === true);
+
+  /* svar räknas rätt för båda frågetyperna */
+  ok("Tom text räknas inte som svar", !harSvarat("   "));
+  ok("Skriven text räknas som svar", harSvarat("något"));
+  ok("Alternativ 0 räknas som svar", harSvarat(0));
+  ok("Saknat svar räknas inte", !harSvarat(undefined));
+
+  /* ---- tentor som inte hör till kursen ---- */
+  const mal0 = malLista()[0];
+  const kursTenta = normaliseraTenta({
+    id: "kt", kurs: KURSER[0].id, fragor: [0, 1, 2, 3].map(i =>
+      ({ id: "k" + i, q: "Fråga", options: ["A", "B"], svar: 0, mal: mal0.id, konf: "hög" }))
+  });
+  const framTenta = normaliseraTenta({
+    id: "ft", kurs: KURSER[0].id, fragor: [0, 1, 2, 3].map(i =>
+      ({ id: "f" + i, q: "Fråga", options: ["A", "B"], svar: 0, mal: i === 0 ? mal0.id : null, konf: i === 0 ? "medel" : null }))
+  });
+  ok("En tenta med säkra kopplingar räknas som kursens egen",
+    egenKurs(kursTenta) && kopplingsgrad(kursTenta) === 1, String(kopplingsgrad(kursTenta)));
+  ok("En tenta med enstaka svaga träffar räknas som fristående",
+    !egenKurs(framTenta), String(kopplingsgrad(framTenta)));
+  ok("En tom tenta kraschar inte kopplingsgraden", kopplingsgrad({ fragor: [] }) === 0);
+
+  /* Låga träffar ska hellre bli ingen koppling alls än fel koppling. */
+  const svag = autokoppla(normaliseraTenta({
+    id: "sv", kurs: KURSER[0].id,
+    fragor: [{ id: "s1", q: "zzz qqq xyz", options: ["aaa", "bbb"], svar: 0 }]
+  }));
+  ok("Ordlös fråga får ingen påhittad koppling", svag.fragor[0].mal === null,
+    String(svag.fragor[0].mal));
+
+  /* En helt fristående tenta ska ändå gå att rätta. */
+  const fri = normaliseraTenta({
+    id: "fr", kurs: KURSER[0].id, tid: 30, ordning: "fast",
+    fragor: [
+      { id: "a", q: "SBA", options: ["r", "f"], svar: 0, poang: 1, avsnitt: "Del 1" },
+      { id: "b", q: "Skriv", typ: "text", poang: 3, facit: "glukos insulin lever", avsnitt: "Del 2" }
+    ]
+  });
+  const rf = ratta({ ordning: [0, 1], svar: { 0: 0, 1: "glukos och insulin" }, flagg: {}, poang: { 1: 2 } }, fri);
+  ok("Fristående tenta rättas mot sitt eget facit", rf.poangFatt === 3 && rf.poangRaknad === 4,
+    `${rf.poangFatt}/${rf.poangRaknad}`);
+  ok("Fristående tenta grupperas på sina egna avsnitt",
+    rf.avsnitt.length === 2 && rf.moduler.every(m => !m.testad),
+    rf.avsnitt.map(a => a.namn).join(", "));
+
+  return T;
 }
 
 /* ---------- självtester: dueller ---------- */
