@@ -18469,6 +18469,7 @@ const LIVE = {
 let _liveStartad = "";     // matchen vi redan startat försöket för
 let _liveHamtar = "";      // delad tenta som hämtas hem just nu
 let _liveSig = "";         // senaste ögonblicksbildens signatur
+let _liveGickMed = "";     // matchen vi redan skrivit in oss i
 let _livePos = -1;         // senast skrivna position, för att slippa dubbla skrivningar
 
 function liveRot() {
@@ -18605,6 +18606,7 @@ function liveSluta() {
   _livePos = -1;
   _liveSig = "";
   _liveHamtar = "";
+  _liveGickMed = "";
 }
 
 function liveLyssna(id) {
@@ -18637,11 +18639,44 @@ function liveAndrad() {
   if (sig === _liveSig) return;
   _liveSig = sig;
 
+  const r0 = parse();
+  if (r0.name === "duelllive" && r0.id === LIVE.id) liveKanskeGaMed(LIVE.id);
   liveKanskeStarta();
 
   const r = parse();
   if (r.name === "duelllive" && r.id === LIVE.id) { planeraOmritning(); return; }
   livePatchaRemsa();
+}
+
+/* Att öppna lobbylänken ÄR att gå med. Att kräva ett extra klick betyder
+   bara att den som missar knappen står utanför när värden startar. */
+function liveKanskeGaMed(id) {
+  if (!id || _liveGickMed === id) return;
+  if (SYNK.lage !== "pa" || !SYNK.uid) return;
+  if (LIVE.id !== id || !LIVE.match) return;
+  _liveGickMed = id;
+  if (LIVE.spelare.some(s => s.uid === SYNK.uid)) return;   // redan med
+  liveGaMed(id);
+}
+
+/* Hämtar hem en delad tenta om den inte finns lokalt. Oavsett hur det går
+   väcks starten igen efteråt — annars blir den som väntade på nedladdningen
+   stående kvar när värden redan dragit igång. */
+function liveHamtaOmBehovs(m) {
+  if (!m || !m.tenta || tentaBank(m.tenta)) return false;
+  if (_liveHamtar === m.tenta) return true;
+  _liveHamtar = m.tenta;
+  synkHamtaTenta(m.tenta).then(bank => {
+    _liveHamtar = "";
+    _liveSig = "";
+    liveAndrad();
+    if (!bank) {
+      const ruta = document.getElementById("lhamtar");
+      if (ruta) ruta.innerHTML = `<b>Tentans frågor gick inte att hämta.</b>
+        Den kan ha tagits bort, eller så tillhör den en annan gruppkod än din.`;
+    }
+  });
+  return true;
 }
 
 /* Startar försöket när värden dragit igång matchen. Det sker på en
@@ -18662,15 +18697,7 @@ function liveKanskeStarta() {
   /* Körs matchen på en uppladdad tenta ligger frågorna i gruppens databas.
      De måste hämtas hem innan försöket kan byggas — annars startar matchen
      bara hos den som laddade upp tentan. */
-  if (u.tenta && !tentaBank(u.tenta)) {
-    if (_liveHamtar === u.tenta) return;
-    _liveHamtar = u.tenta;
-    synkHamtaTenta(u.tenta).then(bank => {
-      _liveHamtar = "";
-      if (bank) { _liveSig = ""; liveAndrad(); }
-    });
-    return;
-  }
+  if (liveHamtaOmBehovs(m)) return;
   const t = duellTenta(u);
   if (!t || !t.fragor.length) return;
   _liveStartad = LIVE.id;
@@ -18796,7 +18823,9 @@ function viewDuellLive(id) {
       </div>
 
       ${!jagMed ? `<div style="margin-top:18px">
-          <button class="btn primary" id="lgamed">Gå med i matchen</button></div>`
+          <button class="btn primary" id="lgamed">Gå med i matchen</button>
+          <p style="font-size:13px; color:var(--ink-3); margin:8px 0 0">
+            Du skrivs in automatiskt — knappen är bara om det inte gick.</p></div>`
         : vard ? `
           <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:18px">
             <button class="btn primary" id="lstarta"${LIVE.spelare.length < 1 ? " disabled" : ""}>
@@ -18816,16 +18845,9 @@ function viewDuellLive(id) {
 
     /* Ligger frågorna i en delad tenta hämtas de redan i lobbyn, så att starten
        inte fördröjs när värden trycker. */
-    if (m.tenta && !tentaBank(m.tenta) && _liveHamtar !== m.tenta) {
-      _liveHamtar = m.tenta;
-      synkHamtaTenta(m.tenta).then(bank => {
-        _liveHamtar = "";
-        const ruta = document.getElementById("lhamtar");
-        if (bank) { if (ruta) ruta.remove(); return; }
-        if (ruta) ruta.innerHTML = `<b>Tentans frågor gick inte att hämta.</b>
-          Den kan ha tagits bort, eller så tillhör den en annan gruppkod än din.`;
-      });
-    }
+    liveHamtaOmBehovs(m);
+    /* Och den som öppnat länken skrivs in i listan utan att behöva klicka. */
+    liveKanskeGaMed(id);
 
     const g = document.getElementById("lgamed");
     if (g) g.addEventListener("click", async () => {
@@ -18850,23 +18872,59 @@ function viewDuellLive(id) {
 
   /* ---- läge 2: matchen är igång, jag är inte klar ---- */
   if (!oppet && (!min || !min.klar)) {
-    const kanHoppaPa = jagMed || (m.slutar && Date.now() < m.slutar);
+    /* Kommer man hit står matchen och går utan att ens försök startat. Två
+       skäl finns: frågorna hämtas fortfarande hem, eller så ligger ett annat
+       försök i vägen. Båda ska synas, och det ska alltid finnas en väg in. */
+    liveKanskeGaMed(id);
+    const hamtar = liveHamtaOmBehovs(m);
+    const annatForsok = tstore.aktivt && !(tstore.aktivt.live && tstore.aktivt.live.id === id);
+    const redo = !!(t && t.fragor.length);
+
     view.innerHTML = `
       ${duellCrumbs([{ t: "Livematch" }])}
       <p class="eyebrow">Livematch · igång</p>
       <h1>${esc(duellTitel(u))}</h1>
       <div class="note" style="margin-top:18px">
         <b>Matchen är igång.</b> ${m.slutar ? `Tiden går ut ${new Date(m.slutar).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}.` : ""}
-        ${jagMed ? "Ditt försök borde ha startat automatiskt — gör det inte det, tryck här nedan."
-                 : "Du kan fortfarande hoppa på, men med den tid som är kvar."}</div>
+        ${hamtar ? "Frågorna hämtas hem just nu — ditt försök startar av sig självt så fort de är på plats."
+          : jagMed ? "Ditt försök borde ha startat automatiskt — gör det inte det, tryck här nedan."
+          : "Du kan fortfarande hoppa på, men med den tid som är kvar."}</div>
+
+      ${annatForsok ? `<div class="note" style="margin-top:14px; background:color-mix(in srgb, var(--warn) 12%, transparent)">
+        <b>Du har en annan tenta igång.</b> Den ligger i vägen för matchen — lämna in eller avbryt
+        den först, så kommer du in här.
+        <div style="margin-top:11px; display:flex; gap:8px; flex-wrap:wrap">
+          <button class="btn" data-go="/tenta/kor">Tillbaka till den</button>
+          <button class="btn" id="lslang">Avbryt den och kör matchen</button>
+        </div></div>` : ""}
+
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:18px">
-        ${t && t.fragor.length ? `<button class="btn primary" id="lhoppa">${jagMed ? "Öppna matchen" : "Hoppa på matchen"}</button>` : ""}
+        ${redo && !annatForsok
+          ? `<button class="btn primary" id="lhoppa">${jagMed ? "Öppna matchen" : "Hoppa på matchen"}</button>`
+          : hamtar ? `<button class="btn" disabled>Hämtar frågorna…</button>` : ""}
         <button class="btn" data-go="/duell">Till duellsidan</button>
       </div>
+
+      ${!redo && !hamtar ? `<div class="note" style="margin-top:16px; background:color-mix(in srgb, var(--warn) 12%, transparent)">
+        <b>Frågorna gick inte att bygga.</b> ${m.tenta
+          ? "Den delade tentan kunde inte hämtas — kontrollera att du står på samma gruppkod som värden."
+          : "Biblioteket saknar frågor för den här matchen."}</div>` : ""}
+
       <div class="panel" style="margin-top:20px">
         <h4>Så här långt har de kommit</h4>
         <div id="liveremsa" style="display:flex; flex-wrap:wrap">${liveRemsaInnehall()}</div>
       </div>`;
+
+    const slang = document.getElementById("lslang");
+    if (slang) slang.addEventListener("click", async () => {
+      if (!await bekrafta("Avbryta den pågående tentan? Svaren på den försvinner.", "Avbryt tentan")) return;
+      tstore.aktivt = null; tsave();
+      _liveStartad = "";
+      _liveSig = "";
+      liveAndrad();
+      render();
+    });
+
     const h = document.getElementById("lhoppa");
     if (h) h.addEventListener("click", async () => {
       h.disabled = true;
