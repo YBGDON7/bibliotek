@@ -17397,8 +17397,13 @@ function viewDuellNy() {
       </select>
     </label>
 
-    ${!egnaTentor.length ? `<p style="font-size:13px; color:var(--ink-3); margin:10px 0 0">
-      Har du laddat upp en tenta under Tentamenssimulator dyker den upp i listan här.</p>` : ""}
+    <p style="font-size:13px; color:var(--ink-2); margin:10px 0 0; max-width:66ch">
+      ${egnaTentor.length
+        ? "Dina uppladdade tentor står i listan."
+        : "Har du ingen uppladdad tenta ännu laddar du upp en här nedanför."}
+      Bara kryssfrågor med facit går att tävla på.</p>
+
+    ${tentaUppladdareHtml("du")}
 
     <div class="panel" style="margin:20px 0" id="dmodulpanel">
       <h4>Vilka moduler ska ni tävla i?</h4>
@@ -17488,6 +17493,16 @@ function viewDuellNy() {
       etikett.style.cssText = "cursor:pointer; display:inline-flex; align-items:center; gap:7px; padding:8px 12px";
     });
   }
+
+  /* En tenta som laddas upp här väljs direkt som frågekälla. */
+  kopplaTentaUppladdare("du", t => {
+    const o = document.createElement("option");
+    o.value = "t:" + t.id;
+    o.textContent = `${t.titel} (${tentaSomBank(t).length} frågor)`;
+    kalla.appendChild(o);
+    kalla.value = "t:" + t.id;
+    uppdatera();
+  });
 
   kalla.addEventListener("change", uppdatera);
   rutor.forEach(r => r.addEventListener("change", uppdatera));
@@ -18289,6 +18304,143 @@ function kopplaSynkPanel() {
 /* Nödutgång: kopplar från databasen direkt, utan dialogruta och utan att
    duellsidan behöver fungera. Nås alltid via #/duell/nollstall. */
 /* =====================================================================
+   LADDA UPP EN TENTA DÄR OCH DÅ
+   Man ska inte behöva gå omvägen via simulatorn för att mötas på en ny
+   tenta. Rutan här nedan läser PDF:en på plats, sparar tentan i
+   biblioteket och väljer den som frågekälla direkt.
+   ===================================================================== */
+
+/* Städar ett filnamn till en läsbar tentatitel. */
+function tentaNamnUrFil(namn) {
+  return String(namn || "").replace(/\.pdf$/i, "")
+    .replace(/^[0-9a-f]{6,}[-_]/i, "")
+    .replace(/[_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || "Tenta";
+}
+
+/* Läser en PDF och ger tillbaka frågorna, eller kastar ett fel som går att
+   visa för en människa. Samma pipeline som simulatorn använder. */
+async function lasPdfTenta(fil, onProgress) {
+  if (fil.size > 60 * 1024 * 1024) {
+    throw new Error(`Filen är ${Math.round(fil.size / 1048576)} MB — för stor för att läsas i webbläsaren.`);
+  }
+  const buf = new Uint8Array(fil.arrayBuffer
+    ? await fil.arrayBuffer()
+    : await new Promise((klar, fela) => {
+        const r = new FileReader();
+        r.onload = () => klar(r.result);
+        r.onerror = () => fela(new Error("filen kunde inte läsas"));
+        r.readAsArrayBuffer(fil);
+      }));
+  if (String.fromCharCode.apply(null, buf.subarray(0, 1024)).indexOf("%PDF") === -1) {
+    throw new Error("Det där är ingen PDF. Exportera tentan som PDF och försök igen.");
+  }
+  const res = await pdfLasTenta(buf, onProgress);
+  if (res.diagnos.skannad) {
+    throw new Error("PDF:en saknar textlager — den ser ut att vara inskannad, och då finns ingen text att läsa.");
+  }
+  if (!res.fragor.length) {
+    throw new Error("Inga frågor kunde tolkas ur PDF:en. Öppna den i tentasimulatorn så får du veta mer om varför.");
+  }
+  return res;
+}
+
+/* Rutan man släpper filen i. Samma markup i duellen och i livematchen. */
+function tentaUppladdareHtml(pfx) {
+  return `
+    <div class="panel" style="margin:16px 0">
+      <h4>Eller ladda upp en tenta nu</h4>
+      <p style="font-size:13.5px; color:var(--ink-2); margin:0 0 12px">
+        Har du en tenta-PDF med facit i? Släpp den här, så läses den in på en gång och blir
+        valbar som frågekälla. Den sparas också i tentasimulatorn så du kan granska facit efteråt.</p>
+      <label class="slappzon" id="${pfx}zon" for="${pfx}fil" style="padding:18px">
+        <div class="slapp-ikon" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/>
+            <path d="M14 3v5h5"/><path d="M12 18v-6"/><path d="m9.5 14.5 2.5-2.5 2.5 2.5"/>
+          </svg>
+        </div>
+        <b><span class="bara-mus">Dra hit en tenta-PDF</span><span class="bara-pek">Välj en tenta-PDF</span></b>
+        <span class="bara-mus">eller klicka för att välja fil</span>
+        <span class="bara-pek">Hämta filen från Filer, iCloud eller Drive</span>
+        <input type="file" id="${pfx}fil" class="doldfil" accept=".pdf,application/pdf">
+      </label>
+      <div id="${pfx}status"></div>
+    </div>`;
+}
+
+/* Kopplar rutan. narKlar(tenta) körs när tentan är inläst och sparad. */
+function kopplaTentaUppladdare(pfx, narKlar) {
+  const zon = document.getElementById(pfx + "zon");
+  const fil = document.getElementById(pfx + "fil");
+  const status = document.getElementById(pfx + "status");
+  if (!zon || !fil || !status) return;
+
+  ["dragenter", "dragover"].forEach(ev =>
+    zon.addEventListener(ev, e => { e.preventDefault(); zon.classList.add("over"); }));
+  ["dragleave", "drop"].forEach(ev =>
+    zon.addEventListener(ev, e => { e.preventDefault(); zon.classList.remove("over"); }));
+  zon.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if (f) las(f); });
+  fil.addEventListener("change", () => { if (fil.files[0]) las(fil.files[0]); });
+
+  async function las(f) {
+    status.innerHTML = `<div class="note" style="margin-top:14px" id="${pfx}prog">
+      <b>Läser ${esc(f.name)}…</b></div>`;
+    const prog = document.getElementById(pfx + "prog");
+    let res;
+    try {
+      res = await lasPdfTenta(f, (s, n, steg) => {
+        const vad = steg === "figurer" ? `figur ${s} av ${n}` : `sida ${s} av ${n}`;
+        prog.innerHTML = `<b>Läser ${esc(f.name)}</b> — ${vad}…
+          <span class="bar" style="display:block; margin-top:9px"><i style="width:${Math.round(s / n * 100)}%"></i></span>`;
+      });
+    } catch (e) {
+      status.innerHTML = `<div class="note" style="margin-top:14px; background:color-mix(in srgb, var(--warn) 12%, transparent)">
+        <b>Tentan kunde inte läsas.</b> ${esc(String(e && e.message || e))}</div>`;
+      return;
+    }
+
+    const t = normaliseraTenta({
+      id: tid(),
+      titel: tentaNamnUrFil(f.name),
+      kurs: KURSER[0].id,
+      tid: Math.max(10, Math.round(res.fragor.length * 1.5)),
+      ordning: "fast",
+      kalla: f.name,
+      fragor: res.fragor.map(x => ({
+        id: x.id, q: x.q, options: x.options, svar: x.svar,
+        typ: x.typ, sort: x.sort, namn: x.namn, nr: x.nr,
+        poang: x.poang, facit: x.facit, facitrubrik: x.facitrubrik,
+        avsnitt: x.avsnitt, bild: x.bild || null,
+        kalla: `${f.name}, sida ${x.sida}`
+      }))
+    });
+    try { autokoppla(t); } catch (e) {}
+    tstore.egna.unshift(t); tsave();
+
+    const tavlingsbara = tentaSomBank(t).length;
+    if (!tavlingsbara) {
+      status.innerHTML = `<div class="note" style="margin-top:14px; background:color-mix(in srgb, var(--warn) 12%, transparent)">
+        <b>${t.fragor.length} frågor lästes, men ingen går att tävla på.</b>
+        En match kräver kryssfrågor med markerat rätt svar — den här tentan verkar bara ha skrivfrågor,
+        eller så hittades inga markeringar. Tentan är sparad, så du kan öppna den i simulatorn och
+        peka ut rätt svar för hand.
+        <div style="margin-top:11px"><button class="btn" data-go="/tenta/${encodeURIComponent(t.id)}">Öppna i simulatorn</button></div>
+      </div>`;
+      return;
+    }
+    status.innerHTML = `<div class="note" style="margin-top:14px; background:var(--teal-soft)">
+      <b>${esc(t.titel)} är inläst.</b> ${t.fragor.length} frågor, varav ${tavlingsbara} går att tävla på.
+      ${t.fragor.length !== tavlingsbara
+        ? "Skrivfrågor räknas inte — de kan inte rättas automatiskt mitt i en match."
+        : ""}</div>`;
+    if (narKlar) narKlar(t);
+  }
+}
+
+/* =====================================================================
    LIVEMATCH
    Den vanliga duellen är asynkron: koden delas, var och en kör när den
    hinner. Livematchen lägger sig bredvid den utan att röra den — samma
@@ -18839,15 +18991,14 @@ function viewDuellLiveNy() {
       </select>
     </label>
 
-    ${egnaTentor.length ? `<p style="font-size:13px; color:var(--ink-2); margin:10px 0 0; max-width:66ch">
-        Dina uppladdade tentor står i listan. Bara kryssfrågor med facit går att tävla på —
-        skrivfrågor kan inte rättas automatiskt och hoppas därför över.</p>`
-      : `<div class="note" style="margin-top:14px">
-        <b>Du har ingen uppladdad tenta ännu.</b> Ladda upp en tenta-PDF i simulatorn, så dyker den
-        upp i listan här och går att köra en livematch på. Bara kryssfrågor med facit räknas —
-        skrivfrågor kan inte rättas automatiskt i en match.
-        <div style="margin-top:11px"><button class="btn" data-go="/tenta/ny">Ladda upp en tenta</button></div>
-      </div>`}
+    <p style="font-size:13px; color:var(--ink-2); margin:10px 0 0; max-width:66ch">
+      ${egnaTentor.length
+        ? "Dina uppladdade tentor står i listan."
+        : "Har du ingen uppladdad tenta ännu laddar du upp en här nedanför."}
+      Bara kryssfrågor med facit går att tävla på — skrivfrågor kan inte rättas automatiskt mitt i
+      en match och hoppas därför över.</p>
+
+    ${tentaUppladdareHtml("lu")}
 
     <div class="panel" style="margin:20px 0" id="lmodulpanel">
       <h4>Vilka moduler?</h4>
@@ -18909,6 +19060,17 @@ function viewDuellLiveNy() {
   rutor.forEach(r => r.addEventListener("change", uppdatera));
   antal.addEventListener("input", uppdatera);
   uppdatera();
+
+  /* En tenta som laddas upp här väljs direkt som frågekälla, utan omritning —
+     annars försvinner beskedet om vad som lästes in. */
+  kopplaTentaUppladdare("lu", t => {
+    const o = document.createElement("option");
+    o.value = "t:" + t.id;
+    o.textContent = `${t.titel} (${tentaSomBank(t).length} frågor)`;
+    kalla.appendChild(o);
+    kalla.value = "t:" + t.id;
+    uppdatera();
+  });
 
   document.getElementById("lskapa").addEventListener("click", async () => {
     const knapp = document.getElementById("lskapa");
