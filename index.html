@@ -18468,6 +18468,7 @@ const LIVE = {
 };
 let _liveStartad = "";     // matchen vi redan startat försöket för
 let _liveHamtar = "";      // delad tenta som hämtas hem just nu
+let _liveSig = "";         // senaste ögonblicksbildens signatur
 let _livePos = -1;         // senast skrivna position, för att slippa dubbla skrivningar
 
 function liveRot() {
@@ -18524,7 +18525,11 @@ async function liveGaMed(id) {
   const rot = liveRot();
   if (!rot || !SYNK.uid) return false;
   const jag = jagId();
-  const min = LIVE.spelare.find(s => s.uid === SYNK.uid);
+  /* Bara raden från DEN HÄR matchen får återanvändas. Lyssnaren kan
+     fortfarande stå kvar på en tidigare match — läser man spelarlistan då
+     ärver man sitt gamla resultat, och går in i den nya matchen redan
+     färdig. Det var precis det som hände värden vid match nummer två. */
+  const min = LIVE.id === id ? LIVE.spelare.find(s => s.uid === SYNK.uid) : null;
   try {
     await rot.doc(id).collection("spelare").doc(SYNK.uid).set({
       uid: SYNK.uid, namn: jag.namn || "Okänd",
@@ -18596,6 +18601,10 @@ async function liveSkrivKlar(res, tidSek) {
 function liveSluta() {
   if (LIVE.stoppa) { try { LIVE.stoppa(); } catch (e) {} }
   LIVE.stoppa = null; LIVE.id = ""; LIVE.match = null; LIVE.spelare = [];
+  /* Allt som hör till den gamla matchen nollas, annars läcker den in i nästa. */
+  _livePos = -1;
+  _liveSig = "";
+  _liveHamtar = "";
 }
 
 function liveLyssna(id) {
@@ -18620,7 +18629,6 @@ function liveLyssna(id) {
 /* En ögonblicksbild får aldrig rycka undan gränssnittet mitt i ett svar. På
    lobbysidan ritas det om som vanligt; medan man skriver byts bara remsan
    med de andras positioner ut. */
-let _liveSig = "";
 function liveAndrad() {
   const sig = [
     LIVE.id, LIVE.match ? [LIVE.match.lage, LIVE.match.startar, LIVE.match.slutar, LIVE.match.slappt].join("~") : "-",
