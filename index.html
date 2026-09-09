@@ -17200,23 +17200,54 @@ function viewDuellHub() {
         <b>Livematch</b> samlar er i en lobby, startar samtidigt och håller resultatet dolt
         tills alla lämnat in — den kräver gruppkod och uppkoppling.</p>`}
 
-    ${(SYNK.livematcher || []).length ? `
-      <h3 style="margin-top:30px">Livematcher i gruppen</h3>
-      <div class="goals">
-        ${SYNK.livematcher.map(m => `
-          <div class="goal" data-klar="0">
-            <span class="check-slot"><span class="check-empty"></span></span>
-            <button class="open" data-go="/duell/live/${encodeURIComponent(m.id)}">
-              <span class="idx">${m.antal}</span>
-              <span>
-                <span class="t">${esc(m.tentaTitel || "Livematch")} — ${
-                  m.lage === "lobby" ? "lobbyn är öppen" : m.slappt || (m.slutar && Date.now() >= m.slutar) ? "avslutad" : "pågår"}</span>
-                <span class="s">${m.egen ? "din match" : `från ${esc(m.namn)}`} · ${m.minuter} min</span>
-              </span>
-              <span class="arrow" aria-hidden="true">→</span>
-            </button>
-          </div>`).join("")}
-      </div>` : ""}
+    ${(() => {
+      /* Bara matcher som faktiskt är på gång visas här. Avslutade och
+         bortrensade skulle bara växa till en lista man scrollar förbi. */
+      const alla = (SYNK.livematcher || []).filter(m => !arDold(m.id));
+      const avslutad = m => m.slappt || (m.slutar && Date.now() >= m.slutar);
+      const pagang = alla.filter(m => !avslutad(m));
+      const klara = alla.filter(avslutad);
+      if (!alla.length) return "";
+      return `
+      ${pagang.length ? `
+        <h3 style="margin-top:30px">Livematcher just nu</h3>
+        <div class="goals">
+          ${pagang.map(m => `
+            <div class="goal" data-klar="0">
+              <span class="check-slot"><span class="check-empty"></span></span>
+              <button class="open" data-go="/duell/live/${encodeURIComponent(m.id)}">
+                <span class="idx">${m.antal}</span>
+                <span>
+                  <span class="t">${esc(m.tentaTitel || "Livematch")} — ${
+                    m.lage === "lobby" ? "lobbyn är öppen" : "pågår"}</span>
+                  <span class="s">${m.egen ? "din match" : `från ${esc(m.namn)}`} · ${m.minuter} min</span>
+                </span>
+                <span class="arrow" aria-hidden="true">→</span>
+              </button>
+            </div>`).join("")}
+        </div>` : ""}
+
+      ${klara.length ? `
+        <details style="margin-top:${pagang.length ? "18" : "30"}px">
+          <summary style="cursor:pointer; font-weight:600; font-family:var(--display); font-size:16px">
+            ${klara.length === 1 ? "1 avslutad livematch" : `${klara.length} avslutade livematcher`}</summary>
+          <div class="goals" style="margin-top:12px">
+            ${klara.map(m => `
+              <div class="goal" data-klar="0">
+                <span class="check-slot"><span class="check-empty"></span></span>
+                <button class="open" data-go="/duell/live/${encodeURIComponent(m.id)}">
+                  <span class="idx">${m.antal}</span>
+                  <span>
+                    <span class="t">${esc(m.tentaTitel || "Livematch")} — avslutad</span>
+                    <span class="s">${m.egen ? "din match" : `från ${esc(m.namn)}`} · resultat och facit</span>
+                  </span>
+                  <span class="arrow" aria-hidden="true">→</span>
+                </button>
+              </div>`).join("")}
+          </div>
+          <p style="margin-top:12px"><button class="btn" data-go="/duell/rensa">Rensa matcher</button></p>
+        </details>` : ""}`;
+    })()}
 
     <div id="dklistrayta"></div>
 
@@ -18747,6 +18778,56 @@ function liveLankruta(lank, id) {
     </div>`;
 }
 
+/* Genomgången efter matchen: alla frågor med rätt svar, och ditt eget svar
+   markerat. Frågorna byggs ur matchens frö, så alla ser exakt samma sak och
+   kan gå igenom dem tillsammans. */
+function liveFacitLista(u, id) {
+  const t = duellTenta(u);
+  if (!t || !t.fragor.length) {
+    return `<div class="empty" style="margin-top:16px"><b>Frågorna kunde inte byggas</b>
+      ${u.tenta ? "Den delade tentan finns inte kvar i gruppens databas."
+                : "Biblioteket saknar frågorna som matchen kördes på."}</div>`;
+  }
+  /* mitt eget försök i just den här matchen, om det finns kvar lokalt */
+  const forsok = tstore.forsok.find(f => f.live && f.live.id === id)
+    || tstore.forsok.find(f => f.duell && f.duell.seed === u.seed);
+  const mina = {};
+  if (forsok) forsok.ordning.forEach(fi => { mina[fi] = forsok.svar[fi]; });
+
+  return t.fragor.map((f, i) => {
+    const mitt = forsok ? mina[i] : undefined;
+    const svarade = mitt !== undefined && mitt !== null;
+    const ratt = svarade && mitt === f.svar;
+    const ref = f.mal ? malRef(f.mal) : null;
+    return `
+      <div class="qcard tres" data-status="${!forsok ? "obedomd" : ratt ? "ratt" : "fel"}" style="max-width:none">
+        <div class="qnum">Fråga ${i + 1} av ${t.fragor.length}
+          ${!forsok ? ""
+            : ratt ? `<span class="chip done" style="margin-left:8px">Du hade rätt</span>`
+            : svarade ? `<span class="chip" style="margin-left:8px; background:color-mix(in srgb, var(--err) 12%, transparent); color:var(--err); border-color:transparent">Du hade fel</span>`
+            : `<span class="chip" style="margin-left:8px">Obesvarad</span>`}
+        </div>
+        <div class="qtext" style="font-size:16px">${esc(f.q)}</div>
+        <div class="opts">
+          ${f.options.map((o, oi) => {
+            const arRatt = oi === f.svar;
+            const mittVal = svarade && oi === mitt;
+            return `<div class="opt${arRatt ? " correct" : ""}"
+              style="cursor:default${mittVal && !arRatt ? "; border-color:var(--err)" : ""}">
+              <span class="lt">${String.fromCharCode(65 + oi)}</span>
+              <span>${esc(o)}
+                ${arRatt ? `<b style="color:var(--ok)"> · rätt svar</b>` : ""}
+                ${mittVal && !arRatt ? `<b style="color:var(--err)"> · ditt svar</b>` : ""}</span>
+            </div>`;
+          }).join("")}
+        </div>
+        ${ref ? `<div style="margin-top:10px; font-size:13px">
+          <button class="lankmal" data-go="${malLank(ref)}">${esc(ref.mal.id)} ${esc(ref.mal.titel.slice(0, 60))}</button>
+        </div>` : ""}
+      </div>`;
+  }).join("");
+}
+
 /* ---------- vyn ---------- */
 function viewDuellLive(id) {
   if (!id) { viewDuellLiveNy(); return; }
@@ -19003,8 +19084,15 @@ function viewDuellLive(id) {
       </tbody></table>
     </div>
 
+    <div class="rule"></div>
+    <h2>Gå igenom frågorna tillsammans</h2>
+    <p style="font-size:14px; color:var(--ink-2); max-width:66ch">
+      Alla frågor med rätt svar, i den ordning ni fick dem. Har du gjort matchen på den här
+      enheten är ditt eget svar utmarkerat — annars ser du bara facit.</p>
+    <div style="margin-top:16px">${liveFacitLista(u, id)}</div>
+
     <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:22px">
-      <button class="btn" data-go="/duell/m/${encodeURIComponent(m.seed)}">Se frågorna och facit</button>
+      <button class="btn" data-go="/duell/m/${encodeURIComponent(m.seed)}">Matchens topplista</button>
       <button class="btn" data-go="/duell">Till duellsidan</button>
       ${vard ? `<button class="btn" id="lavbryt2">Ta bort matchen</button>` : ""}
     </div>`;
@@ -19285,6 +19373,15 @@ async function taBortMatch(seed) {
   const jag = jagId();
   const u = (dstore.utmaningar.concat(SYNK.utmaningar)).find(x => x.seed === seed);
   await synkTaBort("resultat", seed + "__" + SYNK.uid);
+  /* Är det en livematch tas hela lobbyn bort om den är min — annars räcker
+     det att min egen rad i den försvinner, resten äger de andra. */
+  const lm = (SYNK.livematcher || []).find(x => x.id === seed);
+  if (lm) {
+    if (lm.egen) { try { await liveAvbryt(seed); } catch (e) {} }
+    else { try { await synkTaBort("live/" + seed + "/spelare", SYNK.uid); } catch (e) {} }
+    SYNK.livematcher = SYNK.livematcher.filter(x => x.id !== seed);
+    if (LIVE.id === seed) liveSluta();
+  }
   if (u && u.egen) {
     await synkTaBort("utmaningar", seed);
     if (u.tenta) await stadaDeladTenta(u.tenta, seed);
@@ -19322,6 +19419,18 @@ function allaMatcher() {
     m.nar = Math.max(m.nar || 0, r.nar || 0);
     m.dold = arDold(r.seed);
     per.set(r.seed, m);
+  });
+  /* Livematcher räknas som matcher de också — annars går de inte att rensa. */
+  (SYNK.livematcher || []).forEach(lm => {
+    const m = per.get(lm.id) || { seed: lm.id, deltagare: new Set(), mitt: null, dold: arDold(lm.id), nar: 0 };
+    m.titel = m.titel || lm.tentaTitel || "Livematch";
+    m.live = true;
+    m.lage = lm.lage;
+    m.egen = m.egen || lm.egen;
+    m.minuter = m.minuter || lm.minuter;
+    m.nar = Math.max(m.nar || 0, lm.skapad || 0);
+    m.dold = arDold(lm.id);
+    per.set(lm.id, m);
   });
   dolda().forEach(d => {
     const seed = doldSeed(d);
