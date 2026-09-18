@@ -209,6 +209,26 @@ button.ghost:hover{border-color:var(--accent); color:var(--ink-2)}
 .avrubrik{font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3);
   font-family:var(--mono); margin:14px 0 7px}
 .avrubrik:first-child{margin-top:0}
+
+/* Bandet som säger att ett nyare bygge finns. Ligger nedtill så att det inte
+   skymmer rubriken man läser, och över allt annat så att det inte kan hamna
+   bakom en panel. */
+#versionsband{
+  position:fixed; left:14px; right:14px; bottom:14px; z-index:9000;
+  display:flex; gap:14px; flex-wrap:wrap; align-items:center; justify-content:space-between;
+  padding:14px 18px; border-radius:12px;
+  background:var(--paper); color:var(--ink);
+  border:1px solid var(--accent);
+  box-shadow:0 10px 30px rgba(0,0,0,.18);
+  max-width:760px; margin:0 auto;
+}
+#versionsband .vb-text{display:flex; flex-direction:column; gap:3px; min-width:220px; flex:1}
+#versionsband .vb-text span{font-size:13px; color:var(--ink-2)}
+#versionsband .vb-knappar{display:flex; gap:8px; flex-wrap:wrap}
+@media (max-width:560px){
+  #versionsband{flex-direction:column; align-items:stretch}
+  #versionsband .vb-knappar .btn{flex:1}
+}
 .avval{
   aspect-ratio:1; font-size:21px; line-height:1; cursor:pointer; border-radius:9px;
   border:1px solid var(--line); background:var(--paper);
@@ -29490,8 +29510,111 @@ document.addEventListener("click", e => {
   visaStor(bild.src.replace(/^data:image\/[a-z]+;base64,/, ""), bild.alt || "Figur");
 });
 
+/* =====================================================================
+   VERSIONSKOLL
+   Biblioteket är en enda fil, och en fil som ligger i webbläsarens cache
+   uppdateras inte av sig själv. Den som en gång öppnat sidan kunde alltså
+   bli kvar på en gammal version utan att veta om det — och utan att ha
+   något sätt att ta reda på det.
+
+   Lösningen: varje bygge bär ett id, och bredvid filen ligger en liten
+   version.json med samma id. Appen hämtar den med cache: "no-store", så
+   den frågan går alltid hela vägen till servern även när själva sidan
+   kommer ur cachen. Skiljer sig id:t har det kommit ett nytt bygge.
+
+   Två saker är medvetna:
+   · Sidan laddas ALDRIG om av sig själv. Den som sitter mitt i en tenta
+     eller en livematch ska inte få den bortryckt — bandet visas först när
+     försöket är inlämnat, och det är alltid ett klick som laddar om.
+   · Misslyckas hämtningen händer ingenting alls. Filen fungerar lika bra
+     nedladdad, offline eller från en annan adress, och ska inte klaga på
+     att den inte hittar en version.json som inte finns där.
+   ===================================================================== */
+
+const BYGGID = "20260918-0730";
+const VERSIONSFIL = "version.json";
+const VERSIONSINTERVALL = 20 * 60000;
+let _nyttBygg = "";
+let _versionSenast = 0;
+
+/* Ett pågående försök får aldrig avbrytas av ett omladdningsband. */
+function versionUpptagen() {
+  return !!(tstore && tstore.aktivt);
+}
+
+async function kollaVersion() {
+  /* En nedladdad fil ligger på file:// och har ingen server att fråga. */
+  if (location.protocol !== "http:" && location.protocol !== "https:") return;
+  if (Date.now() - _versionSenast < 30000) return;      // ingen skur av anrop
+  _versionSenast = Date.now();
+  try {
+    const svar = await fetch(VERSIONSFIL + "?t=" + Date.now(), { cache: "no-store" });
+    if (!svar.ok) return;
+    const data = await svar.json();
+    const bygg = String(data && data.bygg || "");
+    if (!bygg || bygg === BYGGID) return;
+    _nyttBygg = bygg;
+    visaVersionsband(data);
+  } catch (e) {
+    /* Offline, fel adress eller ingen version.json — strunt samma. */
+  }
+}
+
+function visaVersionsband(data) {
+  if (!_nyttBygg || document.getElementById("versionsband")) return;
+  if (versionUpptagen()) return;                        // vänta tills tentan är klar
+
+  const band = document.createElement("div");
+  band.id = "versionsband";
+  band.setAttribute("role", "status");
+  band.innerHTML = `
+    <div class="vb-text">
+      <b>Det finns en nyare version av biblioteket.</b>
+      <span>${esc((data && data.namn) || "Ladda om sidan så får du den.")}</span>
+    </div>
+    <div class="vb-knappar">
+      <button class="btn primary" id="vbladda">Ladda om nu</button>
+      <button class="btn" id="vbsen" aria-label="Dölj tills nästa gång">Senare</button>
+    </div>`;
+  document.body.appendChild(band);
+
+  document.getElementById("vbladda").addEventListener("click", () => {
+    /* Frågetecknet gör adressen unik, så att webbläsaren måste hämta filen
+       på nytt i stället för att servera samma cachade kopia igen. Hashen
+       följer med, så man landar på sidan man stod på. */
+    location.replace(location.pathname + "?v=" + encodeURIComponent(_nyttBygg) + location.hash);
+  });
+  document.getElementById("vbsen").addEventListener("click", () => band.remove());
+}
+
+/* Har man just laddat om via ?v= städas parametern bort, så att adressen
+   man bokmärker eller delar inte bär med sig ett gammalt byggnummer. */
+function stadaVersionsparameter() {
+  if (!/[?&]v=/.test(location.search)) return;
+  try {
+    history.replaceState(null, "", location.pathname + location.hash);
+  } catch (e) {}
+}
+
+function startaVersionskoll() {
+  stadaVersionsparameter();
+  setTimeout(kollaVersion, 3000);
+  setInterval(kollaVersion, VERSIONSINTERVALL);
+  /* Den som haft fliken liggande i bakgrunden i en vecka ska få veta det
+     när den kommer tillbaka, inte först tjugo minuter senare. */
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) kollaVersion();
+  });
+  /* Bandet kan ha hållits tillbaka för att en tenta var igång. När den är
+     inlämnad tas nästa chans. */
+  window.addEventListener("hashchange", () => {
+    if (_nyttBygg && !versionUpptagen()) visaVersionsband(null);
+  });
+}
+
 window.addEventListener("hashchange", render);
 render();
+startaVersionskoll();
 /* Migrationerna är idempotenta och körs i bakgrunden vid varje start. */
 setTimeout(() => { korMigrationer().then(r => { if (r && r.media && r.media.flyttade) render(); }); }, 400);
 try { synkStarta(); } catch (e) {}
