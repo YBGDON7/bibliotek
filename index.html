@@ -699,6 +699,13 @@ details.panel summary::-webkit-details-marker{color:var(--ink-3)}
 .provbild .s{margin:0; padding:7px 12px; border-top:1px solid var(--line); background:var(--surface-2); font-size:12px}
 
 /* ---------- tentaprediktor ---------- */
+.goal.medradera{grid-template-columns:auto minmax(0,1fr) auto}
+.goal .predradera{
+  justify-self:end; align-self:center; cursor:pointer; white-space:nowrap;
+  font:inherit; font-size:12.5px; padding:5px 11px; border-radius:99px;
+  border:1px solid var(--line-strong); background:var(--surface); color:var(--ink-3);
+}
+.goal .predradera:hover{border-color:var(--err); color:var(--err)}
 .predkort{
   background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
   padding:20px 22px; margin-bottom:16px;
@@ -26305,6 +26312,26 @@ try {
 } catch (e) {}
 function predsave() { try { localStorage.setItem(PREDKEY, JSON.stringify(predstore)); } catch (e) {} }
 
+/* Tentabanken delas med Tentamenssimulatorn, så en borttagning här tar bort
+   tentan på riktigt. Inbyggda tentor går inte att ta bort. */
+function predTaBort(id) {
+  tstore.egna = tstore.egna.filter(x => x.id !== id); tsave();
+  predstore.valda = (predstore.valda || []).filter(x => x !== id);
+  if (predstore.senaste) {
+    predstore.senaste.ids = predstore.senaste.ids.filter(x => x !== id);
+    if (predstore.senaste.ids.length < 2) predstore.senaste = null;
+  }
+  predsave();
+}
+
+/* Efter en körning nollställs urvalet, så att nästa gång börjar rent.
+   Själva resultatet sparas bara så länge det visas. */
+function predNollstall(ids) {
+  predstore.senaste = { ids, nar: Date.now() };
+  predstore.valda = [];
+  predsave();
+}
+
 /* ---------- tidsordning ----------
    Aktualiteten ska väga tungt, så tentorna måste kunna sorteras i tid.
    Terminsbeteckningen i titeln är den säkraste källan — HT25, VT-26,
@@ -26513,6 +26540,7 @@ function viewPrediktor() {
   const tentor = allaTentor();
   const rankad = predRanka(tentor);
   const valda = new Set(predstore.valda || tentor.map(t => t.id));
+  const sen = predstore.senaste && predstore.senaste.ids.filter(id => tentor.some(t => t.id === id));
 
   view.innerHTML = `
     ${crumbs([{ t: "Översikt", href: "/" }, { t: "Tentaprediktor" }])}
@@ -26541,7 +26569,7 @@ function viewPrediktor() {
           nyare tentor väger tyngre i prediktionen.</p>
           <div class="goals">
             ${rankad.map(r => `
-              <div class="goal" data-klar="${valda.has(r.t.id) ? 1 : 0}">
+              <div class="goal${r.t.inbyggd ? "" : " medradera"}" data-klar="${valda.has(r.t.id) ? 1 : 0}">
                 <button class="check" data-pred="${esc(r.t.id)}" aria-pressed="${valda.has(r.t.id)}"
                         aria-label="${valda.has(r.t.id) ? "Ta bort" : "Lägg till"} ${esc(r.t.titel)}">${TICK}</button>
                 <span class="open" style="cursor:default">
@@ -26553,12 +26581,19 @@ function viewPrediktor() {
                       r.t.inbyggd ? " · inbyggd" : ""}</span>
                   </span>
                 </span>
+                ${r.t.inbyggd ? "" : `<button class="predradera" data-radera="${esc(r.t.id)}"
+                  title="Ta bort tentan" aria-label="Ta bort ${esc(r.t.titel)}">Ta bort</button>`}
               </div>`).join("")}
           </div>
-          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:20px">
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:20px; align-items:center">
             <button class="btn primary" id="predkor">Analysera</button>
             <button class="btn" data-go="/prediktor/ny">Läs in en tenta till</button>
+            <button class="lank" id="predalla">${valda.size === rankad.length ? "Avmarkera alla" : "Markera alla"}</button>
           </div>
+          ${sen && sen.length >= 2 ? `<p class="s" style="margin-top:14px">
+            Urvalet nollställdes efter förra körningen.
+            <button class="lank" id="predsen">Visa den analysen igen</button> ·
+            <button class="lank" id="predsenom">Kör om med samma ${sen.length} tentor</button></p>` : ""}
           <p class="s" id="predvarning" style="margin-top:12px"></p>
         </div>
 
@@ -26584,6 +26619,24 @@ function viewPrediktor() {
         </aside>
       </div>`}`;
 
+  view.querySelectorAll("[data-radera]").forEach(b => b.addEventListener("click", async e => {
+    e.stopPropagation();
+    const t = tentor.find(x => x.id === b.dataset.radera);
+    if (!await bekrafta(`Ta bort ${t ? "”" + t.titel + "”" : "tentan"}? Den försvinner även ur Tentamenssimulatorn. Tidigare försök finns kvar.`, "Ta bort")) return;
+    predTaBort(b.dataset.radera);
+    viewPrediktor();
+  }));
+  const alla = document.getElementById("predalla");
+  if (alla) alla.addEventListener("click", () => {
+    predstore.valda = valda.size === rankad.length ? [] : rankad.map(r => r.t.id);
+    predsave(); viewPrediktor();
+  });
+  const vs = document.getElementById("predsen");
+  if (vs) vs.addEventListener("click", () => go("#/prediktor/analys"));
+  const vo = document.getElementById("predsenom");
+  if (vo) vo.addEventListener("click", () => {
+    predstore.valda = predstore.senaste.ids.slice(); predsave(); viewPrediktor();
+  });
   view.querySelectorAll("[data-pred]").forEach(b => b.addEventListener("click", () => {
     const id = b.dataset.pred;
     if (valda.has(id)) valda.delete(id); else valda.add(id);
@@ -26606,8 +26659,13 @@ function viewPrediktor() {
 /* ---------- resultatet ---------- */
 function viewPrediktorAnalys() {
   const alla = allaTentor();
-  const valda = (predstore.valda || []).filter(id => alla.some(t => t.id === id));
+  /* Körningen utgår från urvalet, och om det redan nollställts — vid en
+     omladdning av sidan — från den senaste körningens tentor. */
+  let valda = (predstore.valda || []).filter(id => alla.some(t => t.id === id));
+  if (valda.length < 2 && predstore.senaste)
+    valda = predstore.senaste.ids.filter(id => alla.some(t => t.id === id));
   if (valda.length < 2) return go("#/prediktor");
+  predNollstall(valda);
 
   const res = predAnalys(valda);
   const fordelning = { stor: 0, medel: 0, lag: 0 };
@@ -31846,7 +31904,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20260922-0900";
+const BYGGID = "20260922-1100";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
