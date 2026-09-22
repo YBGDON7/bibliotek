@@ -697,6 +697,38 @@ details.panel summary::-webkit-details-marker{color:var(--ink-3)}
 .provbild{margin:0 0 22px; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--paper)}
 .provbild img{display:block; width:100%; height:auto; cursor:zoom-in}
 .provbild .s{margin:0; padding:7px 12px; border-top:1px solid var(--line); background:var(--surface-2); font-size:12px}
+
+/* ---------- tentaprediktor ---------- */
+.predkort{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+  padding:20px 22px; margin-bottom:16px;
+}
+.predhuvud{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px}
+.predbar{font-size:17px; letter-spacing:2px; line-height:1}
+.predniva{
+  font-size:12.5px; font-weight:600; padding:3px 10px; border-radius:99px;
+  border:1px solid var(--line-strong);
+}
+.predniva.stor{background:var(--teal-soft); color:var(--teal); border-color:transparent}
+.predniva.medel{background:color-mix(in srgb, var(--warn) 14%, transparent); color:var(--warn); border-color:transparent}
+.predniva.lag{background:color-mix(in srgb, var(--err) 12%, transparent); color:var(--err); border-color:transparent}
+.predhuvud .s{margin-left:auto; font-family:var(--mono); font-size:12px}
+.predtitel{margin:0 0 10px; font-size:19px; line-height:1.3}
+.predrad{margin:0 0 9px; font-size:14.5px; line-height:1.55}
+.predkallor{margin:12px 0 4px; border-top:1px solid var(--line); padding-top:12px}
+.predkallor summary{cursor:pointer; font-size:13.5px; color:var(--ink-2)}
+.predfraga{
+  display:flex; flex-direction:column; gap:3px; padding:10px 0;
+  border-bottom:1px solid var(--line); font-size:14px; line-height:1.5;
+}
+.predfraga:last-child{border-bottom:0}
+.predkalla{font-family:var(--mono); font-size:11.5px; color:var(--ink-3)}
+.predova{display:flex; gap:9px; flex-wrap:wrap; margin-top:14px}
+.predcitat{
+  margin:10px 0 0; padding:9px 12px; border-radius:8px; background:var(--surface-2);
+  font-size:13px; font-style:italic; color:var(--ink-2); user-select:all;
+}
+@media (max-width:560px){ .predkort{padding:16px 15px} .predhuvud .s{margin-left:0} }
 .qval{display:flex; flex-direction:column; gap:4px}
 .qradio{
   display:flex; align-items:flex-start; gap:14px; width:100%; text-align:left; cursor:pointer;
@@ -7811,6 +7843,11 @@ function parse() {
     if (p[1] === "resultat") return { name: "tentares", id: decodeURIComponent(p[2] || "") };
     return { name: "tentastart", id: decodeURIComponent(p[1]) };
   }
+  if (p[0] === "prediktor") {
+    if (p[1] === "ny") return { name: "prediktorny" };
+    if (p[1] === "analys") return { name: "prediktoranalys" };
+    return { name: "prediktor" };
+  }
   if (p[0] === "duell") {
     if (!p[1]) return { name: "duell" };
     if (p[1] === "ny") return { name: "duellny" };
@@ -7894,6 +7931,7 @@ function viewHem() {
     ${nastaTentaKort()}
     <div style="display:flex; gap:10px; flex-wrap:wrap; margin:22px 0 24px; align-items:center">
       <button class="btn primary" data-go="/tenta">Tentamenssimulator</button>
+      <button class="btn" data-go="/prediktor">Tentaprediktor</button>
       <button class="btn" data-go="/duell">Duell</button>
       <button class="btn" data-go="/kalender">Kalender</button>
       <button class="btn" data-go="/vanner">Vänner</button>
@@ -20232,10 +20270,14 @@ function viewTentaHub() {
 }
 
 /* ===== 2. Läs in tenta från PDF ===== */
+let _tentaRetur = null;
 function viewTentaNy() {
+  const tillPred = _tentaRetur === "#/prediktor";
   view.innerHTML = `
-    ${tentaCrumbs([{ t: "Ny tenta" }])}
-    <p class="eyebrow">Tentamenssimulator</p>
+    ${tillPred
+      ? crumbs([{ t: "Översikt", href: "/" }, { t: "Tentaprediktor", href: "/prediktor" }, { t: "Ny tenta" }])
+      : tentaCrumbs([{ t: "Ny tenta" }])}
+    <p class="eyebrow">${tillPred ? "Tentaprediktor" : "Tentamenssimulator"}</p>
     <h1>Läs in en tenta</h1>
     <p class="lede">Ladda upp tentans PDF med facit i. Filen läses <b>lokalt i din webbläsare</b> —
     inget skickas någonstans. Frågor, svarsalternativ och rätt svar plockas ut automatiskt, och du får
@@ -20457,7 +20499,16 @@ function viewTentaNy() {
         await new Promise(r => setTimeout(r, 30));
         try { autokoppla(t); } catch (e) {}
         tstore.egna.unshift(t); tsave();
-        go("#/tenta/" + encodeURIComponent(t.id));
+        /* Uppladdningen delas med Tentaprediktorn. Kom man därifrån ska man
+           tillbaka dit, annars öppnas tentan i simulatorn som vanligt. */
+        if (_tentaRetur) {
+          const r = _tentaRetur; _tentaRetur = null;
+          if (typeof predstore !== "undefined") {
+            predstore.valda = [...new Set([...(predstore.valda || allaTentor().map(x => x.id)), t.id])];
+            predsave();
+          }
+          go(r);
+        } else go("#/tenta/" + encodeURIComponent(t.id));
       });
     };
 
@@ -26233,6 +26284,477 @@ function viewProvResultat(k, m, nyckel) {
 }
 
 
+/* =====================================================================
+   TENTAPREDIKTOR
+   Tväranalys av minst två gamla tentor: vilka frågor och ämnesområden
+   återkommer, och hur sannolikt är det att de dyker upp igen?
+
+   Fristående från tentamenssimulatorn, men läser samma tentor och
+   använder exakt samma uppladdning och avläsning — en tenta som lästs in
+   en gång finns i båda funktionerna.
+
+   Hela analysen körs lokalt. Tre saker avgör om två frågor hör ihop:
+   texten, svarsalternativen och vilket lärandemål frågan kopplats till.
+   ===================================================================== */
+
+const PREDKEY = "lmb.pred.v1";
+let predstore = { valda: null };
+try {
+  const raw = localStorage.getItem(PREDKEY);
+  if (raw) predstore = Object.assign(predstore, JSON.parse(raw));
+} catch (e) {}
+function predsave() { try { localStorage.setItem(PREDKEY, JSON.stringify(predstore)); } catch (e) {} }
+
+/* ---------- tidsordning ----------
+   Aktualiteten ska väga tungt, så tentorna måste kunna sorteras i tid.
+   Terminsbeteckningen i titeln är den säkraste källan — HT25, VT-26,
+   "ht 2025" — och först därefter ett datumfält. */
+function terminOrdning(t) {
+  const txt = `${t.titel || ""} ${t.kalla || ""} ${t.datum || ""}`;
+  const m = txt.match(/\b(HT|VT)\s*-?\s*((?:19|20)\d{2}|\d{2})\b/i);
+  if (m) {
+    let ar = Number(m[2]);
+    if (ar < 100) ar += 2000;
+    return { ord: ar * 2 + (m[1].toUpperCase() === "HT" ? 1 : 0), etikett: m[1].toUpperCase() + String(ar).slice(2) };
+  }
+  const d = Date.parse(t.datum || "");
+  if (!isNaN(d)) {
+    const dt = new Date(d);
+    const ht = dt.getMonth() >= 6;
+    return { ord: dt.getFullYear() * 2 + (ht ? 1 : 0), etikett: (ht ? "HT" : "VT") + String(dt.getFullYear()).slice(2) };
+  }
+  return { ord: null, etikett: "" };
+}
+
+/* Tentorna rankas nyast först. Saknas terminsuppgift hamnar tentan i
+   mitten i stället för sist — en okänd termin är inte samma sak som en
+   gammal termin, och ska inte straffas som om den vore det. */
+function predRanka(tentor) {
+  const med = tentor.map(t => ({ t, ...terminOrdning(t) }));
+  const kanda = med.filter(x => x.ord !== null).map(x => x.ord);
+  const mitt = kanda.length ? kanda.sort((a, b) => a - b)[Math.floor(kanda.length / 2)] : 0;
+  med.forEach(x => { x.sort = x.ord === null ? mitt + 0.5 : x.ord; });
+  med.sort((a, b) => b.sort - a.sort);
+  const n = med.length;
+  med.forEach((x, i) => {
+    /* Nyast får full vikt, äldst 0,35, och däremellan jämnt fördelat. */
+    x.vikt = n <= 1 ? 1 : 1 - (i / (n - 1)) * 0.65;
+    x.plats = i;
+  });
+  return med;
+}
+
+/* ---------- textlikhet ---------- */
+function predTok(txt) { return new Set(tokens(txt)); }
+function jaccard(a, b) {
+  if (!a.size || !b.size) return 0;
+  let snitt = 0;
+  a.forEach(t => { if (b.has(t)) snitt++; });
+  return snitt / (a.size + b.size - snitt);
+}
+function normText(s) {
+  return String(s || "").toLowerCase().replace(/[^a-zåäöéü0-9]+/g, " ").trim();
+}
+
+/* Plockar isär en tenta i jämförbara frågeposter. */
+function predFragor(rankad) {
+  const ut = [];
+  rankad.forEach(r => {
+    (r.t.fragor || []).forEach(f => {
+      const q = String(f.q || "").trim();
+      if (q.length < 12) return;
+      ut.push({
+        tenta: r.t, tentaTitel: r.t.titel, etikett: r.etikett, vikt: r.vikt, plats: r.plats,
+        q, nr: f.nr, mal: f.mal || null, typ: f.typ,
+        tk: predTok(q),
+        ok: predTok((f.options || []).join(" ")),
+        norm: normText(q)
+      });
+    });
+  });
+  return ut;
+}
+
+/* Hur två frågor hänger ihop, och på vilken grund. Grunderna är
+   ordagrann, snarlik, alternativ och område — samma fyra som
+   matchningskriterierna. */
+function predLikhet(a, b) {
+  if (a.norm && a.norm === b.norm) return { sim: 1, grund: "ordagrann" };
+  const jt = jaccard(a.tk, b.tk);
+  if (jt >= 0.82) return { sim: jt, grund: "ordagrann" };
+  const jo = jaccard(a.ok, b.ok);
+  const sammaMal = a.mal && b.mal && a.mal === b.mal;
+  if (jt >= 0.5) return { sim: jt, grund: "snarlik" };
+  if (jo >= 0.55 && jt >= 0.2) return { sim: Math.max(jt, jo * 0.9), grund: "alternativ" };
+  if (sammaMal && jt >= 0.16) return { sim: Math.max(jt, 0.42), grund: "område" };
+  if (sammaMal && jo >= 0.35) return { sim: 0.4, grund: "område" };
+  return { sim: 0, grund: null };
+}
+
+/* Klustrar frågorna med union-find över alla par som når över tröskeln. */
+function predKluster(fragor) {
+  const far = fragor.map((_, i) => i);
+  const hitta = i => { while (far[i] !== i) { far[i] = far[far[i]]; i = far[i]; } return i; };
+  const slaIhop = (i, j) => { const a = hitta(i), b = hitta(j); if (a !== b) far[a] = b; };
+  const grunder = new Map();
+
+  for (let i = 0; i < fragor.length; i++) {
+    for (let j = i + 1; j < fragor.length; j++) {
+      const { sim, grund } = predLikhet(fragor[i], fragor[j]);
+      if (!grund || sim < 0.4) continue;
+      slaIhop(i, j);
+      const nyckel = hitta(i);
+      if (!grunder.has(nyckel)) grunder.set(nyckel, []);
+      grunder.get(nyckel).push({ grund, sim });
+    }
+  }
+
+  const grupper = new Map();
+  fragor.forEach((f, i) => {
+    const r = hitta(i);
+    if (!grupper.has(r)) grupper.set(r, []);
+    grupper.get(r).push(f);
+  });
+
+  /* Grunderna samlades under den rot klustret hade när paret slogs ihop,
+     och roten kan ha flyttat sedan dess. Därför läggs de ihop på nytt. */
+  const grundPer = new Map();
+  grunder.forEach((lista, gammalRot) => {
+    const r = hitta(gammalRot);
+    if (!grundPer.has(r)) grundPer.set(r, []);
+    grundPer.get(r).push(...lista);
+  });
+
+  return [...grupper.entries()].map(([r, medlemmar]) => ({
+    medlemmar, grunder: grundPer.get(r) || []
+  }));
+}
+
+/* ---------- ämnesnamn ----------
+   Har frågorna kopplats till ett lärandemål är målets titel det bästa
+   namnet. Annars byggs ett namn av de ord som är gemensamma för
+   frågorna i klustret. */
+function predAmne(kluster) {
+  const malRakning = new Map();
+  kluster.medlemmar.forEach(f => { if (f.mal) malRakning.set(f.mal, (malRakning.get(f.mal) || 0) + 1); });
+  const bast = [...malRakning.entries()].sort((a, b) => b[1] - a[1])[0];
+  /* Målets titel används bara när minst hälften av frågorna i klustret pekar
+     på samma mål. Gör de inte det beskriver målet något annat än det frågorna
+     faktiskt har gemensamt, och då är de gemensamma orden ärligare. */
+  if (bast && bast[1] >= Math.max(2, Math.ceil(kluster.medlemmar.length / 2))) {
+    const ref = malRef(bast[0]);
+    if (ref) return { titel: ref.mal.titel, malId: bast[0], ref };
+  }
+  /* Gemensamma ord, längsta först — de bär mest betydelse. */
+  let gem = null;
+  kluster.medlemmar.forEach(f => {
+    if (!gem) { gem = new Set(f.tk); return; }
+    gem = new Set([...gem].filter(t => f.tk.has(t)));
+  });
+  const ord = [...(gem || [])].sort((a, b) => b.length - a.length).slice(0, 4);
+  if (ord.length) return { titel: ord.join(", "), malId: null, ref: null };
+  const f = kluster.medlemmar[0];
+  return { titel: f.q.slice(0, 70) + (f.q.length > 70 ? "…" : ""), malId: null, ref: null };
+}
+
+/* ---------- prediktion ----------
+   Två faktorer, precis som kriterierna säger: hur stor andel av tentorna
+   ämnet förekommer i, och hur nyliga de tentorna är. */
+function predChans(kluster, antalTentor) {
+  const tentor = [...new Set(kluster.medlemmar.map(f => f.tentaTitel))];
+  const relativ = tentor.length / Math.max(1, antalTentor);
+  const vikter = [...new Map(kluster.medlemmar.map(f => [f.tentaTitel, f.vikt])).values()];
+  const aktualitet = vikter.length ? Math.max(...vikter) * 0.6 + (vikter.reduce((a, b) => a + b, 0) / vikter.length) * 0.4 : 0;
+  /* Frekvensen sätter taket, aktualiteten avgör hur mycket av taket som tas
+     ut. Två ämnen som båda finns i två av tre tentor hamnar alltså olika
+     högt beroende på om de fanns i de nyaste eller de äldsta. */
+  const poang = relativ * (0.55 + 0.45 * aktualitet);
+  const niva = poang >= 0.62 ? "stor" : poang >= 0.38 ? "medel" : "lag";
+  return { poang, relativ, aktualitet, niva, tentor };
+}
+
+const PREDBAR = { stor: "🟩🟩🟩", medel: "🟨🟨⬛", lag: "🟥⬛⬛" };
+const PREDNAMN = { stor: "Stor chans", medel: "Medel chans", lag: "Låg chans" };
+
+/* ---------- analysen ---------- */
+function predAnalys(valdaIds) {
+  const alla = allaTentor().filter(t => valdaIds.includes(t.id));
+  const rankad = predRanka(alla);
+  const fragor = predFragor(rankad);
+  const kluster = predKluster(fragor);
+
+  const rader = kluster
+    /* Strikt filtrering: allt som bara testas en gång ignoreras helt. */
+    .filter(kl => kl.medlemmar.length >= 2)
+    .map(kl => {
+      const amne = predAmne(kl);
+      const chans = predChans(kl, alla.length);
+      const grundRakning = {};
+      kl.grunder.forEach(g => { grundRakning[g.grund] = (grundRakning[g.grund] || 0) + 1; });
+      const grund = ["ordagrann", "snarlik", "alternativ", "område"]
+        .filter(g => grundRakning[g])
+        .sort((a, b) => grundRakning[b] - grundRakning[a])[0] || "område";
+      return { ...kl, amne, chans, grund };
+    })
+    .sort((a, b) => b.chans.poang - a.chans.poang || b.medlemmar.length - a.medlemmar.length);
+
+  return { tentor: rankad, fragor, rader, antalTentor: alla.length };
+}
+
+const PREDGRUND = {
+  ordagrann: "ordagrant eller nästan ordagrant samma fråga",
+  snarlik: "snarlik formulering",
+  alternativ: "liknande svarsalternativ",
+  område: "samma specifika ämnesområde"
+};
+
+/* ---------- startsidan ---------- */
+function viewPrediktor() {
+  const tentor = allaTentor();
+  const rankad = predRanka(tentor);
+  const valda = new Set(predstore.valda || tentor.map(t => t.id));
+
+  view.innerHTML = `
+    ${crumbs([{ t: "Översikt", href: "/" }, { t: "Tentaprediktor" }])}
+    <p class="eyebrow">Tentaprediktor</p>
+    <h1>Vad kommer på nästa tenta?</h1>
+    <p class="lede">Ladda upp minst två gamla tentor, så tväranalyseras de efter mönster: vilka frågor
+    och ämnesområden återkommer, hur ofta, och i vilka terminer. Bara det som förekommer
+    <b>minst två gånger</b> redovisas — allt som bara testats en enda gång ignoreras.</p>
+    <div class="rule"></div>
+
+    ${tentor.length < 2 ? `
+      <div class="empty">
+        <b>Prediktorn behöver minst två tentor</b>
+        ${tentor.length === 1
+          ? "Du har en tenta inläst. Ladda upp minst en till, så kan mönstren mellan dem analyseras."
+          : "Ingen tenta är inläst ännu. Ladda upp två eller fler gamla tentor med facit."}
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:18px">
+        <button class="btn primary" data-go="/prediktor/ny">Läs in en tenta</button>
+        <button class="btn" data-go="/tenta">Till tentamenssimulatorn</button>
+      </div>` : `
+      <div class="split">
+        <div>
+          <h2 style="font-size:20px; margin:0 0 4px">Tentor att analysera</h2>
+          <p class="s" style="margin:0 0 14px">Bocka av de tentor som ska ingå. Ordningen är nyast först —
+          nyare tentor väger tyngre i prediktionen.</p>
+          <div class="goals">
+            ${rankad.map(r => `
+              <div class="goal" data-klar="${valda.has(r.t.id) ? 1 : 0}">
+                <button class="check" data-pred="${esc(r.t.id)}" aria-pressed="${valda.has(r.t.id)}"
+                        aria-label="${valda.has(r.t.id) ? "Ta bort" : "Lägg till"} ${esc(r.t.titel)}">${TICK}</button>
+                <span class="open" style="cursor:default">
+                  <span class="idx">${r.etikett || "?"}</span>
+                  <span>
+                    <span class="t">${esc(r.t.titel)}</span>
+                    <span class="s">${(r.t.fragor || []).length} frågor${
+                      r.ord === null ? " · termin okänd, viktas i mitten" : ""}${
+                      r.t.inbyggd ? " · inbyggd" : ""}</span>
+                  </span>
+                </span>
+              </div>`).join("")}
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:20px">
+            <button class="btn primary" id="predkor">Analysera</button>
+            <button class="btn" data-go="/prediktor/ny">Läs in en tenta till</button>
+          </div>
+          <p class="s" id="predvarning" style="margin-top:12px"></p>
+        </div>
+
+        <aside class="aside">
+          <div class="panel">
+            <h4>Så räknas chansen</h4>
+            <p class="s" style="margin:0">Två faktorer avgör:<br>
+            <b>Relativ frekvens</b> — i hur stor andel av tentorna ämnet finns. Två av två väger tungt,
+            två av tio betydligt lättare.<br>
+            <b>Aktualitet</b> — ämnen i de senaste tentorna väger tyngre än sådant som bara fanns i
+            gamla.</p>
+            <p class="s" style="margin:12px 0 0">
+              ${PREDBAR.stor} Stor chans<br>
+              ${PREDBAR.medel} Medel chans<br>
+              ${PREDBAR.lag} Låg chans</p>
+          </div>
+          <div class="panel">
+            <h4>Matchningskriterier</h4>
+            <p class="s" style="margin:0">En fråga räknas som återkommande om den är ordagrann, har
+            snarlik formulering, liknande svarsalternativ, eller testar exakt samma specifika
+            ämnesområde.</p>
+          </div>
+        </aside>
+      </div>`}`;
+
+  view.querySelectorAll("[data-pred]").forEach(b => b.addEventListener("click", () => {
+    const id = b.dataset.pred;
+    if (valda.has(id)) valda.delete(id); else valda.add(id);
+    predstore.valda = [...valda]; predsave();
+    viewPrediktor();
+  }));
+  const kor = document.getElementById("predkor");
+  if (kor) kor.addEventListener("click", () => {
+    if (valda.size < 2) {
+      document.getElementById("predvarning").innerHTML =
+        `<b style="color:var(--warn)">Välj minst två tentor.</b> Mönster mellan tentor kräver
+         minst två att jämföra.`;
+      return;
+    }
+    predstore.valda = [...valda]; predsave();
+    go("#/prediktor/analys");
+  });
+}
+
+/* ---------- resultatet ---------- */
+function viewPrediktorAnalys() {
+  const alla = allaTentor();
+  const valda = (predstore.valda || []).filter(id => alla.some(t => t.id === id));
+  if (valda.length < 2) return go("#/prediktor");
+
+  const res = predAnalys(valda);
+  const fordelning = { stor: 0, medel: 0, lag: 0 };
+  res.rader.forEach(r => fordelning[r.chans.niva]++);
+
+  view.innerHTML = `
+    ${crumbs([{ t: "Översikt", href: "/" }, { t: "Tentaprediktor", href: "/prediktor" }, { t: "Analys" }])}
+    <p class="eyebrow">Tentaprediktor · ${res.antalTentor} tentor · ${res.fragor.length} frågor</p>
+    <h1>${res.rader.length} återkommande ${res.rader.length === 1 ? "ämne" : "ämnen"}</h1>
+    <p class="lede">Tväranalys av ${res.tentor.map(t => esc(t.t.titel)).join(", ")}.
+    Bara det som förekommer minst två gånger redovisas; allt som bara testades en gång är bortfiltrerat.</p>
+    <div class="rule"></div>
+
+    <div class="split">
+      <div id="predlista">
+        ${res.rader.length ? "" : `
+          <div class="empty">
+            <b>Inga mönster över tröskeln</b>
+            Ingen fråga och inget ämnesområde återkom i två eller fler av de valda tentorna. Prova att
+            lägga till fler tentor — mönster syns sällan i två tentor om de täcker olika delar av kursen.
+          </div>`}
+      </div>
+
+      <aside class="aside">
+        <div class="panel">
+          <h4>Fördelning</h4>
+          <p class="s" style="margin:0">
+            ${PREDBAR.stor} Stor chans: <b>${fordelning.stor}</b><br>
+            ${PREDBAR.medel} Medel chans: <b>${fordelning.medel}</b><br>
+            ${PREDBAR.lag} Låg chans: <b>${fordelning.lag}</b></p>
+        </div>
+        <div class="panel">
+          <h4>Tentorna i analysen</h4>
+          <p class="s" style="margin:0">${res.tentor.map(t =>
+            `${t.etikett ? `<b>${t.etikett}</b> ` : ""}${esc(t.t.titel)}`).join("<br>")}</p>
+        </div>
+        <button class="btn wide" data-go="/prediktor">Ändra urval</button>
+        <button class="btn wide" data-go="/prediktor/ny">Läs in en tenta till</button>
+      </aside>
+    </div>`;
+
+  const lista = document.getElementById("predlista");
+  res.rader.forEach((r, i) => {
+    const kort = document.createElement("div");
+    kort.className = "predkort";
+    const tentor = r.chans.tentor;
+    const ovaText = `Generera 3 typiska övningsfrågor för ${r.amne.titel} på samma svårighetsgrad som tentorna.`;
+    kort.innerHTML = `
+      <div class="predhuvud">
+        <span class="predbar" title="${PREDNAMN[r.chans.niva]}">${PREDBAR[r.chans.niva]}</span>
+        <span class="predniva ${r.chans.niva}">${PREDNAMN[r.chans.niva]}</span>
+        <span class="s">${i + 1} av ${res.rader.length}</span>
+      </div>
+      <h3 class="predtitel">${esc(r.amne.titel)}</h3>
+      ${r.amne.ref ? `<p class="s" style="margin:0 0 12px">Lärandemål ${esc(r.amne.malId)} ·
+        modul ${r.amne.ref.modul.nr}.${r.amne.ref.sub.nr} ${esc(r.amne.ref.sub.titel)}</p>` : ""}
+
+      <p class="predrad"><b>Förekomst &amp; källor:</b> ${r.medlemmar.length} gånger,
+      ${PREDGRUND[r.grund]}, i ${tentor.length === 1 ? "tentan" : `${tentor.length} tentor`} —
+      ${tentor.map(t => `<b>${esc(t)}</b>`).join(" och ")}.</p>
+
+      <p class="predrad"><b>Prediktion:</b> ${PREDNAMN[r.chans.niva]}.
+      ${predMotiv(r, res.antalTentor)}</p>
+
+      <p class="predrad"><b>Bar:</b> <span class="predbar">${PREDBAR[r.chans.niva]}</span>
+      (${PREDNAMN[r.chans.niva].split(" ")[0]})</p>
+
+      <p class="predrad"><b>Fokus/råd:</b> ${predRad(r)}</p>
+
+      <details class="predkallor">
+        <summary>Visa de ${r.medlemmar.length} frågorna och var de stod</summary>
+        <div>
+          ${r.medlemmar
+            .slice()
+            .sort((a, b) => a.plats - b.plats)
+            .map(f => `
+              <div class="predfraga">
+                <span class="predkalla">${f.etikett ? f.etikett + " · " : ""}${esc(f.tentaTitel)}, fråga ${f.nr}</span>
+                <span>${esc(f.q)}</span>
+              </div>`).join("")}
+        </div>
+      </details>
+
+      <div class="predova">
+        <button class="btn primary" data-ova="${esc(ovaText)}">Öva på detta</button>
+        <button class="btn" data-kopiera="${esc(ovaText)}">Kopiera uppmaningen</button>
+        ${r.amne.ref && r.amne.ref.mal.quiz && r.amne.ref.mal.quiz.length
+          ? `<button class="btn" data-go="${malLank(r.amne.ref)}">Öppna genomgången</button>` : ""}
+      </div>
+      <p class="predcitat">"${esc(ovaText)}"</p>`;
+    lista.appendChild(kort);
+  });
+
+  lista.querySelectorAll("[data-ova]").forEach(b => b.addEventListener("click", () => {
+    if (typeof oppna === "function") oppna(b.dataset.ova);
+  }));
+  lista.querySelectorAll("[data-kopiera]").forEach(b => b.addEventListener("click", async () => {
+    const txt = b.dataset.kopiera;
+    try { await navigator.clipboard.writeText(txt); }
+    catch (e) {
+      /* Utan urklippsrättighet markeras texten i stället, så den går att kopiera för hand. */
+      const p = b.closest(".predkort").querySelector(".predcitat");
+      const rng = document.createRange(); rng.selectNodeContents(p);
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(rng);
+    }
+    const gammalt = b.textContent;
+    b.textContent = "Kopierad";
+    setTimeout(() => { b.textContent = gammalt; }, 1600);
+  }));
+}
+
+/* Motiveringen ska säga varför nivån blev som den blev, utifrån de två
+   faktorerna — inte bara upprepa nivån. */
+function predMotiv(r, antalTentor) {
+  const n = r.chans.tentor.length;
+  const senaste = Math.max(...r.medlemmar.map(f => f.vikt));
+  const frekvens = `Förekommer i ${n} av ${antalTentor} tentor`;
+  const tid = senaste >= 0.85
+    ? ", och finns med i den senaste tentan"
+    : senaste >= 0.6
+      ? ", och i en av de nyare tentorna"
+      : ", men bara i äldre tentor";
+  const slut = r.chans.niva === "stor"
+    ? " — hög andel och färskt, alltså det här ska du kunna."
+    : r.chans.niva === "medel"
+      ? " — återkommande, men inte i varje tenta."
+      : " — mönstret finns, men tunt eller gammalt.";
+  return frekvens + tid + slut;
+}
+
+/* Rådet följer lärandemålets djupnivå när frågorna kopplats till ett mål,
+   och annars matchningsgrunden. */
+function predRad(r) {
+  const delmal = r.amne.ref ? (r.amne.ref.mal.delmal || []).join(" ").toLowerCase() : "";
+  if (/i detalj/.test(delmal)) return "Målet kräver detaljkunskap. Plugga mekanismen steg för steg — ytlig översikt räcker inte här.";
+  if (/förklara/.test(delmal)) return "Målet kräver att du kan förklara hur och varför. Öva på att säga mekanismen högt utan att titta.";
+  if (/resonera/.test(delmal)) return "Målet kräver resonemang. Träna på att väga faktorer mot varandra och koppla orsak till följd.";
+  if (/identifiera/.test(delmal)) return "Målet handlar om igenkänning. Gå igenom bilderna och de visuella kännetecknen tills de sitter.";
+  if (/definiera/.test(delmal)) return "Målet kräver exakta definitioner. Lär dig den precisa innebörden, inte bara ungefär vad det handlar om.";
+  if (/känna till/.test(delmal)) return "Målet ligger på känna till-nivå. Det räcker att veta att det finns och de enkla fakta kring det.";
+  if (r.grund === "ordagrann") return "Samma fråga har återanvänts rakt av. Läs den ordagrant och se till att du kan svaret utan att tveka.";
+  if (r.grund === "alternativ") return "Svarsalternativen återkommer. Lär dig skilja alternativen åt — det är där poängen avgörs.";
+  if (r.grund === "snarlik") return "Frågan omformuleras mellan terminer. Lär dig konceptet, inte frågans ordalydelse.";
+  return "Området testas om och om igen med olika frågor. Se till att du täcker hela området, inte bara en aspekt.";
+}
+
+
 function render() {
   const r = parse();
   document.querySelectorAll(".overlay").forEach(o => o.remove());
@@ -26242,6 +26764,7 @@ function render() {
      annars ritar en gammal vy om sig mitt i en ny. */
   _kontoLyssnare = null;
   stoppaNedrakning();
+  if (r.name !== "prediktorny") _tentaRetur = null;
   if (r.name !== "chatt") chattSluta();
   if (r.name === "hem") viewHem();
   else if (r.name === "sok") viewSok(r.q);
@@ -26251,6 +26774,9 @@ function render() {
   else if (r.name === "tentakor") viewTentaKor();
   else if (r.name === "tentares") viewTentaResultat(r.id);
   else if (r.name === "tentatest") viewTentaTest();
+  else if (r.name === "prediktor") viewPrediktor();
+  else if (r.name === "prediktoranalys") viewPrediktorAnalys();
+  else if (r.name === "prediktorny") { _tentaRetur = "#/prediktor"; viewTentaNy(); }
   else if (r.name === "duell") viewDuellHub();
   else if (r.name === "duellny") viewDuellNy();
   else if (r.name === "duelltopp") viewDuellTopp();
@@ -31320,7 +31846,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20260920-1400";
+const BYGGID = "20260922-0900";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
