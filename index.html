@@ -699,6 +699,44 @@ details.panel summary::-webkit-details-marker{color:var(--ink-3)}
 .provbild .s{margin:0; padding:7px 12px; border-top:1px solid var(--line); background:var(--surface-2); font-size:12px}
 
 /* ---------- tentaprediktor ---------- */
+.opts.flerval .opt .lt.ruta{
+  border-radius:6px; display:flex; align-items:center; justify-content:center;
+  background:var(--paper); border:1.5px solid var(--line-strong); color:var(--teal);
+}
+.opts.flerval .opt.vald .lt.ruta,
+.opts.flerval .opt.correct .lt.ruta{border-color:var(--teal); background:var(--teal-soft)}
+.opts.flerval .opt .lt.ruta svg{width:14px; height:14px}
+.flervalsrad{
+  margin:12px 0 2px; font-size:13px; color:var(--ink-2);
+  padding:7px 11px; border-radius:8px; background:var(--surface-2); display:inline-block;
+}
+.predmatare{display:flex; align-items:center; gap:10px; min-width:200px}
+.predmatare-spar{
+  flex:1; min-width:70px; height:9px; border-radius:99px;
+  background:var(--surface-2); overflow:hidden;
+}
+.predmatare-spar > i{display:block; height:100%; border-radius:99px; transition:width .4s ease}
+.predmatare.stor .predmatare-spar > i{background:var(--teal)}
+.predmatare.medel .predmatare-spar > i{background:var(--warn)}
+.predmatare.lag .predmatare-spar > i{background:var(--err)}
+.predmatare-tal{font-family:var(--mono); font-size:12.5px; color:var(--ink-2); min-width:40px}
+.predmatare-text{font-size:12.5px; font-weight:600}
+.predmatare.stor .predmatare-text{color:var(--teal)}
+.predmatare.medel .predmatare-text{color:var(--warn)}
+.predmatare.lag .predmatare-text{color:var(--err)}
+.prednivarubrik{margin:30px 0 14px}
+.prednivarubrik:first-child{margin-top:0}
+.prednivarubrik h2{font-size:20px; margin:0 0 4px}
+.prednivarubrik .s{margin:0}
+.predrad-tips{margin-bottom:26px}
+.predomrade{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+  padding:14px 18px; margin-bottom:10px;
+  display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap;
+}
+.predomrade-topp{display:flex; flex-direction:column; gap:2px; min-width:220px; flex:1}
+.predovning{margin-top:14px}
+.predovkort{max-width:none; margin-bottom:12px}
 .goal.medradera{grid-template-columns:auto minmax(0,1fr) auto}
 .goal .predradera{
   justify-self:end; align-self:center; cursor:pointer; white-space:nowrap;
@@ -711,14 +749,6 @@ details.panel summary::-webkit-details-marker{color:var(--ink-3)}
   padding:20px 22px; margin-bottom:16px;
 }
 .predhuvud{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px}
-.predbar{font-size:17px; letter-spacing:2px; line-height:1}
-.predniva{
-  font-size:12.5px; font-weight:600; padding:3px 10px; border-radius:99px;
-  border:1px solid var(--line-strong);
-}
-.predniva.stor{background:var(--teal-soft); color:var(--teal); border-color:transparent}
-.predniva.medel{background:color-mix(in srgb, var(--warn) 14%, transparent); color:var(--warn); border-color:transparent}
-.predniva.lag{background:color-mix(in srgb, var(--err) 12%, transparent); color:var(--err); border-color:transparent}
 .predhuvud .s{margin-left:auto; font-family:var(--mono); font-size:12px}
 .predtitel{margin:0 0 10px; font-size:19px; line-height:1.3}
 .predrad{margin:0 0 9px; font-size:14.5px; line-height:1.55}
@@ -18507,7 +18537,14 @@ const RE_RATTSVAR = /^\s*(?:rätt(?:a)?\s*svar(?:et)?|korrekt(?:a)?\s*svar|svar|
 const RE_FACITRAD = /^\s*(\d{1,3})\s*[.):\-–]?\s*([a-hA-H])\s*$/;
 const RE_FACITRUBRIK = /^\s*(facit|svarsnyckel|rätta\s*svaren?|rättningsmall|answer\s*key|lösningsförslag)\s*[:.\-–]?\s*$/i;
 const RE_VALJ = /^\s*(välj|markera|kryssa)\s+(ett|en|det|flera|alla|minst)\b/i;
-const RE_FLERA = /\b(flera|alla korrekta|ett eller flera)\b/i;
+const RE_FLERA = /\b(flera|alla korrekta|ett eller flera|välj alla|alla alternativ som|select all|all that apply|markera samtliga|samtliga korrekta)\b/i;
+/* "Tema 1 - Del A. (5 p)", "Tema 2 – Del B (3p)", "Del C. (5 p)" */
+const RE_TEMADEL = /^\s*(?:(Tema|Del|Fråga|Uppgift)\s*(\d+)\s*[-–—:]\s*)?Del\s*([A-ZÅÄÖ])\s*\.?\s*(?:\(\s*([\d.,]+)\s*p\w*\s*\))?\s*$/i;
+/* Facitblocket inleds med "Svar:". Ibland står ordet ensamt på raden, ibland
+   följer facittexten direkt efter kolonet — båda ska fungera. */
+const RE_SVARBLOCK = /^\s*svar\s*[:：]\s*(.*)$/i;
+/* Lärandemålsraden hör till läraranteckningarna och ska inte bli frågetext. */
+const RE_LARANDEMAL = /^\s*lärandemål\s*[:–-]/i;
 const RE_SLUT = /^\s*(totalpoäng|maxpoäng|max\s*poäng|poäng)\s*[:：]/i;
 const RE_SIDNUMMER = /^\s*\d{1,4}\s*\/\s*\d{1,4}\s*$/;
 
@@ -18697,12 +18734,22 @@ async function pdfLasTenta(bytes, onProgress) {
 
   const antalValj = rader.filter(r => RE_VALJ.test(r.text)).length;
   const antalNamn = rader.filter(r => r.fet && RE_FRAGA_NAMN.test(r.text)).length;
-  const lage = antalNamn >= 3 ? "namngiven" : antalValj >= 2 ? "digital" : "bokstäver";
-  const resultat = lage === "namngiven"
-    ? { fragor: parsaNamntLage(rader) }
-    : lage === "digital"
-      ? parsaAnkarläge(rader, sidor)
-      : parsaBokstavsläge(rader, sidor);
+  const antalDel = rader.filter(r => RE_TEMADEL.test(r.text)).length;
+  const antalSvarblock = rader.filter(r => RE_SVARBLOCK.test(r.text)).length;
+  /* Essätentor med rubriker av typen "Tema 1 - Del A. (5 p)" och ett
+     Svar-block som facit har varken svarsalternativ eller kryss, och måste
+     därför läsas för sig. Två sådana rubriker och minst ett Svar-block
+     räcker som belägg. */
+  const lage = (antalDel >= 2 && antalSvarblock >= 1) ? "essä"
+    : antalNamn >= 3 ? "namngiven"
+    : antalValj >= 2 ? "digital" : "bokstäver";
+  const resultat = lage === "essä"
+    ? { fragor: parsaEssalage(rader) }
+    : lage === "namngiven"
+      ? { fragor: parsaNamntLage(rader) }
+      : lage === "digital"
+        ? parsaAnkarläge(rader, sidor)
+        : parsaBokstavsläge(rader, sidor);
 
   /* ---- ordningen ----
      Frågorna byggs redan ur rader i dokumentordning, men ordningen är ett
@@ -18780,6 +18827,114 @@ function sortAvOrd(ord) {
   if (o === "sba" || o === "mcq") return "SBA";
   if (o === "kort") return "kortsvar";
   return "essä";
+}
+
+
+/* =====================================================================
+   ESSÄLÄGE
+   Tentor som består av skrivfrågor med facit i dokumentet. Strukturen är
+   en rubrikrad per deluppgift — "Tema 1 - Del A. (5 p)" — följd av
+   frågetexten, ofta en Lärandemål-rad som hör till läraranteckningarna,
+   och sist ett "Svar:"-block som är facit.
+
+   Allt mellan rubriken och Svar-raden blir frågan; allt efter Svar-raden
+   fram till nästa rubrik blir facit. Lärandemålsraden plockas ut för sig,
+   eftersom den beskriver vad frågan prövar och inte är en del av vare sig
+   frågan eller facit.
+   ===================================================================== */
+function parsaEssalage(rader) {
+  const block = [];
+  let nu = null, iSvar = false;
+  let temaNr = null, temaEtikett = "";
+
+  const stang = () => {
+    if (!nu) return;
+    nu.q = stada(nu.qRader);
+    nu.facit = stada(nu.facitRader);
+    if (nu.q.length >= 8) block.push(nu);
+    nu = null; iSvar = false;
+  };
+  const stada = lista => lista.join(" ")
+    .replace(/\s+/g, " ")
+    .replace(/\s+([,.;:])/g, "$1")
+    .trim();
+
+  rader.forEach(rad => {
+    const t = (rad.text || "").trim();
+    if (!t) return;
+
+    const d = t.match(RE_TEMADEL);
+    if (d) {
+      stang();
+      if (d[1] && /tema/i.test(d[1]) && d[2]) temaNr = d[2];
+      nu = {
+        qRader: [], facitRader: [], larandemal: "",
+        del: (d[3] || "").toUpperCase(),
+        tema: temaNr, temaEtikett,
+        poang: d[4] ? Number(String(d[4]).replace(",", ".")) : 1,
+        sida: rad.sida, y: rad.y
+      };
+      return;
+    }
+
+    /* En temarubrik utan Del bär temats namn och blir avsnittsetikett för de
+       deluppgifter som följer. Den avslutar också den deluppgift som pågår —
+       nästa tema börjar, alltså är den förra slut. */
+    const tm = t.match(/^\s*Tema\s*(\d+)\s*[-–—:]?\s*(.*)$/i);
+    if (tm) {
+      stang();
+      temaNr = tm[1];
+      const namn = (tm[2] || "").trim();
+      temaEtikett = namn.length > 1 ? `Tema ${temaNr} ${namn}` : `Tema ${temaNr}`;
+      return;
+    }
+
+    if (!nu) return;
+
+    const sv = t.match(RE_SVARBLOCK);
+    if (sv) {
+      iSvar = true; nu.iLarandemal = false;
+      /* Står facittexten på samma rad som ordet Svar följer den med direkt. */
+      if (sv[1] && sv[1].trim()) nu.facitRader.push(sv[1].trim());
+      return;
+    }
+    if (RE_LARANDEMAL.test(t)) {
+      nu.larandemal += (nu.larandemal ? " " : "") + t.replace(RE_LARANDEMAL, "").trim();
+      nu.iLarandemal = true;
+      return;
+    }
+    /* Lärandemålet står efter frågan och löper ofta över flera rader. I den
+       här tentatypen kommer det alltid mellan frågan och Svar-blocket, så
+       allt fram till Svar-raden hör dit. */
+    if (nu.iLarandemal && !iSvar) {
+      nu.larandemal += " " + t;
+      return;
+    }
+
+    if (iSvar) nu.facitRader.push(t.replace(/^[•·‣▪-]\s*/, ""));
+    else nu.qRader.push(t);
+  });
+  stang();
+
+  return block.map((b, i) => ({
+    id: "f" + (i + 1),
+    nr: i + 1,
+    q: b.q,
+    options: [],
+    svar: null,
+    typ: "text",
+    poang: Number(b.poang) > 0 ? b.poang : 1,
+    facit: b.facit,
+    facitrubrik: "Svar",
+    avsnitt: b.temaEtikett || (b.tema ? `Tema ${b.tema}` : ""),
+    sort: b.del ? `Del ${b.del}` : "",
+    namn: b.tema && b.del ? `Tema ${b.tema} Del ${b.del}` : "",
+    larandemal: b.larandemal || "",
+    hur: b.facit ? "svarblock" : null,
+    oense: false,
+    sida: b.sida, y: b.y,
+    flersvar: false, mal: null, konf: null
+  }));
 }
 
 function parsaNamntLage(rader) {
@@ -18973,6 +19128,20 @@ function parsaAnkarläge(rader, sidor) {
     if (fargade.length) { vald = fargade[0].ai; hur = "bock"; }
     else if (trafflista.length === 1) { vald = trafflista[0].ai; hur = "markering"; }
 
+    /* Flerkryssfrågor: här är flera markeringar inte motstridiga utan själva
+       svaret, så alla plockas i stället för bara den första. */
+    const flerMark = [...new Set((fargade.length ? fargade : trafflista).map(t => t.ai))].sort((a, b) => a - b);
+    const flerFeta = alternativ.map((a, j) => a.fet ? j : -1).filter(j => j >= 0);
+    let flersvarIdx = null;
+    if (f.flersvar) {
+      const k = flerMark.length >= 2 ? flerMark : (flerFeta.length >= 2 ? flerFeta : flerMark);
+      if (k.length) flersvarIdx = k;
+    } else if (flerMark.length >= 2) {
+      /* Står det inget om flera alternativ men två är ikryssade är det ändå
+         en flerkryssfråga — markeringarna är starkare belägg än rubriken. */
+      flersvarIdx = flerMark;
+    }
+
     /* fetstil som reserv */
     if (vald < 0) {
       const feta = alternativ.map((a, j) => a.fet ? j : -1).filter(j => j >= 0);
@@ -18984,8 +19153,11 @@ function parsaAnkarläge(rader, sidor) {
     return {
       id: "f" + (i + 1), nr: f.nr, q: f.q,
       options: alternativ.map(a => a.text),
-      svar: vald >= 0 ? vald : null,
-      hur, oense, sida: f.sida, y: f.y, flersvar: !!f.flersvar,
+      typ: flersvarIdx ? "flerval" : "sba",
+      svar: flersvarIdx ? flersvarIdx : (vald >= 0 ? vald : null),
+      hur: flersvarIdx ? (hur || "markering") : hur,
+      oense: flersvarIdx ? false : oense,
+      sida: f.sida, y: f.y, flersvar: !!(f.flersvar || flersvarIdx),
       yTopp: alternativ.length ? alternativ[0].y : null,
       yBotten: alternativ.length ? alternativ[alternativ.length - 1].y0 : null,
       mal: null, konf: null
@@ -19553,8 +19725,11 @@ function normaliseraTenta(t) {
       bilder: Array.isArray(f.bilder) ? f.bilder.filter(Boolean)
         : (f.bild ? [f.bild] : []),
       options: (f.options || []).map(o => String(o).trim()).filter(Boolean),
-      svar: (f.svar === null || f.svar === undefined || f.svar === "") ? null : Number(f.svar),
-      typ: f.typ === "text" ? "text" : "sba",
+      /* Flerkryssfrågor bär en lista av index; envalsfrågor ett enda tal. */
+      svar: f.typ === "flerval"
+        ? (Array.isArray(f.svar) ? [...new Set(f.svar.map(Number).filter(n => n >= 0))].sort((a, b) => a - b) : [])
+        : (f.svar === null || f.svar === undefined || f.svar === "") ? null : Number(f.svar),
+      typ: f.typ === "text" ? "text" : f.typ === "flerval" ? "flerval" : "sba",
       sort: f.sort || "",
       namn: f.namn || "",
       poang: Number(f.poang) > 0 ? Number(f.poang) : 1,
@@ -19699,7 +19874,9 @@ function ratta(forsok, tenta) {
       : (svarat !== undefined && svarat !== null);
 
     /* bedömningsbar = det finns något att jämföra mot */
-    const bedombar = text ? !!(f.facit && f.facit.trim()) : (f.svar !== null && f.svar !== undefined);
+    const bedombar = text ? !!(f.facit && f.facit.trim())
+      : f.typ === "flerval" ? Array.isArray(f.svar) && f.svar.length > 0
+      : (f.svar !== null && f.svar !== undefined);
     const poangMax = Number(f.poang) > 0 ? Number(f.poang) : 1;
 
     let poangFatt = null, ratt = false, bedomd = false;
@@ -19709,6 +19886,13 @@ function ratta(forsok, tenta) {
         poangFatt = Math.max(0, Math.min(poangMax, s));
         bedomd = true;
         ratt = poangFatt >= poangMax;                 /* full poäng räknas som rätt */
+      }
+    } else if (f.typ === "flerval") {
+      /* Delpoäng: varje rätt kryss ger, varje felaktigt kryss tar. Aldrig
+         under noll, och full poäng bara när precis rätt uppsättning kryssats. */
+      if (bedombar && harSvar) {
+        const b = rattaFlerval(svarat, f.svar, poangMax);
+        poangFatt = b.poang; ratt = b.allt; bedomd = true;
       }
     } else {
       ratt = bedombar && harSvar && svarat === f.svar;
@@ -19831,7 +20015,18 @@ function lamnaIn(auto) {
   }
   tstore.aktivt = null;
   tsave();
-  if (forsok.duell) { try { duellRegistrera(forsok, res, forsok.duell); } catch (e) {} }
+  if (forsok.duell) {
+    try { duellRegistrera(forsok, res, forsok.duell); } catch (e) {}
+    /* Skrivfrågor i duell rättas av den som skapade matchen, mot samma facit
+       för alla. Alla skickar in sina fritextsvar; hosten hämtar dem. */
+    try {
+      if (duellSkrivfragor(t).length) {
+        duellSkickaSvar(forsok, t, forsok.duell).then(() => {
+          if (arDuellHost(forsok.duell)) duellHostRatta(forsok.duell, t);
+        });
+      }
+    } catch (e) {}
+  }
   if (forsok.live) {
     /* I en livematch går man tillbaka till matchen, inte till den egna
        resultatsidan — resultatet hör ju ihop med de andras. */
@@ -19968,6 +20163,45 @@ function bedomLokalt(facit, svar, maxPoang) {
 
 /* AI-bedömning. Samma facit och samma poängtak, men den kan läsa ett
    resonemang som säger rätt sak med andra ord. */
+/* =====================================================================
+   FARTHÅLLARE FÖR API-ANROP
+   Googles gräns går vid 15 anrop per minut. Körs rättningen parallellt
+   spräcks den direkt och svaren kommer tillbaka som 429. Därför går
+   varje anrop genom en enda global kö som tvingar in minst fyra
+   sekunder mellan anropen — det ger som mest 15 per minut oavsett hur
+   många frågor eller spelare som väntar.
+   ===================================================================== */
+const AI_MELLANRUM = 4000;
+let _aiKo = Promise.resolve();
+let _aiSenast = 0;
+let _aiKvar = 0;
+const _aiLyssnare = new Set();
+
+function aiKoStatus(fn) { _aiLyssnare.add(fn); return () => _aiLyssnare.delete(fn); }
+function _aiMeddela(text) { _aiLyssnare.forEach(fn => { try { fn(text, _aiKvar); } catch (e) {} }); }
+
+/* Lägger ett anrop sist i kön. Returnerar samma löfte som anropet självt,
+   så anroparen märker ingen skillnad annat än att det kan dröja. */
+function aiKo(uppgift, etikett) {
+  _aiKvar++;
+  const nu = _aiKo.then(async () => {
+    const vanta = Math.max(0, AI_MELLANRUM - (Date.now() - _aiSenast));
+    if (vanta) {
+      _aiMeddela(etikett ? `${etikett} — väntar ${Math.ceil(vanta / 1000)} s för att hålla API-gränsen` : "");
+      await new Promise(r => setTimeout(r, vanta));
+    }
+    if (etikett) _aiMeddela(etikett);
+    _aiSenast = Date.now();
+    try { return await uppgift(); }
+    finally { _aiSenast = Date.now(); }
+  });
+  /* Kön får aldrig brytas av att ett anrop misslyckas — nästa ska ändå köras. */
+  _aiKo = nu.then(() => {}, () => {});
+  nu.then(() => { _aiKvar--; if (!_aiKvar) _aiMeddela(""); },
+          () => { _aiKvar--; if (!_aiKvar) _aiMeddela(""); });
+  return nu;
+}
+
 async function bedomMedAI(fraga, svar, maxPoang) {
   const max = Number(maxPoang) > 0 ? Number(maxPoang) : 1;
   const prompt =
@@ -19991,7 +20225,7 @@ Så här bedömer du:
 Svara med enbart en rad JSON, utan kodstaket:
 {"poang": <tal>, "motiv": "<en eller två meningar på svenska som säger vad som fanns med och vad som saknades>"}`;
 
-  const { text } = await fragaAI([{ role: "user", content: prompt }], {});
+  const { text } = await aiKo(() => fragaAI([{ role: "user", content: prompt }], {}), svar.etikett);
   const m = String(text || "").match(/\{[\s\S]*\}/);
   if (!m) throw new Error("oläsbart svar");
   const j = JSON.parse(m[0]);
@@ -20048,6 +20282,19 @@ async function bedomForsokMedAI(forsokId, ritaOm) {
   if (!post) return;
   const tenta = forsokTenta(post);
   if (!tenta) return;
+  /* I en duell äger hosten bedömningen av skrivfrågorna. Skulle varje gäst
+     rätta sitt eget svar med sin egen nyckel kunde två identiska svar få
+     olika poäng, och hela poängen med en gemensam bedömning faller. */
+  if (post.duell && !arDuellHost(post.duell)) {
+    _aiBedomd[forsokId] = "klar";
+    try {
+      duellLyssnaBedomning(post.duell, tenta, post, () => { if (ritaOm) ritaOm(-1); });
+    } catch (e) {}
+    return;
+  }
+  if (post.duell && arDuellHost(post.duell)) {
+    try { duellHostRatta(post.duell, tenta); } catch (e) {}
+  }
   const kvar = post.ordning.filter(fi => {
     const f = tenta.fragor[fi];
     const svar = post.svar[fi];
@@ -20055,13 +20302,21 @@ async function bedomForsokMedAI(forsokId, ritaOm) {
       typeof svar === "string" && svar.trim() &&
       (post.bedomning || {})[fi]?.kalla !== "ai" && (post.bedomning || {})[fi]?.kalla !== "jag";
   });
-  if (!kvar.length) { _aiBedomd[forsokId] = "klar"; return; }
+  if (!kvar.length) {
+    _aiBedomd[forsokId] = "kör";
+    await nodrattaForsok(post, tenta, ritaOm);
+    _aiBedomd[forsokId] = "klar";
+    return;
+  }
   _aiBedomd[forsokId] = "kör";
   post.bedomning = post.bedomning || {};
-  for (const fi of kvar) {
+  for (const [ordning, fi] of kvar.entries()) {
     const f = tenta.fragor[fi];
     try {
-      const b = await bedomMedAI(f.q, { facit: f.facit, text: post.svar[fi] }, f.poang);
+      const b = await bedomMedAI(f.q, {
+        facit: f.facit, text: post.svar[fi],
+        etikett: `Rättar skrivfråga ${ordning + 1} av ${kvar.length}…`
+      }, f.poang);
       post.poang[fi] = b.poang;
       post.bedomning[fi] = { kalla: "ai", motiv: b.motiv };
     } catch (e) {
@@ -20071,7 +20326,90 @@ async function bedomForsokMedAI(forsokId, ritaOm) {
     tsave();
     if (ritaOm) ritaOm(fi);
   }
+  /* Nödrättning: kryssfrågor vars facit inte gick att läsa ur PDF:en kan
+     inte rättas av den lokala koden — det finns inget att jämföra mot. Då,
+     och bara då, får API:et avgöra vilket alternativ som är rätt. */
+  await nodrattaForsok(post, tenta, ritaOm);
   _aiBedomd[forsokId] = "klar";
+}
+
+/* Frågor som den inbyggda logiken inte kan rätta: kryssfrågor utan facit. */
+function behoverNodrattning(f, svar) {
+  if (!f || f.typ === "text") return false;
+  if (!harSvarat(svar)) return false;
+  if (f.typ === "flerval") return !(Array.isArray(f.svar) && f.svar.length);
+  return f.svar === null || f.svar === undefined;
+}
+
+async function nodrattaForsok(post, tenta, ritaOm) {
+  if (!motor) return;
+  post.bedomning = post.bedomning || {};
+  const kvar = post.ordning.filter(fi => {
+    const b = post.bedomning[fi] || {};
+    return behoverNodrattning(tenta.fragor[fi], post.svar[fi]) && b.kalla !== "nod" && b.kalla !== "jag";
+  });
+  if (!kvar.length) return;
+  for (const [i, fi] of kvar.entries()) {
+    const f = tenta.fragor[fi];
+    try {
+      const facit = await nodrattaFraga(f, `Tolkar fråga ${i + 1} av ${kvar.length} utan facit…`);
+      const max = Number(f.poang) > 0 ? Number(f.poang) : 1;
+      let poang, motiv;
+      if (f.typ === "flerval") {
+        const b = rattaFlerval(post.svar[fi], facit.ratt, max);
+        poang = b.poang;
+        motiv = `Facit saknades i filen, så rätt uppsättning bestämdes av AI: ${
+          facit.ratt.map(i2 => String.fromCharCode(65 + i2)).join(", ")}. ${facit.motiv}`;
+      } else {
+        const r = facit.ratt[0];
+        poang = post.svar[fi] === r ? max : 0;
+        motiv = `Facit saknades i filen, så rätt svar bestämdes av AI: ${
+          String.fromCharCode(65 + r)}. ${facit.motiv}`;
+      }
+      post.poang[fi] = poang;
+      post.bedomning[fi] = { kalla: "nod", motiv };
+    } catch (e) {
+      post.bedomning[fi] = Object.assign({}, post.bedomning[fi],
+        { aiFel: "Nödrättning misslyckades: " + String(e && e.message || e).slice(0, 100) });
+    }
+    uppdateraSammanfattning(post, tenta);
+    tsave();
+    if (ritaOm) ritaOm(fi);
+  }
+}
+
+/* Låter API:et avgöra vilket eller vilka alternativ som är rätt. */
+async function nodrattaFraga(f, etikett) {
+  const alt = (f.options || []).map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join("\n");
+  const flerval = f.typ === "flerval";
+  const prompt =
+`Du är examinator på läkarprogrammet vid Karolinska Institutet. Facit till den här tentamensfrågan gick inte att läsa ur filen, så du ska avgöra vilket svar som är korrekt.
+
+FRÅGA:
+${String(f.q || "").slice(0, 1500)}
+
+SVARSALTERNATIV:
+${alt}
+
+${flerval
+  ? "Det här är en flerkryssfråga: flera alternativ kan vara rätt. Ange samtliga korrekta."
+  : "Det här är en envalsfråga: exakt ett alternativ är rätt."}
+
+Svara med enbart en rad JSON, utan kodstaket:
+{"ratt": [${flerval ? "0, 2" : "0"}], "motiv": "<en mening på svenska om varför>"}
+
+Indexen är nollbaserade: A är 0, B är 1, och så vidare.`;
+
+  const { text } = await aiKo(() => fragaAI([{ role: "user", content: prompt }], {}), etikett);
+  const m = String(text || "").match(/\{[\s\S]*\}/);
+  if (!m) throw new Error("oläsbart svar");
+  const j = JSON.parse(m[0]);
+  const n = (f.options || []).length;
+  const ratt = (Array.isArray(j.ratt) ? j.ratt : [j.ratt])
+    .map(Number).filter(x => Number.isInteger(x) && x >= 0 && x < n);
+  if (!ratt.length) throw new Error("inget giltigt alternativ i svaret");
+  return { ratt: flerval ? [...new Set(ratt)].sort((a, b) => a - b) : [ratt[0]],
+           motiv: String(j.motiv || "").slice(0, 200) };
 }
 
 function uppdateraSammanfattning(post, tenta) {
@@ -20120,6 +20458,8 @@ function bedomningsPanel(rad, bed, vantar) {
   }
   const kalla = bed ? bed.kalla : null;
   const etikett = kalla === "ai" ? "bedömd mot facit"
+    : kalla === "host" ? `rättad av ${bed.hostNamn ? bed.hostNamn : "matchens värd"}`
+    : kalla === "nod" ? "facit saknades, bestämt av AI"
     : kalla === "jag" ? "din poäng"
     : "ordjämförelse";
   return `
@@ -20153,8 +20493,22 @@ function poangRad(rad, satt, oppen) {
 /* ---------- vyer: tentamenssimulator ---------- */
 let _tentaTimer = null, _tentaTangent = null;
 /* Ett svar räknas som avgivet om det är ett valt alternativ eller text man skrivit. */
+/* Rättar en flerkryssfråga lokalt i kod, utan API. */
+function rattaFlerval(valda, facit, maxPoang) {
+  const R = new Set((facit || []).map(Number));
+  const V = new Set((Array.isArray(valda) ? valda : []).map(Number));
+  if (!R.size) return { poang: 0, allt: false, traff: 0, fel: 0 };
+  let traff = 0;
+  V.forEach(v => { if (R.has(v)) traff++; });
+  const fel = V.size - traff;
+  const andel = Math.max(0, (traff - fel) / R.size);
+  const allt = traff === R.size && fel === 0;
+  return { poang: Math.round(andel * maxPoang * 2) / 2, allt, traff, fel };
+}
+
 function harSvarat(v) {
   if (typeof v === "string") return v.trim().length > 0;
+  if (Array.isArray(v)) return v.length > 0;
   return v !== undefined && v !== null;
 }
 
@@ -20409,11 +20763,14 @@ function viewTentaNy() {
     const F = res.fragor;
     const d = res.diagnos;
     const HUR = { textrad: "rätt svar-rad", kryss: "kryss", markering: "markering",
-      fetstil: "fetstil", facitlista: "facitlista", bock: "bock i facit", manuell: "valt av dig" };
+      fetstil: "fetstil", facitlista: "facitlista", bock: "bock i facit", manuell: "valt av dig",
+      svarblock: "Svar-block i filen" };
 
     /* En fråga saknar facit om det inte finns något att rätta mot: för en
        kryssfråga inget markerat alternativ, för en skrivfråga ingen facittext. */
-    const saknarFacit = f => f.typ === "text" ? !(f.facit && f.facit.trim()) : f.svar === null;
+    const saknarFacit = f => f.typ === "text" ? !(f.facit && f.facit.trim())
+      : f.typ === "flerval" ? !(Array.isArray(f.svar) && f.svar.length)
+      : f.svar === null;
 
     const rita = () => {
       const summaPoang = F.reduce((n, f) => n + (Number(f.poang) > 0 ? Number(f.poang) : 1), 0);
@@ -20460,8 +20817,28 @@ function viewTentaNy() {
 
       status.querySelectorAll("[data-svar]").forEach(b => b.addEventListener("click", () => {
         const [i, o] = b.dataset.svar.split(":").map(Number);
-        F[i].svar = F[i].svar === o ? null : o;
-        F[i].hur = F[i].svar === null ? null : "manuell";
+        if (F[i].typ === "flerval") {
+          const nu = new Set(Array.isArray(F[i].svar) ? F[i].svar : []);
+          if (nu.has(o)) nu.delete(o); else nu.add(o);
+          F[i].svar = [...nu].sort((x, y) => x - y);
+        } else {
+          F[i].svar = F[i].svar === o ? null : o;
+        }
+        F[i].hur = (F[i].svar === null || (Array.isArray(F[i].svar) && !F[i].svar.length)) ? null : "manuell";
+        F[i].oense = false;
+        rita();
+      }));
+      /* Avläsningen kan missa att en fråga har flera rätta svar, så typen går
+         att slå om för hand i granskningen. */
+      status.querySelectorAll("[data-flerval]").forEach(b => b.addEventListener("click", () => {
+        const i = +b.dataset.flerval;
+        if (F[i].typ === "flerval") {
+          F[i].typ = "sba";
+          F[i].svar = Array.isArray(F[i].svar) && F[i].svar.length ? F[i].svar[0] : null;
+        } else {
+          F[i].typ = "flerval";
+          F[i].svar = (F[i].svar === null || F[i].svar === undefined) ? [] : [F[i].svar];
+        }
         F[i].oense = false;
         rita();
       }));
@@ -20505,6 +20882,21 @@ function viewTentaNy() {
            paus så att knappen hinner rita om sig på mobilen. */
         await new Promise(r => setTimeout(r, 30));
         try { autokoppla(t); } catch (e) {}
+        /* Duplikatfiltrering: samma tenta två gånger skulle räkna varje mönster
+           dubbelt i Tentaprediktorn. */
+        const dubb = typeof predDubblett === "function" ? predDubblett(t, allaTentor()) : null;
+        if (dubb) {
+          const behall = await bekrafta(
+            `Den här tentan verkar redan vara inläst som ”${dubb.titel}” (${(dubb.fragor || []).length} frågor). ` +
+            `Lägger du in den igen räknas varje fråga dubbelt i Tentaprediktorn. Vill du lägga in den ändå?`,
+            "Lägg in ändå");
+          if (!behall) {
+            knapp.disabled = false; knapp.textContent = "Spara tentan";
+            _tentaRetur = null;
+            go(dubb.inbyggd || !dubb.id ? "#/prediktor" : "#/tenta/" + encodeURIComponent(dubb.id));
+            return;
+          }
+        }
         tstore.egna.unshift(t); tsave();
         /* Uppladdningen delas med Tentaprediktorn. Kom man därifrån ska man
            tillbaka dit, annars öppnas tentan i simulatorn som vanligt. */
@@ -20529,9 +20921,11 @@ function viewTentaNy() {
             ? (f.facit
                 ? `<span class="chip done" style="margin-left:8px">facittext</span>`
                 : `<span class="chip" style="margin-left:8px; background:color-mix(in srgb, var(--warn) 14%, transparent); color:var(--warn); border-color:transparent">saknar facit</span>`)
-            : f.svar === null
+            : saknarFacit(f)
               ? `<span class="chip" style="margin-left:8px; background:color-mix(in srgb, var(--warn) 14%, transparent); color:var(--warn); border-color:transparent">saknar facit</span>`
               : `<span class="chip done" style="margin-left:8px">${HUR[f.hur] || "valt av dig"}</span>`}
+          ${f.typ === "flerval" ? `<span class="chip accent" style="margin-left:6px">flerkryss${
+            Array.isArray(f.svar) && f.svar.length ? ` · ${f.svar.length} rätta` : ""}</span>` : ""}
           ${f.oense ? `<span class="chip accent" style="margin-left:6px">motstridiga markeringar</span>` : ""}
         </div>
         <div class="qtext" style="font-size:15.5px">${esc(f.q)}</div>
@@ -20542,13 +20936,21 @@ function viewTentaNy() {
             <textarea data-facit="${i}" rows="4" placeholder="Klistra in eller skriv facit för den här frågan…"
               style="${KODSTIL}; font-family:var(--body); font-size:13.5px; white-space:pre-wrap; margin-top:6px">${esc(f.facit || "")}</textarea>
           </div>`
-          : `<div class="opts">
-          ${f.options.map((o, oi) => `
-            <button class="opt${f.svar === oi ? " correct" : ""}" data-svar="${i}:${oi}"
-              aria-pressed="${f.svar === oi}">
-              <span class="lt">${String.fromCharCode(65 + oi)}</span><span>${esc(o)}</span>
-            </button>`).join("")}
-        </div>`}
+          : `<div class="opts${f.typ === "flerval" ? " flerval" : ""}">
+          ${f.options.map((o, oi) => {
+            const vald = f.typ === "flerval" ? (Array.isArray(f.svar) && f.svar.includes(oi)) : f.svar === oi;
+            return `<button class="opt${vald ? " correct" : ""}" data-svar="${i}:${oi}" aria-pressed="${vald}">
+              <span class="lt${f.typ === "flerval" ? " ruta" : ""}">${
+                f.typ === "flerval" ? (vald ? TICK : "") : String.fromCharCode(65 + oi)}</span><span>${esc(o)}</span>
+            </button>`; }).join("")}
+        </div>
+        <p style="margin:10px 0 0">
+          <button class="lank" data-flerval="${i}">${f.typ === "flerval"
+            ? "Det här är en envalsfråga" : "Flera alternativ är rätt"}</button>
+          <span style="font-size:12.5px; color:var(--ink-3)"> — ${f.typ === "flerval"
+            ? "kryssa i alla rätta svar ovan"
+            : "klicka om avläsningen missat att frågan har flera rätta svar"}</span>
+        </p>`}
       </div>`;
     };
 
@@ -20818,6 +21220,15 @@ function viewTentaKor() {
         <p style="font-size:12.5px; color:var(--ink-3); margin:8px 0 0">
           Skrivsvar rättas efter inlämning: du får se facit bredvid ditt svar och sätter poängen själv,
           med hjälp av vilka begrepp som saknas.</p>`
+        : f.typ === "flerval" ? `
+        <p class="flervalsrad">Flera alternativ kan vara rätt — kryssa i alla som stämmer.</p>
+        <div class="opts flerval" id="topts" role="group" aria-label="Svarsalternativ, flera kan vara rätt">
+        ${f.options.map((o, oi) => {
+          const i = Array.isArray(valt) && valt.includes(oi);
+          return `<button class="opt${i ? " vald" : ""}" data-o="${oi}" role="checkbox" aria-checked="${i}">
+            <span class="lt ruta">${i ? TICK : ""}</span><span>${esc(o)}</span>
+          </button>`; }).join("")}
+      </div>`
         : `<div class="opts" id="topts" role="radiogroup" aria-label="Svarsalternativ">
         ${f.options.map((o, oi) => `
           <button class="opt${valt === oi ? " vald" : ""}" data-o="${oi}" role="radio" aria-checked="${valt === oi}">
@@ -20855,7 +21266,17 @@ function viewTentaKor() {
   const optsRuta = view.querySelector("#topts");
   if (optsRuta) optsRuta.addEventListener("click", e => {
     const b = e.target.closest(".opt"); if (!b) return;
-    a.svar[fi] = +b.dataset.o; tsave();
+    const oi = +b.dataset.o;
+    if (f.typ === "flerval") {
+      /* Flerkryss: varje klick slår på eller av ett alternativ, och man går
+         vidare först när man själv vill. */
+      const nu = new Set(Array.isArray(a.svar[fi]) ? a.svar[fi] : []);
+      if (nu.has(oi)) nu.delete(oi); else nu.add(oi);
+      a.svar[fi] = [...nu].sort((x, y) => x - y);
+      tsave(); meddelaFramsteg(); render();
+      return;
+    }
+    a.svar[fi] = oi; tsave();
     meddelaFramsteg();
     if (pos < n - 1) gaTill(pos + 1); else render();
   });
@@ -20924,6 +21345,13 @@ function viewTentaKor() {
     const i = "abcdefgh".indexOf(String(k).toLowerCase());
     if (i >= 0 && i < f.options.length) {
       e.preventDefault();
+      if (f.typ === "flerval") {
+        const nu = new Set(Array.isArray(a.svar[fi]) ? a.svar[fi] : []);
+        if (nu.has(i)) nu.delete(i); else nu.add(i);
+        a.svar[fi] = [...nu].sort((x, y) => x - y);
+        tsave(); meddelaFramsteg(); render();
+        return;
+      }
       a.svar[fi] = i; tsave();
       meddelaFramsteg();
       if (pos < n - 1) gaTill(pos + 1); else render();
@@ -21179,6 +21607,12 @@ function viewTentaResultat(fid) {
     <div id="fragelista">${fragelista}</div>
 
     ${f.duell ? delningsVarning(f.duell.seed) : ""}
+    ${f.duell && typeof duellSkrivfragor === "function" && duellSkrivfragor(t).length
+      ? `<div class="note" style="margin-top:18px">
+          <b>Skrivfrågorna i den här matchen</b>
+          <p style="margin:8px 0 0; font-size:14px; line-height:1.55">${duellVantarText(f.duell, t)}</p>
+          <p id="duellrattstatus" class="s" style="margin:10px 0 0"></p>
+        </div>` : ""}
 
     <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:26px">
       <button class="btn primary" data-go="/tenta/${encodeURIComponent(t.id)}">Gör om tentan</button>
@@ -21235,8 +21669,34 @@ function viewTentaResultat(fid) {
 
   /* Skrivsvar som ännu inte bedömts — gamla försök från före den automatiska
      bedömningen — får sin poäng nu, och AI:n ser över dem om den finns. */
+  /* Hostens statusrad: "Rättar Fråga 1 (Spelare 2 av 4)…" medan kön betas av. */
+  const statusruta = document.getElementById("duellrattstatus");
+  if (statusruta && f.duell) {
+    const rita = k => {
+      if (!k || k.seed !== f.duell.seed) return;
+      statusruta.innerHTML = k.status === "klar"
+        ? `<b style="color:var(--teal)">Alla skrivsvar är rättade.</b>`
+        : k.status === "manuell"
+          ? `<b>Ingen API-nyckel — frågorna är markerade för manuell bedömning.</b>`
+          : k.status
+            ? `<b>${esc(k.status)}</b>${k.kvar > 1 ? ` · ${k.kvar} svar kvar i kön` : ""}`
+            : "";
+    };
+    rita(_duellKo);
+    _duellAvStatus = duellRattStatus(rita);
+  }
+
   const post = forsokById(f.id);
   if (post) {
+    /* Hostens rättning kan komma in när som helst medan man tittar på sidan. */
+    if (post.duell && !arDuellHost(post.duell)) {
+      try {
+        duellLyssnaBedomning(post.duell, t, post, () => {
+          const rr = parse();
+          if (rr.name === "tentares" && rr.id === f.id) render();
+        });
+      } catch (e) {}
+    }
     if (bedomForsokLokalt(post, t)) { uppdateraSammanfattning(post, t); tsave(); render(); return; }
     bedomForsokMedAI(f.id, () => {
       /* rita om bara bedömningsrutorna, så att sidan inte hoppar under tiden */
@@ -21947,20 +22407,35 @@ function duellTenta(u) {
     const bank = tentaBank(u.tenta);
     if (!bank || !bank.fragor.length) return null;      // hämtas av vyn
     valjUrTenta(u.seed, u.antal, bank).forEach((q, i) => {
-      const par = q.o.map((t, ix) => ({ t, r: ix === q.s }));
-      for (let j = par.length - 1; j > 0; j--) {
-        const kk = Math.floor(rnd() * (j + 1));
-        const tmp = par[j]; par[j] = par[kk]; par[kk] = tmp;
-      }
-      fragor.push({
+      const gemensamt = {
         id: "d" + (i + 1), q: q.q,
         nr: Number(q.n) > 0 ? Number(q.n) : i + 1,
         plats: Number(q.p) > 0 ? Number(q.p) : (Number(q.n) > 0 ? Number(q.n) : i + 1),
         bilder: Array.isArray(q.b) ? q.b.slice() : [],
-        options: par.map(x => x.t),
-        svar: par.findIndex(x => x.r),
+        poang: Number(q.po) > 0 ? Number(q.po) : 1,
         mal: q.m || null, konf: q.m ? "hög" : null,
         kalla: bank.titel || "Uppladdad tenta"
+      };
+      if (q.ty === "text") {
+        /* Skrivfrågor har inga alternativ att blanda. Facit följer med, men
+           bara hostens app använder det — gästerna ser det först i facit. */
+        fragor.push({ ...gemensamt, typ: "text", options: [], svar: null,
+          facit: q.fa || "", facitrubrik: q.fr || "Facit" });
+        return;
+      }
+      const flerval = q.ty === "flerval";
+      const ratta = flerval ? new Set((q.s || []).map(Number)) : null;
+      const par = q.o.map((t, ix) => ({ t, r: flerval ? ratta.has(ix) : ix === q.s }));
+      for (let j = par.length - 1; j > 0; j--) {
+        const kk = Math.floor(rnd() * (j + 1));
+        const tmp = par[j]; par[j] = par[kk]; par[kk] = tmp;
+      }
+      fragor.push({ ...gemensamt,
+        typ: flerval ? "flerval" : "sba",
+        options: par.map(x => x.t),
+        svar: flerval
+          ? par.map((x, ix) => x.r ? ix : -1).filter(ix => ix >= 0)
+          : par.findIndex(x => x.r)
       });
     });
     return normaliseraTenta({
@@ -22014,12 +22489,23 @@ let _tentaHamtas = null;
 
 /* Bara frågor med facit och riktiga alternativ går att tävla på. */
 function tentaSomBank(t) {
+  /* ty = frågetyp. Saknas den är frågan en vanlig envalsfråga, precis som i
+     alla tidigare delade tentor. fa = facit och po = poäng, som skrivfrågor
+     behöver för att kunna rättas mot samma facit hos alla. */
+  const duger = f =>
+    f.typ === "text" ? !!(f.facit && f.facit.trim())
+    : f.typ === "flerval" ? (Array.isArray(f.svar) && f.svar.length && (f.options || []).length >= 2)
+    : (f.svar !== null && f.svar !== undefined && (f.options || []).length >= 2);
   return (t.fragor || [])
-    .filter(f => f.svar !== null && f.svar !== undefined && (f.options || []).length >= 2)
+    .filter(duger)
     /* n = originalposition, b = figurernas medie-id. Utan dem tappade den
        delade tentan både ordning och bilder på vägen till duellen. */
     .map((f, i) => ({
-      q: f.q, o: f.options, s: f.svar, m: f.mal || "",
+      q: f.q, o: f.options || [], s: f.svar, m: f.mal || "",
+      ty: f.typ === "text" ? "text" : f.typ === "flerval" ? "flerval" : "",
+      fa: f.typ === "text" ? String(f.facit || "").slice(0, 4000) : "",
+      fr: f.typ === "text" ? String(f.facitrubrik || "") : "",
+      po: Number(f.poang) > 0 ? Number(f.poang) : 1,
       n: Number(f.nr) > 0 ? Number(f.nr) : i + 1,
       /* p = platsen i originalfilen. Den styr ordningen; n är bara numret som
          står tryckt på frågan. Äldre delade tentor saknar p och faller tillbaka
@@ -24210,16 +24696,19 @@ function liveFacitLista(u, id) {
         </div>
         <div class="qtext" style="font-size:16px">${esc(f.q)}</div>
         ${bildplatser(f, "Figur till fråga " + (i + 1))}
-        <div class="opts">
+        <div class="opts${f.typ === "flerval" ? " flerval" : ""}">
           ${f.options.map((o, oi) => {
-            const arRatt = oi === f.svar;
-            const mittVal = svarade && oi === mitt;
+            const flerval = f.typ === "flerval";
+            const arRatt = flerval ? (Array.isArray(f.svar) && f.svar.includes(oi)) : oi === f.svar;
+            const mittVal = svarade && (flerval ? (Array.isArray(mitt) && mitt.includes(oi)) : oi === mitt);
             return `<div class="opt${arRatt ? " correct" : ""}"
               style="cursor:default${mittVal && !arRatt ? "; border-color:var(--err)" : ""}">
-              <span class="lt">${String.fromCharCode(65 + oi)}</span>
+              <span class="lt${flerval ? " ruta" : ""}">${flerval
+                ? (mittVal ? TICK : "") : String.fromCharCode(65 + oi)}</span>
               <span>${esc(o)}
                 ${arRatt ? `<b style="color:var(--ok)"> · rätt svar</b>` : ""}
-                ${mittVal && !arRatt ? `<b style="color:var(--err)"> · ditt svar</b>` : ""}</span>
+                ${mittVal && !arRatt ? `<b style="color:var(--err)"> · ditt kryss</b>` : ""}
+                ${flerval && arRatt && !mittVal ? `<b style="color:var(--warn)"> · missat</b>` : ""}</span>
             </div>`;
           }).join("")}
         </div>
@@ -26300,6 +26789,10 @@ function viewProvResultat(k, m, nyckel) {
    använder exakt samma uppladdning och avläsning — en tenta som lästs in
    en gång finns i båda funktionerna.
 
+   Mönstren redovisas på tre nivåer, eftersom de betyder olika saker för
+   pluggandet: ordagrant återanvända frågor, omformuleringar av samma
+   kärnfakta, och ämneskategorier med hög frekvens.
+
    Hela analysen körs lokalt. Tre saker avgör om två frågor hör ihop:
    texten, svarsalternativen och vilket lärandemål frågan kopplats till.
    ===================================================================== */
@@ -26330,6 +26823,42 @@ function predNollstall(ids) {
   predstore.senaste = { ids, nar: Date.now() };
   predstore.valda = [];
   predsave();
+}
+
+/* ---------- duplikatfiltrering ----------
+   Samma tenta uppladdad två gånger skulle räknas som två oberoende
+   förekomster och blåsa upp varje siffra i analysen. Identiteten avgörs
+   av terminen när den går att läsa ut, och annars av ett fingeravtryck
+   byggt av frågetexterna — samma frågor är samma tenta även om filen
+   döpts om. */
+function predFingeravtryck(t) {
+  const delar = (t.fragor || [])
+    .map(f => normText(f.q).slice(0, 60))
+    .filter(Boolean)
+    .sort();
+  if (!delar.length) return "";
+  let h = 0;
+  const txt = delar.join("|");
+  for (let i = 0; i < txt.length; i++) { h = (h * 31 + txt.charCodeAt(i)) | 0; }
+  return delar.length + ":" + (h >>> 0).toString(36);
+}
+
+/* Returnerar den redan inlästa tentan som den nya är en dubblett av, annars null. */
+function predDubblett(ny, bland) {
+  const nyTerm = terminOrdning(ny);
+  const nyFp = predFingeravtryck(ny);
+  return (bland || allaTentor()).find(t => {
+    if (t.id === ny.id) return false;
+    if (nyFp && predFingeravtryck(t) === nyFp) return true;
+    const term = terminOrdning(t);
+    /* Samma termin och nästan lika många frågor räknas som samma tenta,
+       även om avläsningen skiljt sig något mellan gångerna. */
+    if (nyTerm.ord !== null && term.ord === nyTerm.ord) {
+      const a = (ny.fragor || []).length, b = (t.fragor || []).length;
+      if (a && b && Math.abs(a - b) <= Math.max(2, Math.round(a * 0.1))) return true;
+    }
+    return false;
+  }) || null;
 }
 
 /* ---------- tidsordning ----------
@@ -26457,10 +26986,7 @@ function predKluster(fragor) {
   }));
 }
 
-/* ---------- ämnesnamn ----------
-   Har frågorna kopplats till ett lärandemål är målets titel det bästa
-   namnet. Annars byggs ett namn av de ord som är gemensamma för
-   frågorna i klustret. */
+/* ---------- ämnesnamn ---------- */
 function predAmne(kluster) {
   const malRakning = new Map();
   kluster.medlemmar.forEach(f => { if (f.mal) malRakning.set(f.mal, (malRakning.get(f.mal) || 0) + 1); });
@@ -26472,7 +26998,6 @@ function predAmne(kluster) {
     const ref = malRef(bast[0]);
     if (ref) return { titel: ref.mal.titel, malId: bast[0], ref };
   }
-  /* Gemensamma ord, längsta först — de bär mest betydelse. */
   let gem = null;
   kluster.medlemmar.forEach(f => {
     if (!gem) { gem = new Set(f.tk); return; }
@@ -26485,25 +27010,49 @@ function predAmne(kluster) {
 }
 
 /* ---------- prediktion ----------
-   Två faktorer, precis som kriterierna säger: hur stor andel av tentorna
-   ämnet förekommer i, och hur nyliga de tentorna är. */
+   Två faktorer: hur stor andel av tentorna ämnet förekommer i, och hur
+   nyliga de tentorna är. Frekvensen sätter taket, aktualiteten avgör hur
+   mycket av taket som tas ut. */
 function predChans(kluster, antalTentor) {
   const tentor = [...new Set(kluster.medlemmar.map(f => f.tentaTitel))];
   const relativ = tentor.length / Math.max(1, antalTentor);
   const vikter = [...new Map(kluster.medlemmar.map(f => [f.tentaTitel, f.vikt])).values()];
   const aktualitet = vikter.length ? Math.max(...vikter) * 0.6 + (vikter.reduce((a, b) => a + b, 0) / vikter.length) * 0.4 : 0;
-  /* Frekvensen sätter taket, aktualiteten avgör hur mycket av taket som tas
-     ut. Två ämnen som båda finns i två av tre tentor hamnar alltså olika
-     högt beroende på om de fanns i de nyaste eller de äldsta. */
   const poang = relativ * (0.55 + 0.45 * aktualitet);
-  const niva = poang >= 0.62 ? "stor" : poang >= 0.38 ? "medel" : "lag";
-  return { poang, relativ, aktualitet, niva, tentor };
+  const procent = Math.round(poang * 100);
+  return { poang, procent, relativ, aktualitet, niva: predNiva(procent), tentor };
 }
 
-const PREDBAR = { stor: "🟩🟩🟩", medel: "🟨🟨⬛", lag: "🟥⬛⬛" };
+/* Tröskelvärdena för mätaren: 0–33 rött, 34–66 gult, 67–100 grönt. */
+function predNiva(procent) { return procent <= 33 ? "lag" : procent <= 66 ? "medel" : "stor"; }
 const PREDNAMN = { stor: "Stor chans", medel: "Medel chans", lag: "Låg chans" };
 
+/* Förloppsmätaren som ersatte de färgade kvadraterna. */
+function predMatare(procent, etikett) {
+  const niva = predNiva(procent);
+  return `<div class="predmatare ${niva}" role="img"
+    aria-label="${PREDNAMN[niva]}, ${procent} procent">
+      <div class="predmatare-spar"><i style="width:${Math.max(2, Math.min(100, procent))}%"></i></div>
+      <span class="predmatare-tal">${procent} %</span>
+      ${etikett === false ? "" : `<span class="predmatare-text">${PREDNAMN[niva]}</span>`}
+    </div>`;
+}
+
 /* ---------- analysen ---------- */
+const PREDNIVAER = {
+  ordagrann: { nyckel: "ordagrant", rubrik: "Ordagrant återanvända frågor",
+    ingress: "Samma fråga har återkommit i praktiskt taget oförändrad form. Det här är det billigaste du kan plugga — kan du svaret sitter poängen." },
+  omformulering: { nyckel: "omformulering", rubrik: "Omformuleringar av samma kärnfakta",
+    ingress: "Frågan ställs olika mellan terminerna, men prövar samma sak — ofta med samma svarsalternativ. Lär dig konceptet, inte ordalydelsen." },
+  område: { nyckel: "omrade", rubrik: "Områden som testas om och om igen",
+    ingress: "Olika frågor, samma ämnesområde. Här räcker det inte att kunna en detalj; hela området kan komma." }
+};
+function predGrundNiva(grund) {
+  if (grund === "ordagrann") return "ordagrann";
+  if (grund === "snarlik" || grund === "alternativ") return "omformulering";
+  return "område";
+}
+
 function predAnalys(valdaIds) {
   const alla = allaTentor().filter(t => valdaIds.includes(t.id));
   const rankad = predRanka(alla);
@@ -26521,11 +27070,45 @@ function predAnalys(valdaIds) {
       const grund = ["ordagrann", "snarlik", "alternativ", "område"]
         .filter(g => grundRakning[g])
         .sort((a, b) => grundRakning[b] - grundRakning[a])[0] || "område";
-      return { ...kl, amne, chans, grund };
+      return { ...kl, amne, chans, grund, niva: predGrundNiva(grund) };
     })
     .sort((a, b) => b.chans.poang - a.chans.poang || b.medlemmar.length - a.medlemmar.length);
 
-  return { tentor: rankad, fragor, rader, antalTentor: alla.length };
+  return { tentor: rankad, fragor, rader, antalTentor: alla.length,
+           omraden: predOmraden(fragor, rankad, alla.length) };
+}
+
+/* Nivå tre: ämneskategoriernas frekvens. Kategorin är submodulen som
+   lärandemålet hör till — det är den nivå kursen själv delar in stoffet
+   i. Frågor utan koppling till ett mål kan inte kategoriseras och räknas
+   därför inte här. */
+function predOmraden(fragor, rankad, antalTentor) {
+  const per = new Map();
+  fragor.forEach(f => {
+    if (!f.mal) return;
+    const ref = malRef(f.mal);
+    if (!ref) return;
+    const nyckel = `${ref.modul.nr}.${ref.sub.nr}`;
+    if (!per.has(nyckel)) per.set(nyckel, {
+      nyckel, titel: ref.sub.titel, modul: ref.modul, sub: ref.sub,
+      fragor: [], tentor: new Set(), mal: new Set()
+    });
+    const o = per.get(nyckel);
+    o.fragor.push(f); o.tentor.add(f.tentaTitel); o.mal.add(f.mal);
+  });
+  const tot = fragor.filter(f => f.mal && malRef(f.mal)).length || 1;
+  return [...per.values()]
+    /* Samma strikta tröskel: ett område som bara testats en gång är ingen trend. */
+    .filter(o => o.fragor.length >= 2)
+    .map(o => {
+      const vikter = [...new Map(o.fragor.map(f => [f.tentaTitel, f.vikt])).values()];
+      const aktualitet = Math.max(...vikter) * 0.6 + (vikter.reduce((a, b) => a + b, 0) / vikter.length) * 0.4;
+      const relativ = o.tentor.size / Math.max(1, antalTentor);
+      const andel = o.fragor.length / tot;
+      const procent = Math.round(Math.min(1, relativ * (0.55 + 0.45 * aktualitet) + andel * 0.35) * 100);
+      return { ...o, tentor: [...o.tentor], antalMal: o.mal.size, andel, procent, niva: predNiva(procent) };
+    })
+    .sort((a, b) => b.procent - a.procent || b.fragor.length - a.fragor.length);
 }
 
 const PREDGRUND = {
@@ -26546,9 +27129,10 @@ function viewPrediktor() {
     ${crumbs([{ t: "Översikt", href: "/" }, { t: "Tentaprediktor" }])}
     <p class="eyebrow">Tentaprediktor</p>
     <h1>Vad kommer på nästa tenta?</h1>
-    <p class="lede">Ladda upp minst två gamla tentor, så tväranalyseras de efter mönster: vilka frågor
-    och ämnesområden återkommer, hur ofta, och i vilka terminer. Bara det som förekommer
-    <b>minst två gånger</b> redovisas — allt som bara testats en enda gång ignoreras.</p>
+    <p class="lede">Ladda upp minst två gamla tentor, så tväranalyseras de efter mönster på tre nivåer:
+    ordagrant återanvända frågor, omformuleringar av samma kärnfakta, och vilka ämnesområden som testas
+    oftast. Bara det som förekommer <b>minst två gånger</b> redovisas — allt som bara testats en enda
+    gång ignoreras.</p>
     <div class="rule"></div>
 
     ${tentor.length < 2 ? `
@@ -26605,16 +27189,14 @@ function viewPrediktor() {
             två av tio betydligt lättare.<br>
             <b>Aktualitet</b> — ämnen i de senaste tentorna väger tyngre än sådant som bara fanns i
             gamla.</p>
-            <p class="s" style="margin:12px 0 0">
-              ${PREDBAR.stor} Stor chans<br>
-              ${PREDBAR.medel} Medel chans<br>
-              ${PREDBAR.lag} Låg chans</p>
+            <div style="margin-top:14px; display:flex; flex-direction:column; gap:10px">
+              ${predMatare(85)}${predMatare(50)}${predMatare(20)}
+            </div>
           </div>
           <div class="panel">
-            <h4>Matchningskriterier</h4>
-            <p class="s" style="margin:0">En fråga räknas som återkommande om den är ordagrann, har
-            snarlik formulering, liknande svarsalternativ, eller testar exakt samma specifika
-            ämnesområde.</p>
+            <h4>Dubbletter blockeras</h4>
+            <p class="s" style="margin:0">Laddar du upp en tenta som redan finns inläst stoppas den, så
+            att samma termin inte räknas två gånger och drar upp siffrorna.</p>
           </div>
         </aside>
       </div>`}`;
@@ -26668,6 +27250,9 @@ function viewPrediktorAnalys() {
   predNollstall(valda);
 
   const res = predAnalys(valda);
+  _predRes = res;
+  const niv = { ordagrann: [], omformulering: [], område: [] };
+  res.rader.forEach(r => niv[r.niva].push(r));
   const fordelning = { stor: 0, medel: 0, lag: 0 };
   res.rader.forEach(r => fordelning[r.chans.niva]++);
 
@@ -26680,7 +27265,9 @@ function viewPrediktorAnalys() {
     <div class="rule"></div>
 
     <div class="split">
-      <div id="predlista">
+      <div>
+        ${predRadgivning(res, niv)}
+        <div id="predlista"></div>
         ${res.rader.length ? "" : `
           <div class="empty">
             <b>Inga mönster över tröskeln</b>
@@ -26692,10 +27279,15 @@ function viewPrediktorAnalys() {
       <aside class="aside">
         <div class="panel">
           <h4>Fördelning</h4>
+          <p class="s" style="margin:0 0 4px">Stor chans: <b>${fordelning.stor}</b> ·
+          Medel: <b>${fordelning.medel}</b> · Låg: <b>${fordelning.lag}</b></p>
+        </div>
+        <div class="panel">
+          <h4>Nivåerna</h4>
           <p class="s" style="margin:0">
-            ${PREDBAR.stor} Stor chans: <b>${fordelning.stor}</b><br>
-            ${PREDBAR.medel} Medel chans: <b>${fordelning.medel}</b><br>
-            ${PREDBAR.lag} Låg chans: <b>${fordelning.lag}</b></p>
+            Ordagrant: <b>${niv.ordagrann.length}</b><br>
+            Omformuleringar: <b>${niv.omformulering.length}</b><br>
+            Områden: <b>${res.omraden.length}</b></p>
         </div>
         <div class="panel">
           <h4>Tentorna i analysen</h4>
@@ -26708,73 +27300,218 @@ function viewPrediktorAnalys() {
     </div>`;
 
   const lista = document.getElementById("predlista");
-  res.rader.forEach((r, i) => {
-    const kort = document.createElement("div");
-    kort.className = "predkort";
-    const tentor = r.chans.tentor;
-    const ovaText = `Generera 3 typiska övningsfrågor för ${r.amne.titel} på samma svårighetsgrad som tentorna.`;
-    kort.innerHTML = `
-      <div class="predhuvud">
-        <span class="predbar" title="${PREDNAMN[r.chans.niva]}">${PREDBAR[r.chans.niva]}</span>
-        <span class="predniva ${r.chans.niva}">${PREDNAMN[r.chans.niva]}</span>
-        <span class="s">${i + 1} av ${res.rader.length}</span>
-      </div>
-      <h3 class="predtitel">${esc(r.amne.titel)}</h3>
-      ${r.amne.ref ? `<p class="s" style="margin:0 0 12px">Lärandemål ${esc(r.amne.malId)} ·
-        modul ${r.amne.ref.modul.nr}.${r.amne.ref.sub.nr} ${esc(r.amne.ref.sub.titel)}</p>` : ""}
-
-      <p class="predrad"><b>Förekomst &amp; källor:</b> ${r.medlemmar.length} gånger,
-      ${PREDGRUND[r.grund]}, i ${tentor.length === 1 ? "tentan" : `${tentor.length} tentor`} —
-      ${tentor.map(t => `<b>${esc(t)}</b>`).join(" och ")}.</p>
-
-      <p class="predrad"><b>Prediktion:</b> ${PREDNAMN[r.chans.niva]}.
-      ${predMotiv(r, res.antalTentor)}</p>
-
-      <p class="predrad"><b>Bar:</b> <span class="predbar">${PREDBAR[r.chans.niva]}</span>
-      (${PREDNAMN[r.chans.niva].split(" ")[0]})</p>
-
-      <p class="predrad"><b>Fokus/råd:</b> ${predRad(r)}</p>
-
-      <details class="predkallor">
-        <summary>Visa de ${r.medlemmar.length} frågorna och var de stod</summary>
-        <div>
-          ${r.medlemmar
-            .slice()
-            .sort((a, b) => a.plats - b.plats)
-            .map(f => `
-              <div class="predfraga">
-                <span class="predkalla">${f.etikett ? f.etikett + " · " : ""}${esc(f.tentaTitel)}, fråga ${f.nr}</span>
-                <span>${esc(f.q)}</span>
-              </div>`).join("")}
-        </div>
-      </details>
-
-      <div class="predova">
-        <button class="btn primary" data-ova="${esc(ovaText)}">Öva på detta</button>
-        <button class="btn" data-kopiera="${esc(ovaText)}">Kopiera uppmaningen</button>
-        ${r.amne.ref && r.amne.ref.mal.quiz && r.amne.ref.mal.quiz.length
-          ? `<button class="btn" data-go="${malLank(r.amne.ref)}">Öppna genomgången</button>` : ""}
-      </div>
-      <p class="predcitat">"${esc(ovaText)}"</p>`;
-    lista.appendChild(kort);
+  let nr = 0;
+  ["ordagrann", "omformulering", "område"].forEach(n => {
+    const rader = niv[n];
+    if (!rader.length) return;
+    const h = PREDNIVAER[n];
+    const rub = document.createElement("div");
+    rub.className = "prednivarubrik";
+    rub.innerHTML = `<h2>${h.rubrik}</h2><p class="s">${h.ingress}</p>`;
+    lista.appendChild(rub);
+    rader.forEach(r => lista.appendChild(predKort(r, ++nr, res)));
   });
 
+  if (res.omraden.length) {
+    const rub = document.createElement("div");
+    rub.className = "prednivarubrik";
+    rub.innerHTML = `<h2>${PREDNIVAER["område"].rubrik === "Områden som testas om och om igen"
+      ? "Ämneskategoriernas frekvens" : "Ämneskategorier"}</h2>
+      <p class="s">Hur tentornas frågor fördelar sig över kursens submoduler. Det här är inte enskilda
+      frågor utan var tyngdpunkten ligger — plugga brett i de områden som ligger högst.</p>`;
+    lista.appendChild(rub);
+    res.omraden.forEach(o => {
+      const d = document.createElement("div");
+      d.className = "predomrade";
+      d.innerHTML = `
+        <div class="predomrade-topp">
+          <b>${o.modul.nr}.${o.sub.nr} ${esc(o.sub.titel)}</b>
+          <span class="s">${o.fragor.length} frågor · ${o.antalMal} lärandemål ·
+          ${o.tentor.length} av ${res.antalTentor} tentor</span>
+        </div>
+        ${predMatare(o.procent)}`;
+      lista.appendChild(d);
+    });
+  }
+
+  kopplaPredKort(lista, res);
+}
+
+let _predRes = null;
+
+function predKort(r, i, res) {
+  const kort = document.createElement("div");
+  kort.className = "predkort";
+  kort.dataset.amne = r.amne.titel;
+  const tentor = r.chans.tentor;
+  const ovaText = `Generera 3 typiska övningsfrågor för ${r.amne.titel} på samma svårighetsgrad som tentorna.`;
+  kort.innerHTML = `
+    <div class="predhuvud">
+      ${predMatare(r.chans.procent)}
+      <span class="s">${i} av ${res.rader.length}</span>
+    </div>
+    <h3 class="predtitel">${esc(r.amne.titel)}</h3>
+    ${r.amne.ref ? `<p class="s" style="margin:0 0 12px">Lärandemål ${esc(r.amne.malId)} ·
+      modul ${r.amne.ref.modul.nr}.${r.amne.ref.sub.nr} ${esc(r.amne.ref.sub.titel)}</p>` : ""}
+
+    <p class="predrad"><b>Förekomst &amp; källor:</b> ${r.medlemmar.length} gånger,
+    ${PREDGRUND[r.grund]}, i ${tentor.length === 1 ? "tentan" : `${tentor.length} tentor`} —
+    ${tentor.map(t => `<b>${esc(t)}</b>`).join(" och ")}.</p>
+
+    <p class="predrad"><b>Prediktion:</b> ${PREDNAMN[r.chans.niva]}, ${r.chans.procent} %.
+    ${predMotiv(r, res.antalTentor)}</p>
+
+    <p class="predrad"><b>Fokus/råd:</b> ${predRad(r)}</p>
+
+    <details class="predkallor">
+      <summary>Visa de ${r.medlemmar.length} frågorna och var de stod</summary>
+      <div>
+        ${r.medlemmar.slice().sort((a, b) => a.plats - b.plats).map(f => `
+          <div class="predfraga">
+            <span class="predkalla">${f.etikett ? f.etikett + " · " : ""}${esc(f.tentaTitel)}, fråga ${f.nr}</span>
+            <span>${esc(f.q)}</span>
+          </div>`).join("")}
+      </div>
+    </details>
+
+    <div class="predova">
+      <button class="btn primary" data-generera="${esc(r.amne.titel)}">Generera övningsfrågor</button>
+      <button class="btn" data-ova="${esc(ovaText)}">Fråga i chatten</button>
+      <button class="btn" data-kopiera="${esc(ovaText)}">Kopiera uppmaningen</button>
+      ${r.amne.ref && r.amne.ref.mal.quiz && r.amne.ref.mal.quiz.length
+        ? `<button class="btn" data-go="${malLank(r.amne.ref)}">Öppna genomgången</button>` : ""}
+    </div>
+    <div class="predovning" hidden></div>`;
+  return kort;
+}
+
+/* Konkreta råd om nästa tenta, byggda på det analysen faktiskt visar. */
+function predRadgivning(res, niv) {
+  if (!res.rader.length && !res.omraden.length) return "";
+  const toppar = res.rader.filter(r => r.chans.niva === "stor").slice(0, 3);
+  const bitar = [];
+  if (niv.ordagrann.length) bitar.push(`<li><b>Börja med de ${niv.ordagrann.length} ordagrant
+    återanvända ${niv.ordagrann.length === 1 ? "frågan" : "frågorna"}.</b> De ger poäng för minsta
+    möjliga insats — kan du svaret sitter det.</li>`);
+  if (niv.omformulering.length) bitar.push(`<li><b>Lär konceptet bakom de ${niv.omformulering.length}
+    omformulerade ${niv.omformulering.length === 1 ? "frågan" : "frågorna"}.</b> Ordalydelsen byter de
+    mellan terminerna, så att plugga in formuleringen hjälper inte.</li>`);
+  if (res.omraden.length) bitar.push(`<li><b>Lägg tyngdpunkten på
+    ${esc(res.omraden[0].sub.titel)}${res.omraden[1] ? ` och ${esc(res.omraden[1].sub.titel)}` : ""}.</b>
+    ${res.omraden[0].fragor.length} av tentornas frågor kom därifrån.</li>`);
+  if (toppar.length) bitar.push(`<li><b>Ta ${toppar.map(t => esc(t.amne.titel)).join(", ")} först
+    bland ämnena.</b> ${toppar.length === 1 ? "Det ligger" : "De ligger"} högst i prediktionen.</li>`);
+  return `<div class="note predrad-tips">
+    <b>Vad du bör göra före nästa tenta</b>
+    <ul style="margin:10px 0 0; padding-left:20px; line-height:1.6">${bitar.join("")}</ul></div>`;
+}
+
+function kopplaPredKort(lista, res) {
   lista.querySelectorAll("[data-ova]").forEach(b => b.addEventListener("click", () => {
     if (typeof oppna === "function") oppna(b.dataset.ova);
   }));
   lista.querySelectorAll("[data-kopiera]").forEach(b => b.addEventListener("click", async () => {
-    const txt = b.dataset.kopiera;
-    try { await navigator.clipboard.writeText(txt); }
-    catch (e) {
-      /* Utan urklippsrättighet markeras texten i stället, så den går att kopiera för hand. */
-      const p = b.closest(".predkort").querySelector(".predcitat");
-      const rng = document.createRange(); rng.selectNodeContents(p);
-      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(rng);
-    }
+    try { await navigator.clipboard.writeText(b.dataset.kopiera); } catch (e) {}
     const gammalt = b.textContent;
     b.textContent = "Kopierad";
     setTimeout(() => { b.textContent = gammalt; }, 1600);
   }));
+  lista.querySelectorAll("[data-generera]").forEach(b => b.addEventListener("click", () =>
+    predGenerera(b, res)));
+}
+
+/* ---------- autogenererade övningsfrågor ----------
+   Frågorna genereras med användarens egen API-nyckel och grundas på de
+   verkliga tentafrågorna i klustret, så svårighetsgraden blir densamma.
+   Utan nyckel plockas i stället riktiga frågor ur bibliotekets egen bank
+   för samma lärandemål. */
+async function predGenerera(knapp, res) {
+  const kort = knapp.closest(".predkort");
+  const ut = kort.querySelector(".predovning");
+  const amne = knapp.dataset.generera;
+  const rad = res.rader.find(r => r.amne.titel === amne);
+  if (!rad) return;
+  ut.hidden = false;
+
+  if (!motor) {
+    const ref = rad.amne.ref;
+    const bank = ref && ref.mal.quiz ? ref.mal.quiz : [];
+    if (!bank.length) {
+      ut.innerHTML = `<div class="note"><b>Generering kräver en API-nyckel.</b>
+        Lägg in din nyckel under Fråga-panelen, så skrivs nya frågor på det här ämnet. Utan nyckel kan
+        jag bara visa frågor som redan finns i biblioteket, och det här ämnet har inga.</div>`;
+      return;
+    }
+    const valda = shuffle(bank).slice(0, 3);
+    ut.innerHTML = `<div class="note" style="margin-bottom:12px"><b>Ur bibliotekets egen bank.</b>
+      Utan API-nyckel genereras inga nya frågor — här är tre befintliga på samma lärandemål.</div>` +
+      valda.map((f, i) => predOvningKort(i + 1, f.q,
+        shuffle(f.options.map((t, oi) => ({ t, ratt: oi === f.svar }))), f.forklaring)).join("");
+    return;
+  }
+
+  knapp.disabled = true;
+  ut.innerHTML = `<div class="note"><b>Skriver tre övningsfrågor om ${esc(amne)}…</b></div>`;
+  const exempel = rad.medlemmar.slice(0, 4).map(f => "- " + f.q).join("\n");
+  const prompt =
+`Du skriver övningsfrågor till en svensk läkarstudent inför tentamen.
+
+ÄMNE: ${amne}
+
+Så här har ämnet faktiskt testats på tidigare tentor:
+${exempel}
+
+Skriv tre nya flervalsfrågor på exakt samma svårighetsgrad och i samma stil som exemplen ovan, på svenska.
+Varje fråga ska ha fem svarsalternativ där precis ett är rätt.
+
+Svara med ENBART giltig JSON, ingen annan text, i formen:
+[{"q":"frågan","options":["rätt svar","fel 1","fel 2","fel 3","fel 4"],"forklaring":"varför det rätta svaret är rätt"}]
+
+Första alternativet ska alltid vara det rätta. Distraktorerna ska vara entydigt fel men trovärdiga, ur
+samma ämnesområde, och ungefär lika långa som det rätta svaret.`;
+
+  try {
+    const { text } = await aiKo(() => fragaAI([{ role: "user", content: prompt }], {}),
+      `Genererar övningsfrågor om ${amne}…`);
+    const json = (String(text || "").match(/\[[\s\S]*\]/) || [])[0];
+    const fragor = JSON.parse(json);
+    if (!Array.isArray(fragor) || !fragor.length) throw new Error("tomt svar");
+    ut.innerHTML = fragor.slice(0, 3).map((f, i) => predOvningKort(i + 1, f.q,
+      shuffle((f.options || []).map((t, oi) => ({ t, ratt: oi === 0 }))), f.forklaring)).join("");
+  } catch (e) {
+    ut.innerHTML = `<div class="note" style="background:color-mix(in srgb, var(--warn) 12%, transparent)">
+      <b>Frågorna kunde inte genereras.</b> ${esc(String(e && e.message || e)).slice(0, 140)}</div>`;
+  }
+  knapp.disabled = false;
+  predKopplaOvning(ut);
+}
+
+function predOvningKort(nr, q, opts, forklaring) {
+  return `<div class="qcard predovkort">
+    <div class="qnum">Övningsfråga ${nr}</div>
+    <div class="qtext">${esc(q)}</div>
+    <div class="opts">
+      ${opts.map((o, i) => `<button class="opt" data-ratt="${o.ratt ? 1 : 0}">
+        <span class="lt">${String.fromCharCode(65 + i)}</span><span>${esc(o.t)}</span></button>`).join("")}
+    </div>
+    <div class="expl" hidden>${esc(forklaring || "")}</div>
+  </div>`;
+}
+
+function predKopplaOvning(rot) {
+  rot.querySelectorAll(".predovkort").forEach(k => {
+    k.querySelectorAll(".opt").forEach(b => b.addEventListener("click", () => {
+      if (k.dataset.svarat) return;
+      k.dataset.svarat = "1";
+      k.querySelectorAll(".opt").forEach(x => {
+        if (x.dataset.ratt === "1") x.classList.add("correct");
+        else if (x === b) x.classList.add("wrong");
+        x.disabled = true;
+      });
+      const e = k.querySelector(".expl");
+      if (e && e.textContent.trim()) e.hidden = false;
+    }));
+  });
 }
 
 /* Motiveringen ska säga varför nivån blev som den blev, utifrån de två
@@ -26812,6 +27549,234 @@ function predRad(r) {
   return "Området testas om och om igen med olika frågor. Se till att du täcker hela området, inte bara en aspekt.";
 }
 
+/* =====================================================================
+   HOST-BASERAD RÄTTNING AV SKRIVFRÅGOR I DUELL
+
+   SBA- och flerkryssfrågor rättas alltid lokalt i kod, precis som i
+   sololäget. Skrivfrågor kan ingen klient rätta åt sig själv utan att
+   alla behöver varsin API-nyckel — och då skulle två spelare kunna få
+   olika bedömning på samma svar.
+
+   Därför gör den som skapade matchen jobbet. Gästerna skickar sina
+   fritextsvar till gruppens databas, hostens app hämtar dem, rättar alla
+   mot samma facit med samma prompt, och skriver tillbaka poäng och
+   motivering. Gästerna behöver ingen egen nyckel.
+
+   Rättningen går genom samma globala kö som allt annat (aiKo), som redan
+   tvingar in fyra sekunder mellan anropen. Ordningen är rättvis: fråga 1
+   för alla spelare, sedan fråga 2 för alla, och så vidare — då ser alla
+   sina resultat växa fram ungefär samtidigt i stället för att en spelare
+   blir helt klar medan en annan inte fått något alls.
+   ===================================================================== */
+
+/* En skrivfråga i duellen. Facit ligger i duelltentan, inte hos spelaren. */
+function duellSkrivfragor(tenta) {
+  return (tenta.fragor || [])
+    .map((f, i) => ({ f, i }))
+    .filter(x => x.f.typ === "text" && x.f.facit && x.f.facit.trim());
+}
+
+/* ---------- gästens sida: skicka in sina fritextsvar ---------- */
+async function duellSkickaSvar(forsok, tenta, duell) {
+  const skriv = duellSkrivfragor(tenta);
+  if (!skriv.length) return false;
+  if (SYNK.lage !== "pa" || !SYNK.db || !SYNK.uid || !SYNK.grupp) return false;
+  const jag = jagId();
+  const svar = {};
+  skriv.forEach(({ f, i }) => {
+    const s = forsok.svar[i];
+    if (typeof s === "string" && s.trim()) svar[f.id] = s.slice(0, 4000);
+  });
+  if (!Object.keys(svar).length) return false;
+  try {
+    const fb = window.firebase;
+    await SYNK.db.collection("grupper").doc(SYNK.grupp)
+      .collection("duellsvar").doc(duell.seed + "__" + SYNK.uid)
+      .set({
+        uid: SYNK.uid, seed: duell.seed, namn: jag.namn || "Okänd",
+        avatar: minAvatar(), svar, klient: Date.now(),
+        nar: fb.firestore.FieldValue.serverTimestamp()
+      });
+    return true;
+  } catch (e) {
+    SYNK.skrivfel = String(e && (e.code || e.message) || e);
+    return false;
+  }
+}
+
+/* ---------- hostens sida ---------- */
+function arDuellHost(duell) {
+  if (!duell) return false;
+  const jag = jagId();
+  /* Skaparen av utmaningen är host. Saknas pid — äldre koder — får den som
+     kör matchen på sin egen utmaning ta rollen. */
+  return !!(duell.pid ? duell.pid === jag.id : duell.egen);
+}
+
+let _duellKo = { seed: null, status: "", kvar: 0, korande: false };
+const _duellLyssnare = new Set();
+function duellRattStatus(fn) { _duellLyssnare.add(fn); return () => _duellLyssnare.delete(fn); }
+function _duellMeddela() { _duellLyssnare.forEach(fn => { try { fn(_duellKo); } catch (e) {} }); }
+
+/* Hämtar alla inskickade svar för matchen. */
+async function duellHamtaSvar(seed) {
+  if (SYNK.lage !== "pa" || !SYNK.db || !SYNK.grupp) return [];
+  const snap = await SYNK.db.collection("grupper").doc(SYNK.grupp)
+    .collection("duellsvar").where("seed", "==", seed).get();
+  return snap.docs.map(d => {
+    const v = d.data() || {};
+    return { uid: v.uid || d.id, namn: v.namn || "Okänd", svar: v.svar || {} };
+  }).sort((a, b) => String(a.uid).localeCompare(String(b.uid)));
+}
+
+/* Redan bedömda svar ska inte rättas om — det kostar anrop utan att ändra
+   något, och kön är dyr nog som den är. */
+async function duellHamtaBedomning(seed) {
+  if (SYNK.lage !== "pa" || !SYNK.db || !SYNK.grupp) return {};
+  const snap = await SYNK.db.collection("grupper").doc(SYNK.grupp)
+    .collection("duellbedom").where("seed", "==", seed).get();
+  const ut = {};
+  snap.docs.forEach(d => { const v = d.data() || {}; ut[v.uid || d.id] = v.poang || {}; });
+  return ut;
+}
+
+/* Kör hela rättningen. Ordningen är fråga för fråga över spelarna. */
+async function duellHostRatta(duell, tenta) {
+  if (_duellKo.korande) return;
+  const skriv = duellSkrivfragor(tenta);
+  if (!skriv.length) return;
+  if (!arDuellHost(duell)) return;
+  if (!motor) {
+    _duellKo = { seed: duell.seed, status: "manuell", kvar: 0, korande: false };
+    _duellMeddela();
+    return;
+  }
+
+  let spelare, gjorda;
+  try {
+    [spelare, gjorda] = await Promise.all([
+      duellHamtaSvar(duell.seed), duellHamtaBedomning(duell.seed)
+    ]);
+  } catch (e) {
+    _duellKo = { seed: duell.seed, status: "fel: " + String(e && (e.code || e.message) || e), kvar: 0, korande: false };
+    _duellMeddela();
+    return;
+  }
+  if (!spelare.length) return;
+
+  /* Rättvise-ordningen: fråga 1 för alla spelare, sedan fråga 2 för alla. */
+  const jobb = [];
+  skriv.forEach(({ f }, fi) => {
+    spelare.forEach((sp, si) => {
+      const text = sp.svar[f.id];
+      if (typeof text !== "string" || !text.trim()) return;
+      if ((gjorda[sp.uid] || {})[f.id] !== undefined) return;
+      jobb.push({ f, fi, fragaNr: fi + 1, antalFragor: skriv.length,
+                  sp, spelareNr: si + 1, antalSpelare: spelare.length, text });
+    });
+  });
+  if (!jobb.length) return;
+
+  _duellKo = { seed: duell.seed, status: "", kvar: jobb.length, korande: true };
+  const resultat = new Map();          /* uid -> { poang:{}, motiv:{} } */
+  Object.keys(gjorda).forEach(uid => resultat.set(uid, { poang: { ...gjorda[uid] }, motiv: {} }));
+
+  for (const j of jobb) {
+    _duellKo.status = `Rättar Fråga ${j.fragaNr} av ${j.antalFragor} (Spelare ${j.spelareNr} av ${j.antalSpelare}: ${j.sp.namn})…`;
+    _duellKo.kvar = jobb.length - jobb.indexOf(j);
+    _duellMeddela();
+    try {
+      /* Samma facit och samma prompt för alla spelare — det är hela poängen
+         med att en och samma app gör bedömningen. */
+      const b = await bedomMedAI(j.f.q, { facit: j.f.facit, text: j.text }, j.f.poang);
+      if (!resultat.has(j.sp.uid)) resultat.set(j.sp.uid, { poang: {}, motiv: {} });
+      const r = resultat.get(j.sp.uid);
+      r.poang[j.f.id] = b.poang;
+      r.motiv[j.f.id] = b.motiv;
+      await duellSkrivBedomning(duell.seed, j.sp, r);
+    } catch (e) {
+      _duellKo.status = "Ett svar kunde inte rättas: " + String(e && e.message || e).slice(0, 80);
+      _duellMeddela();
+    }
+  }
+
+  _duellKo = { seed: duell.seed, status: "klar", kvar: 0, korande: false };
+  _duellMeddela();
+}
+
+async function duellSkrivBedomning(seed, sp, r) {
+  if (SYNK.lage !== "pa" || !SYNK.db || !SYNK.grupp) return;
+  const fb = window.firebase;
+  await SYNK.db.collection("grupper").doc(SYNK.grupp)
+    .collection("duellbedom").doc(seed + "__" + sp.uid)
+    .set({
+      uid: sp.uid, seed, namn: sp.namn, poang: r.poang, motiv: r.motiv,
+      host: SYNK.uid, klient: Date.now(), nar: fb.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+}
+
+/* ---------- spelarens sida: ta emot hostens bedömning ---------- */
+let _duellBedomAv = null;
+let _duellAvStatus = null;
+function duellLyssnaBedomning(duell, tenta, forsok, narAndrad) {
+  duellSlutaLyssna();
+  if (SYNK.lage !== "pa" || !SYNK.db || !SYNK.uid || !SYNK.grupp) return;
+  if (!duellSkrivfragor(tenta).length) return;
+  try {
+    _duellBedomAv = SYNK.db.collection("grupper").doc(SYNK.grupp)
+      .collection("duellbedom").doc(duell.seed + "__" + SYNK.uid)
+      .onSnapshot(doc => {
+        const v = doc.data();
+        if (!v || !v.poang) return;
+        if (duellTillampaBedomning(forsok, tenta, v) && narAndrad) narAndrad(v);
+      }, () => {});
+  } catch (e) {}
+}
+function duellSlutaLyssna() { if (_duellBedomAv) { try { _duellBedomAv(); } catch (e) {} _duellBedomAv = null; } }
+
+/* Lägger in hostens poäng i det egna försöket. Returnerar true om något
+   faktiskt ändrades, så vyn bara ritas om när det behövs. */
+function duellTillampaBedomning(forsok, tenta, v) {
+  let andrat = false;
+  forsok.bedomning = forsok.bedomning || {};
+  (tenta.fragor || []).forEach((f, i) => {
+    if (f.typ !== "text") return;
+    const p = (v.poang || {})[f.id];
+    if (p === undefined || p === null) return;
+    if (forsok.poang[i] === p && (forsok.bedomning[i] || {}).kalla === "host") return;
+    forsok.poang[i] = p;
+    forsok.bedomning[i] = {
+      kalla: "host",
+      motiv: (v.motiv || {})[f.id] || "",
+      hostNamn: v.namn || ""
+    };
+    andrat = true;
+  });
+  if (andrat) { uppdateraSammanfattning(forsok, tenta); tsave(); }
+  return andrat;
+}
+
+/* Texten som visas för den som väntar på hostens rättning. */
+function duellVantarText(duell, tenta) {
+  const n = duellSkrivfragor(tenta).length;
+  if (!n) return "";
+  const host = arDuellHost(duell);
+  if (host && !motor) {
+    return `Matchen har ${n} ${n === 1 ? "skrivfråga" : "skrivfrågor"} och du är den som skapade den.
+      Utan API-nyckel bedöms de <b>manuellt</b> — sätt poängen själv nedan, så gäller din bedömning
+      bara ditt eget svar. Lägg in en nyckel under Fråga-panelen om du vill att appen ska rätta allas
+      svar mot samma facit.`;
+  }
+  if (host) {
+    return `Du skapade matchen, så din app rättar allas skrivsvar mot samma facit. De andra behöver
+      ingen egen nyckel. Rättningen körs en fråga i taget för alla spelare, med fyra sekunder mellan
+      anropen för att hålla API-gränsen.`;
+  }
+  return `Matchens ${n === 1 ? "skrivfråga" : "skrivfrågor"} rättas av den som skapade matchen, mot
+    samma facit som alla andra. Ditt svar är inskickat — poängen dyker upp här så fort den är rättad.
+    Har hosten ingen nyckel bedöms frågorna manuellt i stället.`;
+}
+
 
 function render() {
   const r = parse();
@@ -26823,6 +27788,10 @@ function render() {
   _kontoLyssnare = null;
   stoppaNedrakning();
   if (r.name !== "prediktorny") _tentaRetur = null;
+  if (r.name !== "tentares") {
+    try { duellSlutaLyssna(); } catch (e) {}
+    if (_duellAvStatus) { try { _duellAvStatus(); } catch (e) {} _duellAvStatus = null; }
+  }
   if (r.name !== "chatt") chattSluta();
   if (r.name === "hem") viewHem();
   else if (r.name === "sok") viewSok(r.q);
@@ -31904,7 +32873,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20260922-1100";
+const BYGGID = "20260923-1500";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
