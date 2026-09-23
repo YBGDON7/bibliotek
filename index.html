@@ -710,6 +710,43 @@ details.panel summary::-webkit-details-marker{color:var(--ink-3)}
   margin:12px 0 2px; font-size:13px; color:var(--ink-2);
   padding:7px 11px; border-radius:8px; background:var(--surface-2); display:inline-block;
 }
+.matchwrap{overflow-x:auto; margin:14px 0 0; border:1px solid var(--line); border-radius:10px}
+.matchtabell{border-collapse:collapse; width:100%; font-size:14px}
+.matchtabell th, .matchtabell td{border-bottom:1px solid var(--line); padding:9px 10px; text-align:center}
+.matchtabell thead th{
+  font-size:12.5px; font-weight:600; line-height:1.35; color:var(--ink-2);
+  vertical-align:bottom; border-bottom:1.5px solid var(--line-strong); min-width:96px;
+}
+.matchtabell tbody th{text-align:left; font-weight:600; white-space:nowrap; padding-right:16px}
+.matchtabell tbody tr:last-child th, .matchtabell tbody tr:last-child td{border-bottom:0}
+.matchruta{
+  display:inline-flex; align-items:center; justify-content:center; gap:2px;
+  width:100%; min-height:34px; background:none; border:0; cursor:pointer; color:inherit;
+}
+span.matchruta{cursor:default}
+.matchruta .ring{
+  width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  border:1.5px solid var(--line-strong); background:var(--paper); color:var(--teal);
+}
+.matchruta:hover .ring{border-color:var(--accent)}
+.matchruta.vald .ring{border-color:var(--accent); background:var(--accent-soft); color:var(--accent)}
+.matchruta.correct .ring{border-color:var(--teal); background:var(--teal-soft)}
+.matchruta.wrong .ring{border-color:var(--err); background:color-mix(in srgb, var(--err) 12%, transparent)}
+.matchruta .mittkryss{color:var(--err); font-weight:700; margin-left:2px}
+@media (max-width:640px){ .matchtabell thead th{min-width:74px; font-size:11.5px} }
+.aistatus.pa{border-color:var(--teal)}
+.aistatus.pa h4{color:var(--teal)}
+.aistatus.paus{border-color:var(--warn)}
+.aistatus.paus h4{color:var(--warn)}
+.aistatus.av h4{color:var(--ink-2)}
+#ainyckel .fp-setup{display:flex; flex-direction:column; gap:10px}
+#ainyckel .fp-setup input, #ainyckel .fp-setup select{
+  font:inherit; padding:9px 12px; border-radius:9px;
+  border:1px solid var(--line-strong); background:var(--paper); color:var(--ink);
+}
+#ainyckel .fp-setup b{font-family:var(--display); font-size:16px}
+#ainyckel .fp-setup p{margin:0; font-size:13.5px; color:var(--ink-2); line-height:1.55}
+#ainyckel .fp-setup .hint{font-size:12.5px; color:var(--ink-3)}
 .predmatare{display:flex; align-items:center; gap:10px; min-width:200px}
 .predmatare-spar{
   flex:1; min-width:70px; height:9px; border-radius:99px;
@@ -7880,6 +7917,7 @@ function parse() {
     if (p[1] === "resultat") return { name: "tentares", id: decodeURIComponent(p[2] || "") };
     return { name: "tentastart", id: decodeURIComponent(p[1]) };
   }
+  if (p[0] === "ai") return { name: "ai" };
   if (p[0] === "prediktor") {
     if (p[1] === "ny") return { name: "prediktorny" };
     if (p[1] === "analys") return { name: "prediktoranalys" };
@@ -7969,6 +8007,7 @@ function viewHem() {
     <div style="display:flex; gap:10px; flex-wrap:wrap; margin:22px 0 24px; align-items:center">
       <button class="btn primary" data-go="/tenta">Tentamenssimulator</button>
       <button class="btn" data-go="/prediktor">Tentaprediktor</button>
+      <button class="btn" data-go="/ai">AI-rättning</button>
       <button class="btn" data-go="/duell">Duell</button>
       <button class="btn" data-go="/kalender">Kalender</button>
       <button class="btn" data-go="/vanner">Vänner</button>
@@ -18094,6 +18133,23 @@ let sampleFn = null, turns = [], ctl = null, sidnyckel = "", svarar = false;
 const iViewer = typeof window.claude?.use === "function";
 let motor = null;   // {typ:"claude"} eller {typ:"nyckel", lev, nyckel, modell}
 
+/* =====================================================================
+   AI-LÄGE
+   API:et kostar anrop och kräver en egen nyckel, så det ska gå att stänga
+   av utan att radera nyckeln. Är läget av rättas skrivfrågor manuellt,
+   precis som när ingen nyckel finns — och SBA och flerkryss rättas alltid
+   lokalt i kod oavsett läge.
+   ===================================================================== */
+const AILAGE_KEY = "lmb.ailage.v1";
+let aistore = { pa: true };
+try {
+  const raw = localStorage.getItem(AILAGE_KEY);
+  if (raw) aistore = Object.assign(aistore, JSON.parse(raw));
+} catch (e) {}
+function aisave() { try { localStorage.setItem(AILAGE_KEY, JSON.stringify(aistore)); } catch (e) {} }
+/* Den enda frågan resten av appen behöver ställa: får jag använda API:et nu? */
+function aiAktiv() { return !!motor && aistore.pa !== false; }
+
 const LEV = {
   google:    { namn: "Google Gemini", modell: "gemini-2.5-flash", var: "aistudio.google.com/apikey" },
   openai:    { namn: "OpenAI",        modell: "gpt-4o-mini",      var: "platform.openai.com/api-keys" },
@@ -18343,7 +18399,7 @@ const felkopia = {
   ingen_motor: "Ingen AI är inställd ännu."
 };
 
-function nyckelForm() {
+function nyckelForm(host, narSparad) {
   const nu = motor?.typ === "nyckel" ? motor : laddaNyckel();
   const esc = s => String(s || "").replace(/"/g, "&quot;");
   const d = document.createElement("div");
@@ -18360,10 +18416,11 @@ function nyckelForm() {
     <div id="nyStatus"></div>
     <select id="nyModSel" style="display:none"></select>
     <input id="nyMod" type="text" placeholder="Modellnamn" value="${esc(nu && nu.modell)}">
-    <button class="btn primary" id="nySpara">Spara och börja fråga</button>
+    <button class="btn primary" id="nySpara">${host ? "Spara nyckeln" : "Spara och börja fråga"}</button>
     <p class="hint">Gratis Gemini-nyckel hämtas på <b>aistudio.google.com/apikey</b>. Nya nycklar börjar med <code>AQ.</code>, äldre med <code>AIza</code> — båda fungerar. Nycklar från OpenAI och Anthropic går också bra.</p>`;
-  fpBody.innerHTML = "";
-  fpBody.appendChild(d);
+  const rot = host || fpBody;
+  rot.innerHTML = "";
+  rot.appendChild(d);
 
   const inN = d.querySelector("#nyIn"), inM = d.querySelector("#nyMod"),
         selL = d.querySelector("#nyLevSel"), selM = d.querySelector("#nyModSel"),
@@ -18406,6 +18463,8 @@ function nyckelForm() {
     if (!lev) return status("Välj leverantör i listan ovan", "var(--warn)");
     motor = { typ: "nyckel", lev, nyckel, modell: inM.value.trim() || LEV[lev].modell };
     sparaNyckel(motor);
+    aistore.pa = true; aisave();
+    if (narSparad) { narSparad(motor); return; }
     nyChatt();
     if (vantande) { const v = vantande; vantande = null; fraga(v); }
   });
@@ -18751,6 +18810,23 @@ async function pdfLasTenta(bytes, onProgress) {
         ? parsaAnkarläge(rader, sidor)
         : parsaBokstavsläge(rader, sidor);
 
+  /* Matchningsrutnät har ingen numrerad frågelista att haka i, utan känns
+     igen på själva rutnätet. De letas därför i ett eget pass och läggs till
+     bland de övriga frågorna — en tenta kan innehålla båda sorterna. */
+  try {
+    const markPerSidaM = {};
+    sidor.forEach(sd => { markPerSidaM[sd.nr] = silaGranssnitt(sd.markeringar); });
+    const matchningar = sidor.flatMap(sd => hittaMatchningar(sd, markPerSidaM));
+    if (matchningar.length) {
+      /* En matchningsfråga och en vanlig fråga kan inte ligga på samma plats.
+         Krockar de har rutnätet redan lästs som en vanlig fråga, och då
+         vinner rutnätet eftersom det är den rikare tolkningen. */
+      const krock = (a, b) => a.sida === b.sida && Math.abs((a.y || 0) - (b.y || 0)) < 40;
+      resultat.fragor = resultat.fragor.filter(f => !matchningar.some(m => krock(f, m)));
+      resultat.fragor.push(...matchningar);
+    }
+  } catch (e) {}
+
   /* ---- ordningen ----
      Frågorna byggs redan ur rader i dokumentordning, men ordningen är ett
      uttryckligt krav: tentan ska ligga exakt som i originalfilen. Den låses
@@ -18785,6 +18861,7 @@ async function pdfLasTenta(bytes, onProgress) {
       utanFacit: ut.filter(f => f.svar === null).length,
       oense: ut.filter(f => f.oense).length,
       flersvar: ut.filter(f => f.flersvar).length,
+      matchning: ut.filter(f => f.typ === "matchning").length,
       medBild: ut.filter(f => fragansBilder(f).length).length,
       metoder: ut.reduce((o, f) => { if (f.hur) o[f.hur] = (o[f.hur] || 0) + 1; return o; }, {})
     }
@@ -18842,6 +18919,167 @@ function sortAvOrd(ord) {
    eftersom den beskriver vad frågan prövar och inte är en del av vare sig
    frågan eller facit.
    ===================================================================== */
+/* =====================================================================
+   MATCHNINGSFRÅGOR
+   Rutnätet där varje rad ska paras ihop med en kolumn — "Match the cell
+   compartment to their function". Inget API behövs: PDF:en ger både x-
+   och y-koordinat för varje radioknapp, och ett rutnät är regelbundnare
+   än vanliga svarsalternativ. Kolumnerna hittas på knapparnas x-lägen,
+   raderna på deras y-lägen, rubrikerna på texten ovanför respektive till
+   vänster, och den ifyllda ringen talar om vilket par som är rätt.
+
+   Frågan blir en egen typ som kan samsas med andra frågor i samma tenta,
+   så en Inspera-tenta med både envals-, flerkryss- och matchningsfrågor
+   läses i ett svep.
+   ===================================================================== */
+
+const MATCH_TOL = 9;            /* hur nära två knappar ska ligga för samma rad/kolumn */
+const RE_MATCHA = /\b(matcha|para ihop|match the|match them|please match|para samman)\b/i;
+
+/* Grupperar tal som ligger nära varandra. Returnerar klustrens mittvärden. */
+function matchKluster(varden, tol) {
+  const s = [...varden].sort((a, b) => a - b);
+  const grupper = [];
+  s.forEach(v => {
+    const sista = grupper[grupper.length - 1];
+    if (sista && v - sista[sista.length - 1] <= tol) sista.push(v);
+    else grupper.push([v]);
+  });
+  return grupper.map(g => ({ mitt: g.reduce((a, b) => a + b, 0) / g.length, antal: g.length,
+                             min: g[0], max: g[g.length - 1] }));
+}
+
+/* Letar rutnät på en sida. Returnerar en lista matchningsfrågor. */
+function hittaMatchningar(sida, markPerSida) {
+  const mk = markPerSida[sida.nr] || { markeringar: [], chrome: [] };
+  const alla = [...(mk.chrome || []), ...(mk.markeringar || [])].filter(m => !m.ljus);
+  if (alla.length < 4) return [];
+
+  const kolumner = matchKluster(alla.map(m => m.xc), MATCH_TOL).filter(k => k.antal >= 2);
+  const rader = matchKluster(alla.map(m => m.yc), MATCH_TOL).filter(k => k.antal >= 2);
+  /* Ett rutnät kräver minst två kolumner och två rader. En vanlig frågas
+     radioknappar bildar bara EN kolumn, och sållas därför bort här. */
+  if (kolumner.length < 2 || rader.length < 2) return [];
+
+  /* Knapparna ska ligga i skärningspunkterna. Är rutnätet glest är det
+     förmodligen inget rutnät alls utan spridda figurer. */
+  const iRutnat = alla.filter(m =>
+    kolumner.some(k => Math.abs(m.xc - k.mitt) <= MATCH_TOL) &&
+    rader.some(r => Math.abs(m.yc - r.mitt) <= MATCH_TOL));
+  if (iRutnat.length < kolumner.length * rader.length * 0.6) return [];
+
+  const textrader = sida.rader || [];
+  const forstaKol = kolumner[0].mitt;
+  const oversta = Math.max(...rader.map(r => r.mitt));
+  const understa = Math.min(...rader.map(r => r.mitt));
+
+  /* ---- kolumnrubriker: texten ovanför rutnätet, på kolumnens x-läge ---- */
+  const rubrikrader = textrader
+    .filter(t => t.y > oversta + 6 && t.y < oversta + 150)
+    .sort((a, b) => a.y - b.y);
+  const kolTitlar = kolumner.map(k => {
+    const bitar = rubrikrader
+      .filter(t => {
+        const mitt = (t.x0 + t.x1) / 2;
+        /* rubriken räknas till kolumnen när den överlappar kolumnens x-läge */
+        return Math.abs(mitt - k.mitt) <= 58 || (t.x0 - 12 <= k.mitt && t.x1 + 12 >= k.mitt);
+      })
+      .sort((a, b) => b.y - a.y)       /* uppifrån och ned */
+      .map(t => t.text.trim());
+    return bitar.join(" ").replace(/\s+/g, " ").trim();
+  });
+
+  /* ---- radetiketter: texten till vänster om första kolumnen ---- */
+  const radTitlar = rader.slice().sort((a, b) => b.mitt - a.mitt).map(r => {
+    const bitar = textrader
+      .filter(t => t.x1 < forstaKol - 10 && Math.abs(t.y - r.mitt) <= 16)
+      .sort((a, b) => a.x0 - b.x0)
+      .map(t => t.text.trim());
+    return bitar.join(" ").replace(/\s+/g, " ").trim();
+  });
+
+  if (kolTitlar.filter(Boolean).length < 2 || radTitlar.filter(Boolean).length < 2) return [];
+
+  /* ---- facit: den ifyllda ringen i varje rad ---- */
+  const kolOrdning = kolumner.slice().sort((a, b) => a.mitt - b.mitt);
+  const radOrdning = rader.slice().sort((a, b) => b.mitt - a.mitt);
+  const svar = radOrdning.map(r => {
+    const fargad = alla.find(m => m.fargad && Math.abs(m.yc - r.mitt) <= MATCH_TOL);
+    if (!fargad) return null;
+    const ki = kolOrdning.findIndex(k => Math.abs(fargad.xc - k.mitt) <= MATCH_TOL);
+    return ki >= 0 ? ki : null;
+  });
+
+  /* ---- frågetexten: raderna ovanför kolumnrubrikerna ---- */
+  const overstRubrik = rubrikrader.length ? Math.max(...rubrikrader.map(t => t.y)) : oversta + 60;
+  const stam = textrader
+    .filter(t => t.y > overstRubrik + 2 && t.y < overstRubrik + 120 && t.x1 < forstaKol + 400)
+    .sort((a, b) => b.y - a.y)
+    .map(t => t.text.trim())
+    .filter(Boolean);
+  /* Den sista meningen före rutnätet är nästan alltid själva uppmaningen. */
+  const fraga = stam.slice(-3).join(" ").replace(/\s+/g, " ").trim()
+    || "Matcha raderna mot rätt kolumn.";
+
+  return [{
+    q: fraga,
+    typ: "matchning",
+    options: kolTitlar,
+    matchrader: radTitlar,
+    svar,
+    poang: Math.max(1, Math.round(radTitlar.length / 2 * 2) / 2),
+    sida: sida.nr,
+    y: oversta,
+    hur: svar.some(v => v !== null) ? "markering" : null,
+    oense: false, flersvar: false, mal: null, konf: null
+  }];
+}
+
+/* Rutnätet, som det ser ut i tentaläget, granskningen och resultatet.
+   lage: "svara" (klickbart), "facit" (visar rätt uppsättning) eller
+   "resultat" (visar både rätt svar och vad man själv valde). */
+function matchningsRutnat(f, valt, lage) {
+  const rader = f.matchrader || [];
+  const kol = f.options || [];
+  const v = Array.isArray(valt) ? valt : [];
+  const facit = Array.isArray(f.svar) ? f.svar : [];
+  return `<div class="matchwrap"><table class="matchtabell">
+    <thead><tr><th></th>${kol.map(k => `<th>${esc(k)}</th>`).join("")}</tr></thead>
+    <tbody>
+      ${rader.map((r, ri) => `
+        <tr>
+          <th scope="row">${esc(r)}</th>
+          ${kol.map((_, ki) => {
+            const mitt = v[ri] === ki;
+            const ratt = facit[ri] === ki;
+            const klass = lage === "svara" ? (mitt ? " vald" : "")
+              : lage === "facit" ? (ratt ? " correct" : "")
+              : (ratt ? " correct" : "") + (mitt && !ratt ? " wrong" : "");
+            const kan = lage !== "resultat";
+            return `<td><${kan ? "button" : "span"} class="matchruta${klass}"
+              data-match="${ri}:${ki}"
+              role="radio" aria-checked="${lage === "svara" ? mitt : ratt}"
+              aria-label="${esc(r)} — ${esc(kol[ki] || "")}">
+              <span class="ring">${(lage === "svara" ? mitt : ratt) ? TICK : ""}</span>
+              ${lage === "resultat" && mitt && !ratt ? `<span class="mittkryss">×</span>` : ""}
+            </${kan ? "button" : "span"}>`;
+          }).join("")}
+        </tr>`).join("")}
+    </tbody></table></div>`;
+}
+
+/* Rättar en matchningsfråga lokalt: poäng per rätt parad rad. */
+function rattaMatchning(valda, facit, maxPoang) {
+  const f = Array.isArray(facit) ? facit : [];
+  const v = Array.isArray(valda) ? valda : [];
+  const bedombara = f.filter(x => x !== null && x !== undefined).length;
+  if (!bedombara) return { poang: 0, allt: false, traff: 0, av: 0 };
+  let traff = 0;
+  f.forEach((ratt, i) => { if (ratt !== null && ratt !== undefined && v[i] === ratt) traff++; });
+  const andel = traff / bedombara;
+  return { poang: Math.round(andel * maxPoang * 2) / 2, allt: traff === bedombara, traff, av: bedombara };
+}
+
 function parsaEssalage(rader) {
   const block = [];
   let nu = null, iSvar = false;
@@ -19726,10 +19964,16 @@ function normaliseraTenta(t) {
         : (f.bild ? [f.bild] : []),
       options: (f.options || []).map(o => String(o).trim()).filter(Boolean),
       /* Flerkryssfrågor bär en lista av index; envalsfrågor ett enda tal. */
-      svar: f.typ === "flerval"
+      svar: f.typ === "matchning"
+        ? (Array.isArray(f.svar) ? f.svar.map(x => (x === null || x === undefined || x === "") ? null : Number(x)) : [])
+        : f.typ === "flerval"
         ? (Array.isArray(f.svar) ? [...new Set(f.svar.map(Number).filter(n => n >= 0))].sort((a, b) => a - b) : [])
         : (f.svar === null || f.svar === undefined || f.svar === "") ? null : Number(f.svar),
-      typ: f.typ === "text" ? "text" : f.typ === "flerval" ? "flerval" : "sba",
+      typ: f.typ === "text" ? "text"
+        : f.typ === "flerval" ? "flerval"
+        : f.typ === "matchning" ? "matchning" : "sba",
+      /* Matchningsfrågans rader; kolumnerna ligger i options som vanligt. */
+      matchrader: Array.isArray(f.matchrader) ? f.matchrader.map(x => String(x || "")) : [],
       sort: f.sort || "",
       namn: f.namn || "",
       poang: Number(f.poang) > 0 ? Number(f.poang) : 1,
@@ -19875,6 +20119,7 @@ function ratta(forsok, tenta) {
 
     /* bedömningsbar = det finns något att jämföra mot */
     const bedombar = text ? !!(f.facit && f.facit.trim())
+      : f.typ === "matchning" ? Array.isArray(f.svar) && f.svar.some(x => x !== null && x !== undefined)
       : f.typ === "flerval" ? Array.isArray(f.svar) && f.svar.length > 0
       : (f.svar !== null && f.svar !== undefined);
     const poangMax = Number(f.poang) > 0 ? Number(f.poang) : 1;
@@ -19886,6 +20131,12 @@ function ratta(forsok, tenta) {
         poangFatt = Math.max(0, Math.min(poangMax, s));
         bedomd = true;
         ratt = poangFatt >= poangMax;                 /* full poäng räknas som rätt */
+      }
+    } else if (f.typ === "matchning") {
+      /* Poäng per rätt parad rad, lokalt i kod. */
+      if (bedombar && harSvar) {
+        const b = rattaMatchning(svarat, f.svar, poangMax);
+        poangFatt = b.poang; ratt = b.allt; bedomd = true;
       }
     } else if (f.typ === "flerval") {
       /* Delpoäng: varje rätt kryss ger, varje felaktigt kryss tar. Aldrig
@@ -20277,7 +20528,7 @@ function bedomForsokLokalt(forsok, tenta) {
    Körs bara en gång per försök, och bara där studenten faktiskt skrivit något. */
 const _aiBedomd = {};
 async function bedomForsokMedAI(forsokId, ritaOm) {
-  if (!motor || _aiBedomd[forsokId] === "kör" || _aiBedomd[forsokId] === "klar") return;
+  if (!aiAktiv() || _aiBedomd[forsokId] === "kör" || _aiBedomd[forsokId] === "klar") return;
   const post = tstore.forsok.find(x => x.id === forsokId);
   if (!post) return;
   const tenta = forsokTenta(post);
@@ -20342,7 +20593,7 @@ function behoverNodrattning(f, svar) {
 }
 
 async function nodrattaForsok(post, tenta, ritaOm) {
-  if (!motor) return;
+  if (!aiAktiv()) return;
   post.bedomning = post.bedomning || {};
   const kvar = post.ordning.filter(fi => {
     const b = post.bedomning[fi] || {};
@@ -20508,7 +20759,9 @@ function rattaFlerval(valda, facit, maxPoang) {
 
 function harSvarat(v) {
   if (typeof v === "string") return v.trim().length > 0;
-  if (Array.isArray(v)) return v.length > 0;
+  /* En matchningsfråga bär en lista med ett val per rad, där tomma rader är
+     null. Den räknas som besvarad så fort någon rad är parad. */
+  if (Array.isArray(v)) return v.some(x => x !== null && x !== undefined && x !== "");
   return v !== undefined && v !== null;
 }
 
@@ -20769,6 +21022,7 @@ function viewTentaNy() {
     /* En fråga saknar facit om det inte finns något att rätta mot: för en
        kryssfråga inget markerat alternativ, för en skrivfråga ingen facittext. */
     const saknarFacit = f => f.typ === "text" ? !(f.facit && f.facit.trim())
+      : f.typ === "matchning" ? !(Array.isArray(f.svar) && f.svar.some(x => x !== null && x !== undefined))
       : f.typ === "flerval" ? !(Array.isArray(f.svar) && f.svar.length)
       : f.svar === null;
 
@@ -20815,6 +21069,16 @@ function viewTentaNy() {
          var därför granskningen visade tomma bildplatser. */
       fyllBilder(status);
 
+      status.querySelectorAll("[data-match]").forEach(b => b.addEventListener("click", () => {
+        const kort = b.closest("[data-fraga]");
+        const i = +kort.dataset.fraga;
+        const [ri, ki] = b.dataset.match.split(":").map(Number);
+        const nu = Array.isArray(F[i].svar) ? F[i].svar.slice() : [];
+        while (nu.length < (F[i].matchrader || []).length) nu.push(null);
+        nu[ri] = nu[ri] === ki ? null : ki;
+        F[i].svar = nu; F[i].hur = "manuell";
+        rita();
+      }));
       status.querySelectorAll("[data-svar]").forEach(b => b.addEventListener("click", () => {
         const [i, o] = b.dataset.svar.split(":").map(Number);
         if (F[i].typ === "flerval") {
@@ -20936,6 +21200,10 @@ function viewTentaNy() {
             <textarea data-facit="${i}" rows="4" placeholder="Klistra in eller skriv facit för den här frågan…"
               style="${KODSTIL}; font-family:var(--body); font-size:13.5px; white-space:pre-wrap; margin-top:6px">${esc(f.facit || "")}</textarea>
           </div>`
+          : f.typ === "matchning" ? `
+          ${matchningsRutnat(f, f.svar, "facit")}
+          <p style="margin:10px 0 0; font-size:12.5px; color:var(--ink-3)">
+            Klicka i rutnätet för att rätta facit — ett kryss per rad.</p>`
           : `<div class="opts${f.typ === "flerval" ? " flerval" : ""}">
           ${f.options.map((o, oi) => {
             const vald = f.typ === "flerval" ? (Array.isArray(f.svar) && f.svar.includes(oi)) : f.svar === oi;
@@ -21220,6 +21488,9 @@ function viewTentaKor() {
         <p style="font-size:12.5px; color:var(--ink-3); margin:8px 0 0">
           Skrivsvar rättas efter inlämning: du får se facit bredvid ditt svar och sätter poängen själv,
           med hjälp av vilka begrepp som saknas.</p>`
+        : f.typ === "matchning" ? `
+        <p class="flervalsrad">Para ihop varje rad med rätt kolumn — ett kryss per rad.</p>
+        <div id="topts">${matchningsRutnat(f, valt, "svara")}</div>`
         : f.typ === "flerval" ? `
         <p class="flervalsrad">Flera alternativ kan vara rätt — kryssa i alla som stämmer.</p>
         <div class="opts flerval" id="topts" role="group" aria-label="Svarsalternativ, flera kan vara rätt">
@@ -21250,7 +21521,9 @@ function viewTentaKor() {
       Flaggade frågor är markerade i rutnätet ovanför och du hoppar mellan dem med knappen
       <b>Nästa flaggade</b>.
       Tangentbord: <b>A–H</b> svarar, <b>←/→</b> byter fråga, <b>F</b> flaggar,
-      <b>N</b> hoppar till nästa flaggade.</p>`;
+      <b>N</b> hoppar till nästa flaggade.${
+        (t.fragor || []).some(x => x.typ === "matchning")
+          ? " Matchningsfrågornas rutnät klickar du i." : ""}</p>`;
 
   /* Det de andra får se är antalet besvarade frågor, inte vilken man står på. */
   const antalBesvarade = () => a.ordning.filter(oi => harSvarat(a.svar[oi])).length;
@@ -21265,7 +21538,18 @@ function viewTentaKor() {
 
   const optsRuta = view.querySelector("#topts");
   if (optsRuta) optsRuta.addEventListener("click", e => {
-    const b = e.target.closest(".opt"); if (!b) return;
+    const b = e.target.closest(".opt, [data-match]"); if (!b) return;
+    const ruta = e.target.closest("[data-match]");
+    if (ruta && f.typ === "matchning") {
+      const [ri, ki] = ruta.dataset.match.split(":").map(Number);
+      const nu = Array.isArray(a.svar[fi]) ? a.svar[fi].slice() : [];
+      while (nu.length < (f.matchrader || []).length) nu.push(null);
+      /* Ett kryss per rad: samma ruta igen tar bort valet. */
+      nu[ri] = nu[ri] === ki ? null : ki;
+      a.svar[fi] = nu;
+      tsave(); meddelaFramsteg(); render();
+      return;
+    }
     const oi = +b.dataset.o;
     if (f.typ === "flerval") {
       /* Flerkryss: varje klick slår på eller av ett alternativ, och man går
@@ -21343,6 +21627,7 @@ function viewTentaKor() {
        fråga med sju alternativ skulle annars aldrig kunna svaras med G. */
     if (k === "n" || k === "N") { e.preventDefault(); nastaFlaggade(); return; }
     const i = "abcdefgh".indexOf(String(k).toLowerCase());
+    if (f.typ === "matchning") return;         /* rutnät svaras med musen */
     if (i >= 0 && i < f.options.length) {
       e.preventDefault();
       if (f.typ === "flerval") {
@@ -21440,12 +21725,19 @@ function viewTentaResultat(fid) {
        lärandemål som bara råkar dela några ord. */
     const ref = (hor || f2.konf === "manuell" || f2.konf === "hög") ? rad.ref : null;
     const forkl = ref ? forklaringUrMal(ref, f2) : null;
-    const dittSvar = rad.text ? "" : (rad.harSvar
-      ? `${String.fromCharCode(65 + rad.svarat)}. ${esc(f2.options[rad.svarat])}` : "<i>obesvarad</i>");
-    const rattSvar = rad.text ? "" : (rad.bedombar
-      ? `${String.fromCharCode(65 + f2.svar)}. ${esc(f2.options[f2.svar])}` : "<i>facit saknas</i>");
+    /* Ett svar kan vara ett index (envalsfråga), en lista index (flerkryss)
+       eller en kolumn per rad (matchning). Den gamla raden antog alltid det
+       första, och gav "NaN" på de andra. */
+    const svarRad = v => (Array.isArray(v) ? v : [v])
+      .filter(x => x !== null && x !== undefined && x !== "")
+      .map(x => `${String.fromCharCode(65 + x)}. ${esc(f2.options[x] || "")}`).join("<br>");
+    const dittSvar = rad.text ? "" : (rad.harSvar ? svarRad(rad.svarat) : "<i>obesvarad</i>");
+    const rattSvar = rad.text ? "" : (rad.bedombar ? svarRad(f2.svar) : "<i>facit saknas</i>");
+    const match = f2.typ === "matchning";
+    const delvis = match || f2.typ === "flerval";
     return `
-      <div class="qcard tres" data-status="${!rad.bedombar ? "obedomd" : rad.ratt ? "ratt" : "fel"}" style="max-width:none">
+      <div class="qcard tres" data-status="${!rad.bedombar ? "obedomd"
+          : rad.ratt ? "ratt" : (delvis && rad.poangFatt > 0) ? "obedomd" : "fel"}" style="max-width:none">
         <div class="qnum">Fråga ${rad.plats}${rad.poangMax > 1 || rad.text ? ` · ${fmtPoang(rad.poangMax)} p` : ""}${
             f2.sort ? ` · ${esc(f2.sort)}` : ""}
           ${rad.text
@@ -21453,13 +21745,24 @@ function viewTentaResultat(fid) {
                 ? `<span class="chip accent" style="margin-left:8px">${rad.harSvar ? "bedöms…" : "obesvarad"}</span>`
                 : `<span class="chip${rad.ratt ? " done" : ""}" style="margin-left:8px">${fmtPoang(rad.poangFatt)} av ${fmtPoang(rad.poangMax)} p</span>`)
             : !rad.bedombar ? `<span class="chip" style="margin-left:8px">ej bedömningsbar</span>`
+            /* Matchning och flerkryss kan vara delvis rätt. "Fel" på en fråga
+               där fyra av fem rader stämde säger fel sak. */
+            : (delvis && rad.poangFatt > 0 && !rad.ratt)
+              ? `<span class="chip accent" style="margin-left:8px">${fmtPoang(rad.poangFatt)} av ${fmtPoang(rad.poangMax)} p</span>`
             : rad.ratt ? `<span class="chip done" style="margin-left:8px">Rätt</span>`
             : `<span class="chip" style="margin-left:8px; background:color-mix(in srgb, var(--err) 12%, transparent); color:var(--err); border-color:transparent">Fel</span>`}
           ${rad.flaggad ? `<span class="chip accent" style="margin-left:6px">flaggad</span>` : ""}
         </div>
         <div class="qtext" style="font-size:16px">${esc(f2.q)}</div>
         ${bildplatser(f2, "Figur till frågan")}
-        ${rad.text ? skrivsvarKort(rad, f.id) : `
+        ${rad.text ? skrivsvarKort(rad, f.id)
+          : match ? `${matchningsRutnat(f2, rad.svarat, "resultat")}
+            <p class="s" style="margin:10px 0 0">${rad.bedomd
+              ? `${fmtPoang(rad.poangFatt)} av ${fmtPoang(rad.poangMax)} p · ${
+                  rattaMatchning(rad.svarat, f2.svar, rad.poangMax).traff} av ${
+                  rattaMatchning(rad.svarat, f2.svar, rad.poangMax).av} rader rätt parade`
+              : "Facit till rutnätet kunde inte läsas."}</p>`
+          : `
         <div class="tablewrap" style="margin:10px 0 0">
           <table class="wtable">
             <tr><td style="color:var(--ink-3); width:110px">Ditt svar</td>
@@ -21606,6 +21909,7 @@ function viewTentaResultat(fid) {
     </div>
     <div id="fragelista">${fragelista}</div>
 
+    ${aiRattningsPanel(t)}
     ${f.duell ? delningsVarning(f.duell.seed) : ""}
     ${f.duell && typeof duellSkrivfragor === "function" && duellSkrivfragor(t).length
       ? `<div class="note" style="margin-top:18px">
@@ -21669,6 +21973,16 @@ function viewTentaResultat(fid) {
 
   /* Skrivsvar som ännu inte bedömts — gamla försök från före den automatiska
      bedömningen — får sin poäng nu, och AI:n ser över dem om den finns. */
+  /* Rättningskön syns på resultatsidan, så en lång rättning inte ser ut som att inget händer. */
+  const koresruta = document.getElementById("airesko");
+  if (koresruta) {
+    const ritaKo = (txt, kvar) => {
+      koresruta.innerHTML = txt ? `${esc(txt)}${kvar > 1 ? ` · ${kvar} kvar i kön` : ""}` : "";
+    };
+    if (_aiAvKo) { try { _aiAvKo(); } catch (e) {} }
+    _aiAvKo = aiKoStatus(ritaKo);
+  }
+
   /* Hostens statusrad: "Rättar Fråga 1 (Spelare 2 av 4)…" medan kön betas av. */
   const statusruta = document.getElementById("duellrattstatus");
   if (statusruta && f.duell) {
@@ -21707,7 +22021,7 @@ function viewTentaResultat(fid) {
         const ruta = view.querySelector(`[data-bed="${rad.fi}"]`);
         if (!ruta || !rad.text) return;
         const bed = (post.bedomning || {})[rad.fi] || null;
-        const vantar = !!motor && !!(rad.fraga.facit || "").trim()
+        const vantar = aiAktiv() && !!(rad.fraga.facit || "").trim()
           && typeof post.svar[rad.fi] === "string" && !!post.svar[rad.fi].trim()
           && (!bed || (bed.kalla !== "ai" && bed.kalla !== "jag" && !bed.aiFel));
         ruta.innerHTML = bedomningsPanel(rad, bed, vantar);
@@ -22423,6 +22737,14 @@ function duellTenta(u) {
           facit: q.fa || "", facitrubrik: q.fr || "Facit" });
         return;
       }
+      if (q.ty === "matchning") {
+        /* Rutnätet blandas inte: rad- och kolumnordningen är en del av frågan,
+           och en omkastad kolumn skulle göra facit obegripligt. */
+        fragor.push({ ...gemensamt, typ: "matchning",
+          options: (q.o || []).slice(), matchrader: (q.mr || []).slice(),
+          svar: (q.s || []).map(x => (x === null || x === undefined) ? null : Number(x)) });
+        return;
+      }
       const flerval = q.ty === "flerval";
       const ratta = flerval ? new Set((q.s || []).map(Number)) : null;
       const par = q.o.map((t, ix) => ({ t, r: flerval ? ratta.has(ix) : ix === q.s }));
@@ -22495,6 +22817,8 @@ function tentaSomBank(t) {
   const duger = f =>
     f.typ === "text" ? !!(f.facit && f.facit.trim())
     : f.typ === "flerval" ? (Array.isArray(f.svar) && f.svar.length && (f.options || []).length >= 2)
+    : f.typ === "matchning" ? (Array.isArray(f.svar) && f.svar.some(x => x !== null && x !== undefined)
+        && (f.matchrader || []).length >= 2 && (f.options || []).length >= 2)
     : (f.svar !== null && f.svar !== undefined && (f.options || []).length >= 2);
   return (t.fragor || [])
     .filter(duger)
@@ -22502,7 +22826,11 @@ function tentaSomBank(t) {
        delade tentan både ordning och bilder på vägen till duellen. */
     .map((f, i) => ({
       q: f.q, o: f.options || [], s: f.svar, m: f.mal || "",
-      ty: f.typ === "text" ? "text" : f.typ === "flerval" ? "flerval" : "",
+      ty: f.typ === "text" ? "text" : f.typ === "flerval" ? "flerval"
+        : f.typ === "matchning" ? "matchning" : "",
+      /* mr = matchningens radetiketter. Utan dem blir rutnätet bara kolumner
+         i den delade tentan, och frågan går inte att svara på. */
+      mr: f.typ === "matchning" ? (f.matchrader || []).slice() : undefined,
       fa: f.typ === "text" ? String(f.facit || "").slice(0, 4000) : "",
       fr: f.typ === "text" ? String(f.facitrubrik || "") : "",
       po: Number(f.poang) > 0 ? Number(f.poang) : 1,
@@ -24683,8 +25011,13 @@ function liveFacitLista(u, id) {
 
   return t.fragor.map((f, i) => {
     const mitt = forsok ? mina[i] : undefined;
-    const svarade = mitt !== undefined && mitt !== null;
-    const ratt = svarade && mitt === f.svar;
+    const svarade = mitt !== undefined && mitt !== null
+      && (!Array.isArray(mitt) || mitt.some(x => x !== null && x !== undefined));
+    const ratt = svarade && (f.typ === "matchning"
+      ? rattaMatchning(mitt, f.svar, 1).allt
+      : f.typ === "flerval"
+        ? rattaFlerval(mitt, f.svar, 1).allt
+        : mitt === f.svar);
     const ref = f.mal ? malRef(f.mal) : null;
     return `
       <div class="qcard tres" data-status="${!forsok ? "obedomd" : ratt ? "ratt" : "fel"}" style="max-width:none">
@@ -24696,7 +25029,8 @@ function liveFacitLista(u, id) {
         </div>
         <div class="qtext" style="font-size:16px">${esc(f.q)}</div>
         ${bildplatser(f, "Figur till fråga " + (i + 1))}
-        <div class="opts${f.typ === "flerval" ? " flerval" : ""}">
+        ${f.typ === "matchning" ? matchningsRutnat(f, mitt, "resultat") : ""}
+        <div class="opts${f.typ === "flerval" ? " flerval" : ""}"${f.typ === "matchning" ? " hidden" : ""}>
           ${f.options.map((o, oi) => {
             const flerval = f.typ === "flerval";
             const arRatt = flerval ? (Array.isArray(f.svar) && f.svar.includes(oi)) : oi === f.svar;
@@ -27433,7 +27767,7 @@ async function predGenerera(knapp, res) {
   if (!rad) return;
   ut.hidden = false;
 
-  if (!motor) {
+  if (!aiAktiv()) {
     const ref = rad.amne.ref;
     const bank = ref && ref.mal.quiz ? ref.mal.quiz : [];
     if (!bank.length) {
@@ -27646,7 +27980,7 @@ async function duellHostRatta(duell, tenta) {
   const skriv = duellSkrivfragor(tenta);
   if (!skriv.length) return;
   if (!arDuellHost(duell)) return;
-  if (!motor) {
+  if (!aiAktiv()) {
     _duellKo = { seed: duell.seed, status: "manuell", kvar: 0, korande: false };
     _duellMeddela();
     return;
@@ -27761,7 +28095,7 @@ function duellVantarText(duell, tenta) {
   const n = duellSkrivfragor(tenta).length;
   if (!n) return "";
   const host = arDuellHost(duell);
-  if (host && !motor) {
+  if (host && !aiAktiv()) {
     return `Matchen har ${n} ${n === 1 ? "skrivfråga" : "skrivfrågor"} och du är den som skapade den.
       Utan API-nyckel bedöms de <b>manuellt</b> — sätt poängen själv nedan, så gäller din bedömning
       bara ditt eget svar. Lägg in en nyckel under Fråga-panelen om du vill att appen ska rätta allas
@@ -27778,6 +28112,158 @@ function duellVantarText(duell, tenta) {
 }
 
 
+/* =====================================================================
+   AI-RÄTTNING — EGEN SIDA
+   API-nyckeln låg tidigare gömd bakom en ikon inne i Fråga-panelen, och
+   den ikonen visas inte i alla lägen. Det gjorde att hela API-rättningen
+   fanns i koden men aldrig gick att slå på. Här är den i stället en
+   synlig sida med nyckel, av/på-knapp och en rak beskrivning av vad som
+   rättas var.
+   ===================================================================== */
+
+/* "40 sekunder" läser sig bättre än "0,7 minuter". */
+function aiTidText(antalFragor) {
+  const sek = Math.round(antalFragor * AI_MELLANRUM / 1000);
+  if (sek < 90) return `${sek} sekunder`;
+  const min = sek / 60;
+  return `${String(Math.round(min * 10) / 10).replace(".", ",")} minuter`;
+}
+
+function aiStatusText() {
+  if (!motor) return { niva: "av", rubrik: "Ingen AI inkopplad",
+    text: "Skrivfrågor rättas med ordjämförelse mot facit, och du sätter poängen själv. Lägg in en API-nyckel så bedöms de i stället mot facit, mening för mening." };
+  if (aistore.pa === false) return { niva: "paus", rubrik: "AI-läget är avstängt",
+    text: "Nyckeln finns kvar men används inte. Skrivfrågor rättas manuellt så länge." };
+  const lev = motor.typ === "claude" ? "Claude" : (LEV[motor.lev] || {}).namn || motor.lev;
+  return { niva: "pa", rubrik: `AI-rättning på · ${lev}`,
+    text: `Skrivfrågor bedöms mot facit${motor.modell ? ` med ${motor.modell}` : ""}. Envals-, flerkryss- och matchningsfrågor rättas som vanligt lokalt i koden, utan API-anrop.` };
+}
+
+function viewAI() {
+  const st = aiStatusText();
+  view.innerHTML = `
+    ${crumbs([{ t: "Översikt", href: "/" }, { t: "AI-rättning" }])}
+    <p class="eyebrow">AI-rättning</p>
+    <h1>Rättning av skrivfrågor</h1>
+    <p class="lede">Envals-, flerkryss- och matchningsfrågor rättas alltid lokalt i appens egen kod — det kostar
+    varken tid eller anrop. Skrivfrågor och essäfrågor är det enda som behöver en AI, eftersom de
+    måste jämföras mot facit i text. Här kopplar du in den.</p>
+    <div class="rule"></div>
+
+    <div class="split">
+      <div>
+        <div class="panel aistatus ${st.niva}">
+          <h4>${esc(st.rubrik)}</h4>
+          <p class="s" style="margin:6px 0 0">${st.text}</p>
+          ${motor ? `
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px">
+              <button class="btn${aistore.pa === false ? " primary" : ""}" id="aitoggle">
+                ${aistore.pa === false ? "Slå på AI-rättning" : "Stäng av AI-rättning"}</button>
+              <button class="btn" id="aibyt">Byt nyckel</button>
+              ${motor.typ === "nyckel" ? `<button class="btn" id="aiglom">Glöm nyckeln</button>` : ""}
+            </div>` : ""}
+        </div>
+
+        <div id="ainyckel" style="margin-top:18px"${motor ? " hidden" : ""}></div>
+
+        <h2 style="font-size:20px; margin:30px 0 4px">Vad rättas var</h2>
+        <p class="s" style="margin:0 0 14px">Routingen är bestämd, inte slumpmässig.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Frågetyp</th><th>Rättas av</th><th>Kostar anrop</th></tr></thead>
+            <tbody>
+              <tr><td>Envalsfråga (SBA)</td><td>Appens egen kod</td><td>Nej</td></tr>
+              <tr><td>Flerkryssfråga</td><td>Appens egen kod, med delpoäng</td><td>Nej</td></tr>
+              <tr><td>Matchningsfråga (rutnät)</td><td>Appens egen kod, poäng per rad</td><td>Nej</td></tr>
+              <tr><td>Skrivfråga och essä</td><td>AI, mot frågans eget facit</td><td>Ja, ett per fråga</td></tr>
+              <tr><td>Kryssfråga vars facit inte gick att läsa</td><td>AI som nödlösning</td><td>Ja, ett per fråga</td></tr>
+              <tr><td>Skrivfråga i duell</td><td>Den som skapade matchen, med sin nyckel</td><td>Ja, hos värden</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 style="font-size:20px; margin:30px 0 4px">Farthållaren</h2>
+        <p class="s" style="margin:0">Google släpper igenom 15 anrop per minut. Appen kör därför allt
+        genom en enda kö med minst ${Math.round(AI_MELLANRUM / 1000)} sekunder mellan anropen, så
+        gränsen aldrig spräcks — oavsett hur många frågor eller spelare som väntar. En tenta med tio
+        skrivfrågor tar alltså ungefär ${aiTidText(10)} att rätta.</p>
+        <p class="s" id="aiko" style="margin-top:10px"></p>
+      </div>
+
+      <aside class="aside">
+        <div class="panel">
+          <h4>Var nyckeln tar vägen</h4>
+          <p class="s" style="margin:0">Den sparas bara i den här webbläsaren och skickas ingen
+          annanstans än till leverantören du valt. Den lämnar aldrig din enhet via biblioteket.</p>
+        </div>
+        <div class="panel">
+          <h4>Gratis nyckel</h4>
+          <p class="s" style="margin:0">Google Gemini har en gratisnivå som räcker gott för att rätta
+          tentor. Hämta en på <b>aistudio.google.com/apikey</b>. Nycklar från OpenAI och Anthropic
+          fungerar också.</p>
+        </div>
+        <button class="btn wide" data-go="/tenta">Till tentamenssimulatorn</button>
+      </aside>
+    </div>`;
+
+  const ruta = document.getElementById("ainyckel");
+  const visaForm = () => {
+    ruta.hidden = false;
+    ruta.classList.add("panel");
+    nyckelForm(ruta, () => { viewAI(); });
+    ruta.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
+  if (!motor) visaForm();
+
+  const t = document.getElementById("aitoggle");
+  if (t) t.addEventListener("click", () => {
+    aistore.pa = aistore.pa === false; aisave(); viewAI();
+  });
+  const byt = document.getElementById("aibyt");
+  if (byt) byt.addEventListener("click", visaForm);
+  const glom = document.getElementById("aiglom");
+  if (glom) glom.addEventListener("click", async () => {
+    if (!await bekrafta("Glömma API-nyckeln? Skrivfrågor rättas då manuellt igen.", "Glöm nyckeln")) return;
+    try { localStorage.removeItem("lmb.ai"); } catch (e) {}
+    motor = null; viewAI();
+  });
+
+  /* Kön syns live, så man ser att något händer under en lång rättning. */
+  const koruta = document.getElementById("aiko");
+  if (koruta) {
+    const rita = (txt, kvar) => {
+      koruta.innerHTML = txt
+        ? `<b>${esc(txt)}</b>${kvar > 1 ? ` · ${kvar} anrop i kön` : ""}`
+        : `<span style="color:var(--ink-3)">Kön är tom.</span>`;
+    };
+    rita("", 0);
+    _aiAvKo = aiKoStatus(rita);
+  }
+}
+let _aiAvKo = null;
+
+/* Panelen som visas på resultatsidan när tentan har skrivfrågor. Den är
+   hela poängen med sidan ovan: utan den vet man inte att AI-rättning
+   finns, och tror att ordjämförelsen är allt appen kan. */
+function aiRattningsPanel(tenta) {
+  const skriv = (tenta.fragor || []).filter(f => f.typ === "text" && (f.facit || "").trim()).length;
+  if (!skriv) return "";
+  if (aiAktiv()) {
+    const lev = motor.typ === "claude" ? "Claude" : (LEV[motor.lev] || {}).namn || motor.lev;
+    return `<div class="note" style="margin-top:18px">
+      <b>Skrivfrågorna bedöms mot facit</b> av ${esc(lev)}, en i taget.
+      <span class="s">Poängen fylls i nedan allteftersom.</span>
+      <p class="s" id="airesko" style="margin:8px 0 0"></p></div>`;
+  }
+  return `<div class="note" style="margin-top:18px; background:color-mix(in srgb, var(--warn) 10%, transparent)">
+    <b>${skriv === 1 ? "Skrivfrågan rättades" : `De ${skriv} skrivfrågorna rättades`} med ordjämförelse.</b>
+    Appen har jämfört dina ord med facit, vilket är trubbigt — ett rätt svar med egna ord får för lite.
+    ${motor ? "AI-läget är avstängt." : "Kopplar du in en AI bedöms svaren i stället mot facit, mening för mening."}
+    <div style="margin-top:12px"><button class="btn primary" data-go="/ai">
+      ${motor ? "Slå på AI-rättning" : "Koppla in AI-rättning"}</button></div></div>`;
+}
+
+
 function render() {
   const r = parse();
   document.querySelectorAll(".overlay").forEach(o => o.remove());
@@ -27788,6 +28274,7 @@ function render() {
   _kontoLyssnare = null;
   stoppaNedrakning();
   if (r.name !== "prediktorny") _tentaRetur = null;
+  if (r.name !== "ai" && _aiAvKo) { try { _aiAvKo(); } catch (e) {} _aiAvKo = null; }
   if (r.name !== "tentares") {
     try { duellSlutaLyssna(); } catch (e) {}
     if (_duellAvStatus) { try { _duellAvStatus(); } catch (e) {} _duellAvStatus = null; }
@@ -27801,6 +28288,7 @@ function render() {
   else if (r.name === "tentakor") viewTentaKor();
   else if (r.name === "tentares") viewTentaResultat(r.id);
   else if (r.name === "tentatest") viewTentaTest();
+  else if (r.name === "ai") viewAI();
   else if (r.name === "prediktor") viewPrediktor();
   else if (r.name === "prediktoranalys") viewPrediktorAnalys();
   else if (r.name === "prediktorny") { _tentaRetur = "#/prediktor"; viewTentaNy(); }
@@ -32873,7 +33361,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20260923-1500";
+const BYGGID = "20260923-2100";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";

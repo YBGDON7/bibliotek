@@ -1,1 +1,13 @@
-{"bygg": "20260923-1500"}
+{
+  "byggid": "20260923-2100",
+  "namn": "Lärandemålsbiblioteket",
+  "kurs": "Basvetenskap 5",
+  "uppdaterad": "2026-09-23",
+  "nytt": [
+    "Matchningsfrågor: rutnät med rader mot kolumner läses ur PDF:en, besvaras genom att klicka i rutnätet och rättas lokalt med poäng per rätt parad rad.",
+    "Delvis rätt visas som poäng i stället för Fel på matchnings- och flerkryssfrågor.",
+    "Resultatsidan visade fel svarsrad på flerkryssfrågor — fixat.",
+    "Matchningsfrågor följer med till delade tentor och dueller utan att rutnätet blandas.",
+    "AI-sidan listar matchningsfrågor som lokalt rättade, utan API-anrop."
+  ]
+}
