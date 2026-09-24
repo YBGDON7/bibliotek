@@ -710,6 +710,49 @@ details.panel summary::-webkit-details-marker{color:var(--ink-3)}
   margin:12px 0 2px; font-size:13px; color:var(--ink-2);
   padding:7px 11px; border-radius:8px; background:var(--surface-2); display:inline-block;
 }
+.btn:disabled{opacity:.45; cursor:not-allowed; box-shadow:none}
+/* ---- egen kurs: sammanfattning, flera PDF:er, export ---- */
+.egenval{display:flex; gap:10px; align-items:flex-start; margin:14px 0 0; font-size:13.5px; color:var(--ink-2); line-height:1.5; cursor:pointer}
+.egenval input{margin-top:3px; width:17px; height:17px; accent-color:var(--accent); flex:none}
+.egenantal{display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:14px; margin-top:8px}
+.egenantal label{display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--ink-2)}
+.egenantal input{padding:9px 11px; font:inherit; border:1px solid var(--line-strong); border-radius:9px;
+  background:var(--bg); color:var(--ink); max-width:140px}
+.egenniva{font-size:14px; color:var(--ink); padding-top:8px}
+.samlatrad{display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; align-items:center;
+  margin-bottom:16px; background:var(--accent-soft); border-color:transparent}
+.avsnittval{display:flex; gap:10px; align-items:center; cursor:pointer}
+.avsnittval input{width:17px; height:17px; accent-color:var(--accent)}
+.sammanf{max-width:760px}
+.smetikett{font-family:var(--mono); font-size:11.5px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink-3); margin:0 0 10px}
+.smtldr{background:var(--accent-soft); border-radius:14px; padding:20px 22px; margin-top:18px}
+.smtldrtext{font-family:var(--display); font-size:19px; line-height:1.55; margin:0; color:var(--ink)}
+.smkarna{list-style:none; counter-reset:kp; padding:0; margin:0; display:grid; gap:14px}
+.smkarna > li{counter-increment:kp; position:relative; border:1px solid var(--line); border-radius:14px;
+  padding:18px 20px 16px 58px; background:var(--surface)}
+.smkarna > li::before{content:counter(kp); position:absolute; left:18px; top:17px; width:26px; height:26px;
+  border-radius:50%; background:var(--accent); color:#fff; font-weight:700; font-size:13.5px;
+  display:flex; align-items:center; justify-content:center}
+.smkarna h3{margin:0 0 10px; font-size:17px}
+.smkarna dl{margin:0; display:grid; gap:4px}
+.smkarna dt{font-size:12px; font-weight:700; color:var(--ink-3); margin-top:8px}
+.smkarna dd{margin:0; line-height:1.6; color:var(--ink-2)}
+.smkalla{font-size:12.5px; color:var(--ink-3); margin:10px 0 0}
+.smord{margin:0; display:grid; gap:0; border:1px solid var(--line); border-radius:14px; overflow:hidden}
+.smord > div{display:grid; grid-template-columns:minmax(120px, 190px) 1fr; gap:14px; padding:12px 18px;
+  border-top:1px solid var(--line)}
+.smord > div:first-child{border-top:0}
+.smord dt{font-weight:700}
+.smord dd{margin:0; color:var(--ink-2); line-height:1.55}
+.smsida{font-size:12px; color:var(--ink-3); white-space:nowrap}
+.exporttabell td{text-align:left; vertical-align:top; line-height:1.5}
+.exporttabell th{text-align:left}
+@media (max-width:640px){
+  .smord > div{grid-template-columns:1fr; gap:4px}
+  .smkarna > li{padding-left:50px}
+  .smtldrtext{font-size:17px}
+}
 .matchwrap{overflow-x:auto; margin:14px 0 0; border:1px solid var(--line); border-radius:10px}
 .matchtabell{border-collapse:collapse; width:100%; font-size:14px}
 .matchtabell th, .matchtabell td{border-bottom:1px solid var(--line); padding:9px 10px; text-align:center}
@@ -7953,6 +7996,7 @@ function parse() {
     if (p[2] === "quiz") return { name: "egenquiz", id };
     if (p[2] === "genomgang") return { name: "egengenomgang", id, avsnitt: decodeURIComponent(p[3] || "") };
     if (p[2] === "anteckningar") return { name: "egenant", id };
+    if (p[2] === "export") return { name: "egenexport", id };
     return { name: "egen", id };
   }
   if (p[0] === "kurs" && p[2] === "modul" && p[4] === "prov") {
@@ -20726,7 +20770,7 @@ function bedomningsPanel(rad, bed, vantar) {
         ordjämförelsen.</p>` : ""}
       ${kalla === "lokal" && !motor ? `<p style="font-size:12.5px; color:var(--ink-3); margin:6px 0 0">
         Poängen är satt genom att jämföra orden i ditt svar med facit. Den ser ord, inte resonemang —
-        lägg in en API-nyckel i Fråga-panelen så bedöms svaren på innehåll i stället.</p>` : ""}
+        lägg in en API-nyckel på sidan <a href="#/ai">AI-rättning</a> så bedöms svaren på innehåll i stället.</p>` : ""}
       <details style="margin-top:10px">
         <summary style="cursor:pointer; font-size:13px; color:var(--ink-3)">Ändra poängen</summary>
         ${poangRad(rad, satt, false)}
@@ -27772,7 +27816,7 @@ async function predGenerera(knapp, res) {
     const bank = ref && ref.mal.quiz ? ref.mal.quiz : [];
     if (!bank.length) {
       ut.innerHTML = `<div class="note"><b>Generering kräver en API-nyckel.</b>
-        Lägg in din nyckel under Fråga-panelen, så skrivs nya frågor på det här ämnet. Utan nyckel kan
+        Lägg in din nyckel på sidan <a href="#/ai">AI-rättning</a>, så skrivs nya frågor på det här ämnet. Utan nyckel kan
         jag bara visa frågor som redan finns i biblioteket, och det här ämnet har inga.</div>`;
       return;
     }
@@ -28098,7 +28142,7 @@ function duellVantarText(duell, tenta) {
   if (host && !aiAktiv()) {
     return `Matchen har ${n} ${n === 1 ? "skrivfråga" : "skrivfrågor"} och du är den som skapade den.
       Utan API-nyckel bedöms de <b>manuellt</b> — sätt poängen själv nedan, så gäller din bedömning
-      bara ditt eget svar. Lägg in en nyckel under Fråga-panelen om du vill att appen ska rätta allas
+      bara ditt eget svar. Lägg in en nyckel på sidan <a href="#/ai">AI-rättning</a> om du vill att appen ska rätta allas
       svar mot samma facit.`;
   }
   if (host) {
@@ -28315,6 +28359,7 @@ function render() {
   else if (r.name === "egenquiz") viewEgenQuiz(r.id);
   else if (r.name === "egengenomgang") viewEgenGenomgang(r.id, r.avsnitt);
   else if (r.name === "egenant") viewEgenAnteckningar(r.id);
+  else if (r.name === "egenexport") viewEgenExport(r.id);
   else {
     const k = kursById(r.kurs) || KURS;
     if (r.name === "kurs") viewKurs(k);
@@ -28614,31 +28659,45 @@ Grundregler, utan undantag:
 
 const SYS_KORT = `${REGLER}
 
-Du gör flashcards. Formatet är en JSON-array:
-[{"fram":"frågan","bak":"svaret","sida":3}]
+Agera som en expert på studieteknik och inlärning. Du gör flashcards för aktiv instudering med
+spaced repetition. Formatet är en JSON-array:
+[{"fram":"framsidan","bak":"baksidan","typ":"koncept","sida":3}]
 
-- Framsidan är en rak fråga som går att svara på ur minnet — inte "Vad handlar sidan om?".
-- Baksidan är svaret, högst två meningar. Ett begrepp per kort.
-- Mekanism före ren uppräkning: hellre "Varför ger X hypokalemi?" än "Räkna upp fem orsaker".
+Strikta regler för korten:
+1. Kort och koncist: framsidan är en tydlig fråga. Baksidan är extremt kort och lätt att memorera —
+   högst 1–2 meningar.
+2. En atomär idé: varje kort testar en (1) sak eller ett begrepp. Baksidan får inte innehålla
+   punktlistor eller uppräkningar.
+3. Varierade frågetyper: ungefär 50 % konceptförståelse (varför/hur) med "typ":"koncept", 30 %
+   definitioner (vad är) med "typ":"definition", och 20 % tillämpningar eller exempel med
+   "typ":"tillampning".
 - Dubbletter av samma sak ska inte förekomma.`;
+
+const QUIZREGLER = `Agera som en expertlärare och examinator. Du gör ett högkvalitativt quiz med
+flervalsfrågor. Följ dessa strikta riktlinjer:
+
+1. Format: varje fråga har exakt fem svarsalternativ (A–E) där endast ett alternativ är helt korrekt.
+2. Svårighetsgrad: testa djupare förståelse, samband och tillämpning av materialet snarare än ren
+   utantillärning av triviala fakta. Inga rena ja/nej-frågor.
+3. Smarta distraktorer: de fyra felaktiga alternativen ska vara trovärdiga och fånga upp vanliga
+   missförstånd inom ämnet. Inga uppenbart komiska eller felaktiga alternativ. De ska vara ungefär
+   lika långa som det rätta — det rätta svaret får aldrig gå att peka ut på att det är längst eller
+   mest detaljerat.
+4. Facit och förklaring: "forklaring" är 1–2 pedagogiska meningar om varför svaret är rätt, och gärna
+   varför de vanligaste felaktiga alternativen är fel.
+- Frågan och alternativen får inte innehålla svaret eller hintar om det.`;
 
 const SYS_FRAGOR = `${REGLER}
 
-Du gör flervalsfrågor av tentatyp. Formatet är en JSON-array:
-[{"q":"frågan","options":["a","b","c","d"],"svar":0,"forklaring":"varför","sida":3}]
+${QUIZREGLER}
 
-- Exakt fyra alternativ och exakt ett rätt. "svar" är index 0–3 för det rätta.
-- Distraktorerna ska vara rimliga och ungefär lika långa som det rätta svaret. Det rätta svaret får aldrig gå att peka ut på att det är längst eller mest detaljerat.
-- Förklaringen säger varför svaret är rätt och gärna vad det brukar förväxlas med. Två meningar räcker.`;
+Formatet är en JSON-array:
+[{"q":"frågan","options":["A","B","C","D","E"],"svar":0,"forklaring":"varför","sida":3}]
+"svar" är index 0–4 för det rätta alternativet.`;
 
-const SYS_GENOMGANG = `${REGLER}
-
-Du skriver en genomgång av materialet, i materialets egen ordning. Formatet är en JSON-array:
-[{"rubrik":"kort rubrik","text":"brödtext","sidor":[3,4]}]
-
-- Brödtexten är löpande stycken. Punktlistor skrivs med "- " först på raden. Inga rubriker inuti texten.
-- Förklara mekanismen bakom det som står, med materialets egna termer — men lägg inte till fakta som saknas i utdraget.
-- Ett avsnitt per sammanhängande tema, inte ett per slide.`;
+/* Sammanfattningens instruktion byggs ur kursprofilen (nivån) — se
+   sammanfattningRegler längre ned. Den här står kvar för EGEN_TYPER. */
+const SYS_GENOMGANG = `${REGLER}`;
 
 /* =====================================================================
    K5 — SPACED REPETITION MED FSRS
@@ -28877,11 +28936,16 @@ function rensaKort(lista, sidor) {
   return (lista || []).map(k => ({
     fram: String(k && k.fram || "").trim(),
     bak: String(k && k.bak || "").trim(),
+    typ: normKorttyp(k && k.typ),
+    _bit: k && k._bit,
     sida: giltig.has(+(k && k.sida)) ? +k.sida : null,
     bilder: Array.isArray(k && k.bilder) ? k.bilder.filter(Boolean) : []
   })).filter(k => {
     if (k.fram.length < 6 || k.bak.length < 3) return false;
-    if (k.fram.length > 300 || k.bak.length > 700) return false;
+    if (k.fram.length > 300 || k.bak.length > 320) return false;
+    /* En atomär idé: baksidan är högst två meningar och ingen punktlista. */
+    if (antalMeningar(k.bak) > 2) return false;
+    if ((k.bak.match(/(^|\n)\s*([-•*]|\d+[.)])\s/g) || []).length > 1) return false;
     const n = k.fram.toLowerCase().replace(/\s+/g, " ");
     if (sedda.has(n)) return false;
     sedda.add(n);
@@ -28909,13 +28973,15 @@ function rensaFragor(lista, sidor) {
       options,
       svar: Number.isInteger(+(f && f.svar)) ? +f.svar : -1,
       forklaring: String(f && f.forklaring || "").trim(),
+      _bit: f && f._bit,
       sida: giltig.has(+(f && f.sida)) ? +f.sida : null,
       bilder: Array.isArray(f && f.bilder) ? f.bilder.filter(Boolean) : []
     };
   }).filter(f => {
-    if (f.q.length < 8 || f.options.length !== 4) return false;
-    if (f.options.some(o => !o) || new Set(f.options.map(o => o.toLowerCase())).size !== 4) return false;
-    if (f.svar < 0 || f.svar > 3) return false;
+    /* Fem alternativ, A–E, precis som resten av biblioteket och riktiga tentor. */
+    if (f.q.length < 8 || f.options.length !== 5) return false;
+    if (f.options.some(o => !o) || new Set(f.options.map(o => o.toLowerCase())).size !== 5) return false;
+    if (f.svar < 0 || f.svar > 4) return false;
     if (!langdOk(f)) return false;
     const n = f.q.toLowerCase().replace(/\s+/g, " ");
     if (sedda.has(n)) return false;
@@ -28938,7 +29004,7 @@ function rensaGenomgang(lista, sidor) {
 const EGEN_TYPER = {
   kort:      { lager: "kort",      sys: SYS_KORT,      rensa: rensaKort,      ord: "flashcards" },
   fragor:    { lager: "fragor",    sys: SYS_FRAGOR,    rensa: rensaFragor,    ord: "quizfrågor" },
-  genomgang: { lager: "genomgang", sys: SYS_GENOMGANG, rensa: rensaGenomgang, ord: "genomgång" }
+  genomgang: { lager: "genomgang", sys: SYS_GENOMGANG, rensa: rensaGenomgang, ord: "sammanfattning" }
 };
 
 async function generera(kursId, avsnittId, typ, opt) {
@@ -28952,46 +29018,95 @@ async function generera(kursId, avsnittId, typ, opt) {
   if (!mat || !mat.sidor || !mat.sidor.length) throw new Error("materialet finns inte kvar i databasen");
 
   const medAI = harAI();
+  const figurer = mat.figurer || [];
   let poster = [];
 
-  if (!medAI) {
-    if (typ === "fragor") throw new Error("ingen_ai_quiz");
-    poster = typ === "kort" ? lokalaKort(mat.sidor, 60) : lokalGenomgang(mat.sidor);
-    if (opt.onProgress) opt.onProgress(1, 1, poster.length);
+  if (typ === "genomgang") {
+    /* Sammanfattningen är EN post för hela avsnittet — hur många filer det
+       än kommer ifrån. */
+    let ra;
+    if (medAI) ra = await aiSammanfattning(k, a, mat.sidor, opt);
+    else { ra = lokalSammanfattning(mat.sidor); if (opt.onProgress) opt.onProgress(1, 1, 1); }
+    const sm = rensaSammanfattning(ra, mat.sidor);
+    if (!sm) throw new Error("inget_gick_att_bygga");
+    sm.karnpunkter.forEach(p => {
+      const ids = figurerForSidor(figurer, p.sidor).slice(0, 2);
+      if (ids.length) p.bilder = ids;
+    });
+    poster = [Object.assign({
+      form: "sammanfattning",
+      rubrik: "Sammanfattning",
+      text: sammanfattningSomText(sm, a, true),
+      sidor: [...new Set(sm.karnpunkter.flatMap(p => p.sidor))].sort((x, y) => x - y),
+      bilder: [...new Set(sm.karnpunkter.flatMap(p => p.bilder || []))]
+    }, sm)];
   } else {
-    const bitar = materialBitar(mat.sidor);
-    const perBit = typ === "kort" ? 8 : typ === "fragor" ? 5 : 3;
-    for (let i = 0; i < bitar.length; i++) {
-      if (opt.signal && opt.signal.aborted) throw new Error("avbrutet");
-      const b = bitar[i];
-      /* Reglerna byggs ur kursens profil: ämne, språk, nivå och tentatyp. */
-      const bas = typ === "fragor" ? profilFrageRegler(k) : spec.sys.replace(REGLER, profilRegler(k));
-      const instruktion = `${bas}\n\nHögst ${perBit} objekt ur det här utdraget.`;
-      let svar = [];
-      try {
-        svar = await aiLista(instruktion,
-          `Kurs: ${k.titel}\nAvsnitt: ${a.namn}\n\nUTDRAG UR MATERIALET:\n\n${b.text}`,
-          opt.signal);
-      } catch (e) {
+    const antal = egenAntal(k, typ);
+    if (!medAI) {
+      if (typ === "fragor") throw new Error("ingen_ai_quiz");
+      poster = rensaKort(lokalaKort(mat.sidor, antal).map(x => Object.assign(x, { typ: "definition" })), mat.sidor);
+      if (opt.onProgress) opt.onProgress(1, 1, poster.length);
+    } else {
+      /* Större bitar än förut: färre anrop, och varje anrop ser mer av
+         sammanhanget. Antalet sprids över bitarna med lite marginal, eftersom
+         valideringen kastar det som inte håller. */
+      const bitar = materialBitar(mat.sidor, 12000);
+      const perBit = Math.max(2, Math.ceil(antal / bitar.length * 1.3));
+      for (let i = 0; i < bitar.length; i++) {
         if (opt.signal && opt.signal.aborted) throw new Error("avbrutet");
-        if (e && (e.code === "nyckel_fel" || e.code === "ingen_motor")) throw e;
-        svar = [];                                  // en trasig bit stoppar inte resten
+        const b = bitar[i];
+        const bas = typ === "fragor" ? profilFrageRegler(k) : spec.sys.replace(REGLER, profilRegler(k));
+        const instruktion = `${bas}\n\nGör ${perBit} ${typ === "kort" ? "flashcards" : "frågor"} ur det här utdraget — färre om materialet inte räcker till fler bra.`;
+        let svar = [];
+        try {
+          svar = await aiLista(instruktion,
+            `Kurs: ${k.titel}\nAvsnitt: ${a.namn}\n\nUTDRAG UR MATERIALET:\n\n${b.text}`,
+            opt.signal);
+        } catch (e) {
+          if (opt.signal && opt.signal.aborted) throw new Error("avbrutet");
+          if (e && (e.code === "nyckel_fel" || e.code === "ingen_motor")) throw e;
+          svar = [];                                  // en trasig bit stoppar inte resten
+        }
+        poster = poster.concat((svar || []).map(x => Object.assign({}, x, { _bit: i })));
+        poster = spec.rensa(poster, mat.sidor);
+        if (opt.onProgress) opt.onProgress(i + 1, bitar.length, Math.min(poster.length, antal));
       }
-      poster = poster.concat(spec.rensa(svar, mat.sidor));
-      if (opt.onProgress) opt.onProgress(i + 1, bitar.length, poster.length);
+      /* Blev det färre än antalet du bad om fylls det på — högst två extra
+         varv, och bara med sådant som inte redan finns. */
+      for (let varv = 0; varv < 2 && poster.length < antal; varv++) {
+        if (opt.signal && opt.signal.aborted) throw new Error("avbrutet");
+        const fore = poster.length;
+        const i = varv % bitar.length;
+        const b = bitar[i];
+        const bas = typ === "fragor" ? profilFrageRegler(k) : spec.sys.replace(REGLER, profilRegler(k));
+        const redan = poster.map(x => "- " + (x.q || x.fram)).slice(-60).join("\n");
+        const instruktion = `${bas}\n\nGör ${antal - poster.length} ${typ === "kort" ? "flashcards" : "frågor"} till ur det här utdraget. De får inte överlappa med dessa, som redan finns:\n${redan}`;
+        let svar = [];
+        try {
+          svar = await aiLista(instruktion,
+            `Kurs: ${k.titel}\nAvsnitt: ${a.namn}\n\nUTDRAG UR MATERIALET:\n\n${b.text}`, opt.signal);
+        } catch (e) {
+          if (opt.signal && opt.signal.aborted) throw new Error("avbrutet");
+          if (e && (e.code === "nyckel_fel" || e.code === "ingen_motor")) throw e;
+        }
+        poster = spec.rensa(poster.concat((svar || []).map(x => Object.assign({}, x, { _bit: i }))), mat.sidor);
+        if (opt.onProgress) opt.onProgress(bitar.length, bitar.length, Math.min(poster.length, antal));
+        if (poster.length === fore) break;             // inget nytt kom — sluta fråga
+      }
     }
+    poster = spec.rensa(poster, mat.sidor);
+    poster = typ === "kort" ? blandaKortTyper(poster, antal) : jamntUrval(poster, antal);
+    poster.forEach(p => { delete p._bit; });
+    if (!poster.length) throw new Error("inget_gick_att_bygga");
+
+    /* Figuren på den sida innehållet bygger på följer med. Saknar sidan figur
+       får posten ingen bild — ingen ersättning letas fram. */
+    poster.forEach(p => {
+      const ids = figurForSida(figurer, p.sida);
+      if (ids.length) p.bilder = ids;
+    });
   }
-
-  poster = spec.rensa(poster, mat.sidor);
   if (!poster.length) throw new Error("inget_gick_att_bygga");
-
-  /* Figuren på den sida innehållet bygger på följer med. Saknar sidan figur
-     får posten ingen bild — ingen ersättning letas fram. */
-  const figurer = mat.figurer || [];
-  poster.forEach(p => {
-    const ids = typ === "genomgang" ? figurerForSidor(figurer, p.sidor) : figurForSida(figurer, p.sida);
-    if (ids.length) p.bilder = ids;
-  });
 
   /* det gamla för avsnittet ersätts, så man kan generera om utan dubbletter */
   const gamla = (await edbAlla(spec.lager, kursId).catch(() => []))
@@ -29013,6 +29128,399 @@ async function generera(kursId, avsnittId, typ, opt) {
   a.kalla[typ] = medAI ? "ai" : "lokal";
   esave();
   return rader;
+}
+
+
+/* =====================================================================
+   SAMMANFATTNING, ANTAL OCH FLERA PDF:ER I SAMMA ANROP
+   Sammanfattningen ersätter den gamla genomgången. Den följer en fast
+   struktur: övergripande koncept (TL;DR), 3–5 kärnpunkter med vad, varför
+   och hur det hänger ihop, och 3–5 nyckelord. Den lagras i samma lager
+   som genomgången gjorde ("genomgang"), så delning och gamla länkar
+   fortsätter att fungera, men posten bär sin struktur i egna fält och en
+   textversion för allt som bara kan läsa text.
+   ===================================================================== */
+
+const EGEN_STANDARDANTAL = { kort: 20, fragor: 10 };
+function egenAntal(k, typ) {
+  const v = Number(k && k.antal && k.antal[typ]);
+  const max = typ === "kort" ? 200 : 100;
+  return v >= 1 ? Math.min(max, Math.round(v)) : EGEN_STANDARDANTAL[typ];
+}
+
+function nivaText(k) {
+  const p = profilFor(k);
+  return p.niva === "specialist" ? "specialistnivå (licens- eller specialistexamen)"
+    : p.niva === "avancerad" ? "universitetsnivå, avancerad nivå"
+    : "universitetsnivå, grundnivå";
+}
+
+function sammanfattningRegler(k) {
+  return `${profilRegler(k)}
+
+Agera som en ämnesexpert och pedagog. Din uppgift är att skriva en utförlig, strukturerad och
+lättförståelig sammanfattning av materialet. Sortera bort bruset och fokusera på förståelse och
+struktur — kopiera inte text rakt av.
+
+Strukturera sammanfattningen exakt så här, som ETT JSON-objekt:
+{"tldr":"...","karnpunkter":[{"rubrik":"...","vad":"...","varfor":"...","hur":"...","sidor":[3,4]}],"nyckelord":[{"term":"...","definition":"...","sida":3}]}
+
+1. Övergripande koncept (TL;DR), fältet "tldr": 2–3 meningar som sammanfattar hela materialets
+   huvudbudskap på ett glasklart sätt.
+2. De viktigaste kärnpunkterna, fältet "karnpunkter": de 3–5 absolut viktigaste koncepten. För varje
+   punkt: "vad" förklarar vad det är, "varfor" varför det är viktigt, och "hur" hur det hänger ihop
+   med helheten. Några meningar vardera. "sidor" är sidorna punkten bygger på.
+3. Nyckelord, fältet "nyckelord": de 3–5 absolut viktigaste fackbegreppen, var och en med en
+   superkort, pedagogisk definition.
+
+Ton och stil: anpassa språket till ${nivaText(k)}. Målet är att göra komplexa koncept enkla att begripa.`;
+}
+
+/* Är materialet för långt för ett enda anrop läses det först i delar, och
+   varje del lämnar anteckningar. Sammanfattningen skrivs sedan i ett enda
+   anrop över alla anteckningar — annars blir det fem TL;DR i stället för en. */
+function sammanfattningUtdragRegler(k) {
+  return `${profilRegler(k)}
+
+Du förbereder en sammanfattning av ett längre material, en del i taget. Ur det här utdraget:
+plocka de 2–4 viktigaste koncepten och de 2–4 viktigaste fackbegreppen. Svara med ETT JSON-objekt:
+{"koncept":[{"rubrik":"...","vad":"...","varfor":"...","sidor":[3]}],"begrepp":[{"term":"...","definition":"...","sida":3}]}
+Kort och sakligt — det här är anteckningar, inte den färdiga texten.`;
+}
+
+async function aiObjekt(sys, text, signal) {
+  const r = await fragaAI([{ role: "system", content: sys }, { role: "user", content: text }], { signal });
+  const j = plockaJSON(r.text);
+  return Array.isArray(j) ? (j[0] || {}) : j;
+}
+
+const SAMMANF_BIT = 24000;
+
+async function aiSammanfattning(k, a, sidor, opt) {
+  const bitar = materialBitar(sidor, SAMMANF_BIT);
+  const rubrik = `Kurs: ${k.titel}\nAvsnitt: ${a.namn}\n\n`;
+  if (bitar.length === 1) {
+    if (opt.onProgress) opt.onProgress(0, 1, 0);
+    const obj = await aiObjekt(sammanfattningRegler(k), `${rubrik}MATERIALET:\n\n${bitar[0].text}`, opt.signal);
+    if (opt.onProgress) opt.onProgress(1, 1, 1);
+    return obj;
+  }
+  const anteckningar = [];
+  for (let i = 0; i < bitar.length; i++) {
+    if (opt.signal && opt.signal.aborted) throw new Error("avbrutet");
+    try {
+      const o = await aiObjekt(sammanfattningUtdragRegler(k),
+        `${rubrik}UTDRAG ${i + 1} AV ${bitar.length}:\n\n${bitar[i].text}`, opt.signal);
+      anteckningar.push({ del: i + 1, sidor: bitar[i].sidor, koncept: o.koncept || [], begrepp: o.begrepp || [] });
+    } catch (e) {
+      if (opt.signal && opt.signal.aborted) throw new Error("avbrutet");
+      if (e && (e.code === "nyckel_fel" || e.code === "ingen_motor")) throw e;
+    }
+    if (opt.onProgress) opt.onProgress(i + 1, bitar.length + 1, 0);
+  }
+  if (!anteckningar.length) throw new Error("inget_gick_att_bygga");
+  const obj = await aiObjekt(
+    sammanfattningRegler(k) + `\n\nUnderlaget är anteckningar ur materialets delar, i materialets ordning — inte
+själva texten. Väg samman dem till EN sammanfattning av hela materialet. Behåll sidhänvisningarna.`,
+    `${rubrik}ANTECKNINGAR UR MATERIALETS ${bitar.length} DELAR:\n\n${JSON.stringify(anteckningar)}`,
+    opt.signal);
+  if (opt.onProgress) opt.onProgress(bitar.length + 1, bitar.length + 1, 1);
+  return obj;
+}
+
+/* Utan AI går det inte att skriva en TL;DR — det kräver att materialet
+   förstås. Kärnpunkterna blir materialets egna rubriker med sin text, och
+   nyckelorden de definitioner som står utskrivna. Inget påhittat. */
+function lokalSammanfattning(sidor) {
+  const delar = lokalGenomgang(sidor);
+  const stora = delar.slice().sort((x, y) => y.text.length - x.text.length).slice(0, 5)
+    .sort((x, y) => x.sidor[0] - y.sidor[0]);
+  const forsta = t => t.replace(/^- /gm, "").replace(/\s+/g, " ").trim().slice(0, 420);
+  return {
+    tldr: "",
+    karnpunkter: stora.map(d => ({ rubrik: d.rubrik, vad: forsta(d.text), varfor: "", hur: "", sidor: d.sidor })),
+    nyckelord: lokalaKort(sidor, 5).map(x => ({
+      term: x.fram.replace(/^Vad menas med\s+/i, "").replace(/\?$/, ""), definition: x.bak, sida: x.sida }))
+  };
+}
+
+function rensaSammanfattning(o, sidor) {
+  const giltig = new Set((sidor || []).map(s => s.nr));
+  const str = (v, max) => String(v == null ? "" : v).replace(/\s+\n/g, "\n").trim().slice(0, max);
+  const nr = v => (Array.isArray(v) ? v : [v]).map(Number).filter(n => giltig.has(n));
+  o = o || {};
+  const karn = (Array.isArray(o.karnpunkter) ? o.karnpunkter : [])
+    .map(p => ({ rubrik: str(p && p.rubrik, 120), vad: str(p && p.vad, 1600),
+                 varfor: str(p && p.varfor, 1200), hur: str(p && p.hur, 1200), sidor: nr(p && p.sidor) }))
+    .filter(p => p.rubrik && p.vad.length > 10)
+    .slice(0, 5);
+  const sedda = new Set();
+  const ord = (Array.isArray(o.nyckelord) ? o.nyckelord : [])
+    .map(n => ({ term: str(n && n.term, 80), definition: str(n && n.definition, 400), sida: nr(n && n.sida)[0] || null }))
+    .filter(n => {
+      const key = n.term.toLowerCase();
+      if (!n.term || n.definition.length < 4 || sedda.has(key)) return false;
+      sedda.add(key); return true;
+    })
+    .slice(0, 5);
+  const tldr = str(o.tldr, 900);
+  if (!karn.length) return null;
+  return { tldr, karnpunkter: karn, nyckelord: ord };
+}
+
+/* Textversionen följer promptens rubriker. Den används när sammanfattningen
+   kopieras, delas eller visas i något som bara kan läsa text. */
+function sammanfattningSomText(s, a, markdown) {
+  const b = t => markdown ? `**${t}**` : t;
+  const sid = x => x && x.length ? ` (${sidorEtikett(a, x)})` : "";
+  const rader = [];
+  rader.push(b("1. Övergripande koncept (TL;DR)"));
+  rader.push(s.tldr || "Ingen TL;DR — sammanfattningen byggdes utan AI.");
+  rader.push("");
+  rader.push(b("2. De viktigaste kärnpunkterna"));
+  s.karnpunkter.forEach((p, i) => {
+    rader.push(`${markdown ? "- " : `${i + 1}. `}${b(p.rubrik)}${sid(p.sidor)}`);
+    rader.push(`   Vad: ${p.vad}`);
+    if (p.varfor) rader.push(`   Varför det är viktigt: ${p.varfor}`);
+    if (p.hur) rader.push(`   Hur det hänger ihop: ${p.hur}`);
+  });
+  if (s.nyckelord.length) {
+    rader.push("");
+    rader.push(b("3. Nyckelord"));
+    s.nyckelord.forEach(n => rader.push(`- ${b(n.term)} – ${n.definition}`));
+  }
+  return rader.join("\n");
+}
+
+/* ---------- sidor från flera filer ---------- */
+/* Ett sammanslaget avsnitt numrerar sidorna i en följd, och minns vilken
+   fil varje sidintervall kom från. Då kan "sida 34" visas som
+   "Föreläsning 3, s. 4". */
+function sidEtikett(a, n) {
+  const k = ((a && a.kallor) || []).find(x => n >= x.fran && n <= x.till);
+  return k ? `${k.namn}, s. ${n - k.fran + 1}` : `sida ${n}`;
+}
+function sidorEtikett(a, lista) {
+  const ns = [...new Set((lista || []).filter(Boolean))].sort((x, y) => x - y);
+  if (!ns.length) return "";
+  if (!(a && a.kallor && a.kallor.length > 1)) return (ns.length === 1 ? "sida " : "sidor ") + ns.join(", ");
+  const per = [];
+  ns.forEach(n => {
+    const k = a.kallor.find(x => n >= x.fran && n <= x.till);
+    const namn = k ? k.namn : "";
+    const lok = k ? n - k.fran + 1 : n;
+    const sist = per[per.length - 1];
+    if (sist && sist.namn === namn) sist.s.push(lok); else per.push({ namn, s: [lok] });
+  });
+  return per.map(p => `${p.namn ? p.namn + ", " : ""}s. ${p.s.join(", ")}`).join(" · ");
+}
+
+function namnForSamlat(namnlista) {
+  const korta = namnlista.map(n => n.length > 38 ? n.slice(0, 36) + "…" : n);
+  return korta.length <= 3 ? korta.join(" + ") : `${korta.slice(0, 2).join(" + ")} + ${korta.length - 2} till`;
+}
+
+/* Slår ihop inlästa delar till ett material. delar = [{namn, sidor, figurer}] */
+function slaIhopMaterial(delar) {
+  const sidor = [], figurer = [], kallor = [];
+  let offset = 0;
+  delar.forEach(d => {
+    const antal = d.sidor.reduce((m, s) => Math.max(m, s.nr), 0) || d.sidor.length;
+    d.sidor.forEach(s => sidor.push({ nr: s.nr + offset, text: s.text }));
+    (d.figurer || []).forEach(f => figurer.push({ id: f.id, sida: f.sida + offset }));
+    kallor.push({ namn: d.namn, fran: offset + 1, till: offset + antal });
+    offset += antal;
+  });
+  return { sidor, figurer, kallor, antalSidor: offset };
+}
+
+async function skapaSamlatAvsnitt(k, avsnittIds) {
+  const delar = [];
+  for (const id of avsnittIds) {
+    const a = egenAvsnitt(k, id);
+    const m = await edbHamta("material", id);
+    if (!a || !m || !m.sidor) continue;
+    /* Är avsnittet självt redan sammanslaget följer dess egna filnamn med. */
+    if (a.kallor && a.kallor.length > 1) {
+      a.kallor.forEach(kl => delar.push({
+        namn: kl.namn,
+        sidor: m.sidor.filter(s => s.nr >= kl.fran && s.nr <= kl.till).map(s => ({ nr: s.nr - kl.fran + 1, text: s.text })),
+        figurer: (m.figurer || []).filter(f => f.sida >= kl.fran && f.sida <= kl.till).map(f => ({ id: f.id, sida: f.sida - kl.fran + 1 }))
+      }));
+    } else delar.push({ namn: a.namn, sidor: m.sidor, figurer: m.figurer || [] });
+  }
+  if (delar.length < 2) throw new Error("välj minst två avsnitt");
+  return sparaAvsnittAvDelar(k, delar);
+}
+
+async function sparaAvsnittAvDelar(k, delar) {
+  const aid = eid("a");
+  const samlad = delar.length > 1;
+  const m = samlad ? slaIhopMaterial(delar)
+    : { sidor: delar[0].sidor, figurer: delar[0].figurer || [], kallor: null,
+        antalSidor: delar[0].antalSidor || delar[0].sidor.length };
+  const namn = samlad ? namnForSamlat(delar.map(d => d.namn)) : delar[0].namn;
+  await edbSpara("material", { id: aid, kurs: k.id, namn, sidor: m.sidor, figurer: m.figurer });
+  const a = {
+    id: aid, namn, sidor: m.antalSidor,
+    tecken: m.sidor.reduce((n, s) => n + (s.text || "").length, 0),
+    antalFigurer: m.figurer.length, tillagd: Date.now(),
+    antalKort: 0, antalFragor: 0, harGenomgang: false
+  };
+  if (samlad) a.kallor = m.kallor;
+  k.avsnitt.push(a);
+  esave();
+  return a;
+}
+
+/* ---------- korten: blandningen 50/30/20 ---------- */
+const KORTTYPER = { koncept: 0.5, definition: 0.3, tillampning: 0.2 };
+function normKorttyp(t) {
+  const s = String(t || "").toLowerCase();
+  if (/till|exempel|appl/.test(s)) return "tillampning";
+  if (/def|vad/.test(s)) return "definition";
+  return "koncept";
+}
+
+/* Jämnt urval över materialets delar, så att inte alla kort kommer ur
+   första föreläsningen när antalet är lågt. */
+function jamntUrval(lista, antal) {
+  if (lista.length <= antal) return lista.slice();
+  const per = new Map();
+  lista.forEach(x => { const b = x._bit || 0; if (!per.has(b)) per.set(b, []); per.get(b).push(x); });
+  const grupper = [...per.keys()].sort((a, b) => a - b).map(b => per.get(b));
+  const ut = [];
+  for (let i = 0; ut.length < antal; i++) {
+    let lagt = false;
+    for (const g of grupper) { if (g[i] && ut.length < antal) { ut.push(g[i]); lagt = true; } }
+    if (!lagt) break;
+  }
+  return ut;
+}
+
+function blandaKortTyper(lista, antal) {
+  if (lista.length <= antal) return lista.slice();
+  const per = { koncept: [], definition: [], tillampning: [] };
+  lista.forEach(x => per[normKorttyp(x.typ)].push(x));
+  const mal = {};
+  let summa = 0;
+  Object.keys(KORTTYPER).forEach(t => { mal[t] = Math.round(antal * KORTTYPER[t]); summa += mal[t]; });
+  mal.koncept += antal - summa;
+  const ut = [];
+  Object.keys(KORTTYPER).forEach(t => { ut.push(...jamntUrval(per[t], mal[t])); });
+  /* Räcker inte en typ fylls platsen med det som finns över. */
+  if (ut.length < antal) {
+    const valda = new Set(ut);
+    ut.push(...jamntUrval(lista.filter(x => !valda.has(x)), antal - ut.length));
+  }
+  /* tillbaka i materialets ordning */
+  return ut.sort((x, y) => lista.indexOf(x) - lista.indexOf(y));
+}
+
+/* Två meningar räknas generöst: förkortningar som "t.ex." ska inte fälla ett kort. */
+function antalMeningar(t) {
+  return String(t).replace(/\b(t\.ex|bl\.a|d\.v\.s|s\.k|m\.m|dvs|ca|el|resp|jfr|e\.g|i\.e)\./gi, "$1")
+    .split(/[.!?](?:\s+|$)(?=[A-ZÅÄÖ0-9]|$)/).filter(x => x.trim().length > 2).length;
+}
+
+/* ---------- export: Framsida / Baksida ---------- */
+function kortSomTabb(kort) {
+  const ren = t => String(t || "").replace(/[\t\r\n]+/g, " ").trim();
+  return kort.map(x => `${ren(x.fram)}\t${ren(x.bak)}`).join("\n");
+}
+
+function quizSomText(fragor, titel) {
+  const L = i => String.fromCharCode(65 + i);
+  const del1 = fragor.map((f, i) => [`${i + 1}. ${f.q}`]
+    .concat(f.options.map((o, j) => `   ${L(j)}. ${o}`)).join("\n")).join("\n\n");
+  const del2 = fragor.map((f, i) => {
+    const svar = Array.isArray(f.svar) ? f.svar.map(L).join(", ") : L(f.svar);
+    return `${i + 1}. ${svar}${f.forklaring ? " — " + f.forklaring : ""}`;
+  }).join("\n");
+  return `${titel ? titel + "\n\n" : ""}DEL 1: QUIZ\n\n${del1}\n\n--- FACIT ---\n\nDEL 2: FACIT OCH FÖRKLARINGAR\n\n${del2}\n`;
+}
+
+async function kopieraText(txt) {
+  try { await navigator.clipboard.writeText(txt); return true; } catch (e) {}
+  try {
+    const t = document.createElement("textarea");
+    t.value = txt; t.style.position = "fixed"; t.style.opacity = "0";
+    document.body.appendChild(t); t.select();
+    const ok = document.execCommand("copy"); t.remove(); return ok;
+  } catch (e) { return false; }
+}
+
+function laddaNedText(txt, filnamn) {
+  laddaNed(new TextEncoder().encode(txt), filnamn);
+}
+
+function viewEgenExport(id) {
+  const k = minKurs(id);
+  if (!k) return egenSaknas();
+  let valt = "";
+  view.innerHTML = `
+    ${egenCrumbs(k, [{ t: "Flashcards", href: "/egen/" + k.id + "/kort" }, { t: "Exportera" }])}
+    <p class="eyebrow">${esc(k.titel)} · export</p>
+    <h1>Exportera korten</h1>
+    <p class="lede">Framsida och baksida som tabell. <b>Kopiera för Anki/Quizlet</b> ger en rad per kort
+    med ett tab-tecken mellan framsida och baksida — klistra in i Quizlets import, eller spara som
+    .txt och importera i Anki. Vill du ha Ankis egen kortlek med bilder använder du .apkg.</p>
+    <div class="rule"></div>
+    <div id="exvy"><div class="note">Hämtar korten…</div></div>`;
+  const host = document.getElementById("exvy");
+  const filbas = (k.titel || "kurs").replace(/[^\wÅÄÖåäö\- ]+/g, "").replace(/\s+/g, "-").toLowerCase();
+
+  egenaKort(k.id).then(alla => {
+    const rita = () => {
+      if (document.getElementById("exvy") !== host) return;
+      const mina = valt ? alla.filter(x => x.avsnitt === valt) : alla;
+      if (!alla.length) {
+        host.innerHTML = `<div class="empty"><b>Inga kort ännu</b>Skapa kort på materialsidan först.</div>
+          <div style="margin-top:16px"><button class="btn primary" data-go="/egen/${k.id}/material">Till materialet</button></div>`;
+        return;
+      }
+      host.innerHTML = `
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap">
+          <span style="font-size:13.5px; color:var(--ink-2)">Avsnitt</span>
+          ${avsnittsVal(k, valt, "exAvsnitt")}
+          <span style="font-size:13px; color:var(--ink-3)">${mina.length} kort</span>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin:16px 0">
+          <button class="btn primary" id="exKopiera">Kopiera för Anki/Quizlet</button>
+          <button class="btn" id="exTxt">Ladda ned .txt</button>
+          <button class="btn" id="exApkg">Ladda ned .apkg</button>
+        </div>
+        <div id="exstatus"></div>
+        <div class="tablewrap exporttabell"><table>
+          <thead><tr><th>Framsida</th><th>Baksida</th></tr></thead>
+          <tbody>${mina.map(x => `<tr><td>${esc(x.fram)}</td><td>${esc(x.bak)}</td></tr>`).join("")}</tbody>
+        </table></div>`;
+      const status = document.getElementById("exstatus");
+      const meddela = (txt, bra) => { status.innerHTML = `<div class="note" style="margin-bottom:14px;${bra ? " background:var(--teal-soft)" : " background:color-mix(in srgb, var(--err) 10%, transparent)"}">${txt}</div>`; };
+      document.getElementById("exAvsnitt").addEventListener("change", e => { valt = e.target.value; rita(); });
+      document.getElementById("exKopiera").addEventListener("click", async () => {
+        const ok = await kopieraText(kortSomTabb(mina));
+        meddela(ok ? `<b>${mina.length} kort kopierade.</b> Framsida och baksida är åtskilda med tab.`
+                   : `<b>Kopieringen gick inte.</b> Använd .txt i stället.`, ok);
+      });
+      document.getElementById("exTxt").addEventListener("click", () => {
+        if (iViewer) return meddela(`<b>Läsvyn inuti Claude får inte spara filer.</b> Använd Kopiera, eller öppna biblioteket på ybgdon7.github.io/bibliotek.`, false);
+        laddaNedText(kortSomTabb(mina), filbas + ".txt");
+        meddela(`<b>${esc(filbas)}.txt</b> sparad. I Anki: Arkiv → Importera, välj fältavgränsare Tab.`, true);
+      });
+      document.getElementById("exApkg").addEventListener("click", async () => {
+        if (iViewer) return meddela(`<b>Läsvyn inuti Claude får inte spara filer.</b> Öppna biblioteket på ybgdon7.github.io/bibliotek.`, false);
+        try {
+          const bytes = await byggApkg(k, mina, () => {});
+          laddaNed(bytes, filnamnFor(k));
+          meddela(`<b>${esc(filnamnFor(k))}</b> sparad. Öppnas med Arkiv → Importera i Anki.`, true);
+        } catch (e) { meddela(`<b>Exporten gick inte.</b> ${esc(String(e && e.message || e))}`, false); }
+      });
+    };
+    rita();
+  }).catch(e => {
+    host.innerHTML = `<div class="empty"><b>Korten kunde inte hämtas</b>${esc(String(e && e.message || e))}</div>`;
+  });
 }
 
 async function egenaKort(kursId)   { return (await edbAlla("kort", kursId).catch(() => [])).sort((a, b) => a.id < b.id ? -1 : 1); }
@@ -29040,8 +29548,8 @@ function viewEgenNy() {
     <p class="eyebrow">Egen kurs</p>
     <h1>Lägg till en kurs</h1>
     <p class="lede">Din egen kurs, byggd på ditt eget material. Du lägger in föreläsningar eller annat
-    kursmaterial som PDF, och får flashcards, quiz och en genomgång ur just det — plus ett ställe att
-    anteckna. Allt läses och sparas <b>lokalt i din webbläsare</b>.</p>
+    kursmaterial som PDF — en eller flera på en gång — och får en sammanfattning, ett SBA-quiz och
+    flashcards ur just det, plus ett ställe att anteckna. Korten går att exportera till Anki och Quizlet. Allt läses och sparas <b>lokalt i din webbläsare</b>.</p>
     <div class="rule"></div>
     <div class="panel">
       <label class="w-ctrl" style="display:block; margin-bottom:14px">
@@ -29059,7 +29567,7 @@ function viewEgenNy() {
       <div style="margin-top:18px">
         <span style="display:block; margin-bottom:2px; font-weight:600">Vad är det för kurs?</span>
         <p style="margin:0 0 8px; font-size:13px; color:var(--ink-3)">
-          Styr hur kort, frågor och genomgångar skrivs — språk, fackuttryck, nivå och frågetyp.
+          Styr hur sammanfattning, frågor och kort skrivs — språk, fackuttryck, nivå och frågetyp.
           Går att ändra senare.</p>
         ${profilFormular(STANDARDPROFIL)}
       </div>
@@ -29111,6 +29619,7 @@ function viewEgen(id) {
       <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap">
         <button class="btn primary" data-go="/egen/${k.id}/material">Hantera material</button>
         <button class="btn" id="ekAnki"${s.kort ? "" : " disabled"}>Exportera till Anki</button>
+        <button class="btn" data-go="/egen/${k.id}/export"${s.kort ? "" : " disabled"}>Framsida/Baksida · Quizlet</button>
         <button class="btn" id="ekDela">Dela</button>
         <button class="btn" id="ekTaBort">Ta bort kursen</button>
       </div>
@@ -29131,8 +29640,8 @@ function viewEgen(id) {
         text: !s.kort ? "Inga kort ännu" : `${rep.forfallna} att repetera nu · ${s.kort} totalt` })}
       ${kort({ n: "Läge 02", t: "Quiz ur materialet", antal: s.fragor, href: `/egen/${k.id}/quiz`,
         text: s.fragor ? `${s.fragor} frågor i banken` : "Inga frågor ännu" })}
-      ${kort({ n: "Läge 03", t: "Genomgång", antal: s.genomgang, href: `/egen/${k.id}/genomgang`,
-        text: s.genomgang ? `${s.genomgang} av ${s.avsnitt} avsnitt genomgångna` : "Ingen genomgång ännu" })}
+      ${kort({ n: "Läge 03", t: "Sammanfattning", antal: s.genomgang, href: `/egen/${k.id}/genomgang`,
+        text: s.genomgang ? `${s.genomgang} av ${s.avsnitt} avsnitt sammanfattade` : "Ingen sammanfattning ännu" })}
       ${kort({ n: "Läge 04", t: "Anteckningar", antal: s.anteckningar, href: `/egen/${k.id}/anteckningar`,
         text: s.anteckningar ? `${s.anteckningar} ${s.anteckningar === 1 ? "anteckning" : "anteckningar"}` : "Inga anteckningar ännu" })}
     </div>`;
@@ -29148,10 +29657,10 @@ function viewEgen(id) {
   const lista = document.getElementById("emattlista");
   if (!k.avsnitt.length) {
     lista.innerHTML = `<div class="empty" style="margin-top:12px"><b>Inget material inlagt</b>
-      Lägg in en föreläsning som PDF så byggs kort, quiz och genomgång ur den.</div>`;
+      Lägg in en föreläsning som PDF så byggs sammanfattning, quiz och kort ur den.</div>`;
   } else {
     lista.innerHTML = `<div class="tablewrap" style="margin-top:12px"><table>
-      <thead><tr><th>Avsnitt</th><th>Sidor</th><th>Kort</th><th>Frågor</th><th>Genomgång</th></tr></thead>
+      <thead><tr><th>Avsnitt</th><th>Sidor</th><th>Kort</th><th>Frågor</th><th>Sammanfattning</th></tr></thead>
       <tbody>${k.avsnitt.map(a => `<tr>
         <td>${esc(a.namn)}</td><td>${a.sidor || "–"}</td>
         <td>${a.antalKort || "–"}</td><td>${a.antalFragor || "–"}</td>
@@ -29234,13 +29743,15 @@ function viewEgen(id) {
 function viewEgenMaterial(id) {
   const k = minKurs(id);
   if (!k) return egenSaknas();
+  const slaIhop = estore.slaIhop !== false;
 
   view.innerHTML = `
     ${egenCrumbs(k, [{ t: "Material" }])}
     <p class="eyebrow">${esc(k.titel)}</p>
     <h1>Kursmaterial</h1>
-    <p class="lede">Lägg in föreläsningar eller annat kursmaterial som PDF. Texten läses ut lokalt och
-    sparas i webbläsaren — sedan bygger du kort, quiz och genomgång ur varje avsnitt för sig.</p>
+    <p class="lede">Lägg in föreläsningar eller annat kursmaterial som PDF — en eller flera på en gång.
+    Texten läses ut lokalt och sparas i webbläsaren. Ur varje avsnitt bygger du en sammanfattning,
+    ett SBA-quiz och flashcards.</p>
     <div class="rule"></div>
 
     <label id="eslapp" class="slappzon" for="efil">
@@ -29251,18 +29762,52 @@ function viewEgenMaterial(id) {
           <path d="M14 3v5h5"/><path d="M12 18v-6"/><path d="m9.5 14.5 2.5-2.5 2.5 2.5"/>
         </svg>
       </div>
-      <b><span class="bara-mus">Dra hit föreläsningens PDF</span><span class="bara-pek">Välj föreläsningens PDF</span></b>
-      <span class="bara-mus">eller klicka för att välja fil — flera går bra på en gång</span>
-      <span class="bara-pek">Tryck här och hämta filen från Filer, iCloud eller Drive</span>
+      <b><span class="bara-mus">Dra hit en eller flera PDF:er</span><span class="bara-pek">Välj en eller flera PDF:er</span></b>
+      <span class="bara-mus">eller klicka för att välja filer — markera flera samtidigt</span>
+      <span class="bara-pek">Tryck här och hämta filerna från Filer, iCloud eller Drive</span>
       <input type="file" id="efil" class="doldfil" accept=".pdf,application/pdf" multiple>
+    </label>
+    <label class="egenval">
+      <input type="checkbox" id="eslaIhop"${slaIhop ? " checked" : ""}>
+      <span><b>Slå ihop filerna till ett avsnitt</b> när du lägger in flera på en gång — då skrivs
+      <i>en</i> sammanfattning, <i>ett</i> quiz och <i>en</i> kortlek ur alla tillsammans, i samma anrop.
+      Varje sidhänvisning säger vilken fil den kommer ifrån.</span>
     </label>
 
     <div id="estatus"></div>
+
+    <div class="panel egeninst" style="margin-top:22px">
+      <h4>Hur mycket ska byggas?</h4>
+      <div class="egenantal">
+        <label><span>Flashcards per avsnitt</span>
+          <input type="number" id="eAntalKort" min="1" max="200" step="1" value="${egenAntal(k, "kort")}"></label>
+        <label><span>Quizfrågor per avsnitt</span>
+          <input type="number" id="eAntalFragor" min="1" max="100" step="1" value="${egenAntal(k, "fragor")}"></label>
+        <label><span>Nivå på språket</span>
+          <span class="egenniva">${esc((NIVAER.find(n => n.id === profilFor(k).niva) || NIVAER[0]).namn)}
+          · <button class="lankmal" data-go="/egen/${k.id}">ändra i kursprofilen</button></span></label>
+      </div>
+      <p style="margin:10px 0 0; font-size:12.5px; color:var(--ink-3)">
+        Quizet har fem alternativ, A–E, med ett rätt. Korten blandas ungefär hälften förståelse
+        (varför/hur), en knapp tredjedel definitioner och resten tillämpningar.</p>
+    </div>
+
     <div id="eavsnitt" style="margin-top:24px"></div>`;
 
   const zon = document.getElementById("eslapp");
   const fil = document.getElementById("efil");
   const status = document.getElementById("estatus");
+
+  document.getElementById("eslaIhop").addEventListener("change", e => { estore.slaIhop = e.target.checked; esave(); });
+  const antalFalt = (fid, typ) => document.getElementById(fid).addEventListener("change", e => {
+    const v = Math.round(Number(e.target.value));
+    k.antal = Object.assign({}, k.antal || {});
+    if (v >= 1) k.antal[typ] = v; else delete k.antal[typ];
+    esave();
+    e.target.value = egenAntal(k, typ);
+  });
+  antalFalt("eAntalKort", "kort");
+  antalFalt("eAntalFragor", "fragor");
 
   ["dragenter", "dragover"].forEach(ev => zon.addEventListener(ev, e => { e.preventDefault(); zon.classList.add("over"); }));
   ["dragleave", "drop"].forEach(ev => zon.addEventListener(ev, e => { e.preventDefault(); zon.classList.remove("over"); }));
@@ -29279,41 +29824,59 @@ function viewEgenMaterial(id) {
     });
   }
 
+  const felruta = (rubrik, txt) => `<div class="empty" style="margin-top:12px"><b>${rubrik}</b>${txt}</div>`;
+
   async function lasFiler(filer) {
     const pdfer = filer.filter(f => f);
     if (!pdfer.length) return;
-    for (let i = 0; i < pdfer.length; i++) await lasEn(pdfer[i], i + 1, pdfer.length);
+    const ihop = pdfer.length > 1 && document.getElementById("eslaIhop").checked;
+    const delar = [], fel = [];
+    for (let i = 0; i < pdfer.length; i++) {
+      const d = await lasEn(pdfer[i], i + 1, pdfer.length);
+      if (d && d.fel) fel.push(d.fel); else if (d) delar.push(d);
+    }
+    const felHtml = fel.join("");
+    if (!delar.length) { status.innerHTML = felHtml; ritaAvsnitt(); return; }
+
+    if (ihop && delar.length > 1) {
+      const a = await sparaAvsnittAvDelar(k, delar);
+      status.innerHTML = `<div class="note" style="margin-top:20px; background:var(--teal-soft)">
+        <b>${delar.length} filer är inlästa och ihopslagna till ett avsnitt.</b>
+        ${a.sidor} sidor sammanlagt, ${Math.round(a.tecken / 1000)} tusen tecken text${
+          a.antalFigurer ? `, ${a.antalFigurer} ${a.antalFigurer === 1 ? "figur" : "figurer"}` : ""}.
+        Allt du bygger ur det skrivs över alla filerna på en gång.</div>${felHtml}`;
+    } else {
+      for (const d of delar) await sparaAvsnittAvDelar(k, [d]);
+      status.innerHTML = `<div class="note" style="margin-top:20px; background:var(--teal-soft)">
+        <b>${delar.length === 1 ? `${esc(delar[0].fil)} är inläst.` : `${delar.length} filer är inlästa.`}</b>
+        ${delar.map(d => `${esc(d.namn)}: ${d.antalSidor} sidor${d.figurer.length ? `, ${d.figurer.length} ${d.figurer.length === 1 ? "figur" : "figurer"}` : ""}`).join(" · ")}.
+        </div>${felHtml}`;
+    }
     ritaAvsnitt();
   }
 
+  /* Läser en fil till en del — sparar ingenting. Sparandet görs efteråt,
+     så att flera filer kan bli ett avsnitt. */
   async function lasEn(f, nr, av) {
     const av_txt = av > 1 ? ` (${nr} av ${av})` : "";
     status.innerHTML = `<div class="note" style="margin-top:20px" id="eprog"><b>Läser ${esc(f.name)}${av_txt}…</b></div>`;
     const prog = document.getElementById("eprog");
     if (f.size > 80 * 1024 * 1024) {
-      status.innerHTML = `<div class="empty" style="margin-top:20px"><b>Filen är för stor</b>
-        ${esc(f.name)} är ${Math.round(f.size / 1048576)} MB. Dela upp den, eller spara om den utan bilder.</div>`;
-      return;
+      return { fel: felruta("Filen är för stor", `${esc(f.name)} är ${Math.round(f.size / 1048576)} MB. Dela upp den, eller spara om den utan bilder.`) };
     }
     try {
       const buf = new Uint8Array(await lasFil(f));
       const start = String.fromCharCode.apply(null, buf.subarray(0, 1024));
       if (start.indexOf("%PDF") === -1) {
-        status.innerHTML = `<div class="empty" style="margin-top:20px"><b>Det där är ingen PDF</b>
-          ${esc(f.name)} är inte en PDF-fil. Exportera materialet som PDF och försök igen.</div>`;
-        return;
+        return { fel: felruta("Det där är ingen PDF", `${esc(f.name)} är inte en PDF-fil. Exportera materialet som PDF och försök igen.`) };
       }
       const res = await pdfLasText(buf, (s, n) => {
         prog.innerHTML = `<b>Läser ${esc(f.name)}${av_txt}</b> — sida ${s} av ${n}…
           <span class="bar" style="display:block; margin-top:9px"><i style="width:${Math.round(s / n * 100)}%"></i></span>`;
       });
       if (res.tecken < 200) {
-        status.innerHTML = `<div class="empty" style="margin-top:20px"><b>PDF:en saknar textlager</b>
-          ${esc(f.name)} ser ut att vara inskannad — sidorna är bilder, inte text. Då finns ingenting
-          att läsa av utan OCR, vilket inte går lokalt i webbläsaren.</div>`;
-        return;
+        return { fel: felruta("PDF:en saknar textlager", `${esc(f.name)} ser ut att vara inskannad — sidorna är bilder, inte text. Då finns ingenting att läsa av utan OCR, vilket inte går lokalt i webbläsaren.`) };
       }
-      const aid = eid("a");
       const namn = f.name.replace(/\.pdf$/i, "");
       /* Figurerna ur föreläsningen hämtas direkt, så att kort och frågor kan
          få originalbilden i stället för en beskrivning av den. */
@@ -29321,69 +29884,103 @@ function viewEgenMaterial(id) {
         prog.innerHTML = `<b>Hämtar figurer ur ${esc(f.name)}${av_txt}</b> — sida ${s} av ${n}…
           <span class="bar" style="display:block; margin-top:9px"><i style="width:${Math.round(s / n * 100)}%"></i></span>`;
       }).catch(() => []);
-      await edbSpara("material", { id: aid, kurs: k.id, namn, sidor: res.sidor, figurer });
-      k.avsnitt.push({
-        id: aid, namn, sidor: res.antalSidor,
-        tecken: res.tecken, antalFigurer: figurer.length,
-        tillagd: Date.now(), antalKort: 0, antalFragor: 0, harGenomgang: false
-      });
-      esave();
-      status.innerHTML = `<div class="note" style="margin-top:20px; background:var(--teal-soft)">
-        <b>${esc(f.name)} är inläst.</b> ${res.antalSidor} sidor, ${Math.round(res.tecken / 1000)} tusen tecken text${
-          figurer.length ? `, ${figurer.length} ${figurer.length === 1 ? "figur" : "figurer"}` : ", inga figurer hittades"}.</div>`;
+      return { fil: f.name, namn, sidor: res.sidor, figurer, antalSidor: res.antalSidor, tecken: res.tecken };
     } catch (e) {
-      status.innerHTML = `<div class="empty" style="margin-top:20px"><b>PDF:en kunde inte läsas</b>
-        Felet var: ${esc(String(e && e.message || e))}. Är filen lösenordsskyddad eller skadad?</div>`;
+      return { fel: felruta("PDF:en kunde inte läsas", `${esc(f.name)}: ${esc(String(e && e.message || e))}. Är filen lösenordsskyddad eller skadad?`) };
     }
   }
 
   /* ---- listan över avsnitt, med genereringsknapparna ---- */
   const rutan = document.getElementById("eavsnitt");
   const jobb = {};
+  const valda = new Set();
+  const allaTyper = () => harAI() ? ["genomgang", "fragor", "kort"] : ["genomgang", "kort"];
 
   function ritaAvsnitt() {
+    [...valda].forEach(x => { if (!egenAvsnitt(k, x)) valda.delete(x); });
     if (!k.avsnitt.length) {
       rutan.innerHTML = `<div class="empty"><b>Inget material inlagt ännu</b>
-        Lägg in en föreläsning ovan så kan du bygga kort, quiz och genomgång ur den.</div>`;
+        Lägg in en eller flera föreläsningar ovan så kan du bygga sammanfattning, quiz och kort ur dem.</div>`;
       return;
     }
     rutan.innerHTML = `<h4 style="font-family:var(--display); font-size:17px; margin:0 0 12px">
-      ${k.avsnitt.length} ${k.avsnitt.length === 1 ? "avsnitt" : "avsnitt"}</h4>` +
+      ${k.avsnitt.length} avsnitt</h4>
+      ${k.avsnitt.length > 1 ? `
+      <div class="panel samlatrad" id="esamlat">
+        <div><b>Skapa ur flera avsnitt på en gång</b>
+          <span style="display:block; font-size:13px; color:var(--ink-3); margin-top:3px">${valda.size >= 2
+            ? `${valda.size} valda. De slås ihop till ett nytt avsnitt — originalen ligger kvar.`
+            : "Kryssa i minst två avsnitt nedan."}</span></div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <button class="btn primary" data-samlat="allt"${valda.size >= 2 ? "" : " disabled"}>Skapa allt ur valda</button>
+          <button class="btn" data-samlat="genomgang"${valda.size >= 2 ? "" : " disabled"}>Sammanfattning</button>
+          <button class="btn" data-samlat="fragor"${valda.size >= 2 ? "" : " disabled"}>Quiz</button>
+          <button class="btn" data-samlat="kort"${valda.size >= 2 ? "" : " disabled"}>Flashcards</button>
+        </div>
+        <div class="samlatstatus" style="flex-basis:100%"></div>
+      </div>` : ""}` +
       k.avsnitt.map(a => `
       <div class="panel" style="margin-bottom:14px" data-avsnitt="${a.id}">
         <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:baseline">
-          <b style="font-family:var(--display); font-size:16px">${esc(a.namn)}</b>
-          <span style="font-size:13px; color:var(--ink-3)">${a.sidor} sidor</span>
+          <label class="avsnittval">
+            ${k.avsnitt.length > 1 ? `<input type="checkbox" data-valj="${a.id}"${valda.has(a.id) ? " checked" : ""}>` : ""}
+            <b style="font-family:var(--display); font-size:16px">${esc(a.namn)}</b></label>
+          <span style="font-size:13px; color:var(--ink-3)">${a.sidor} sidor${a.kallor && a.kallor.length > 1 ? ` · ${a.kallor.length} filer` : ""}</span>
         </div>
+        ${a.kallor && a.kallor.length > 1 ? `<div style="font-size:12.5px; color:var(--ink-3); margin-top:4px">
+          ${a.kallor.map(x => `${esc(x.namn)} (s. ${x.fran}–${x.till})`).join(" · ")}</div>` : ""}
         <div style="font-size:13.5px; color:var(--ink-2); margin-top:6px">
-          ${a.antalKort ? `${a.antalKort} kort` : "inga kort"} ·
+          ${a.harGenomgang ? "sammanfattning klar" : "ingen sammanfattning"} ·
           ${a.antalFragor ? `${a.antalFragor} frågor` : "inga frågor"} ·
-          ${a.harGenomgang ? "genomgång klar" : "ingen genomgång"}
+          ${a.antalKort ? `${a.antalKort} kort` : "inga kort"}
           ${a.kalla && (a.kalla.kort === "lokal" || a.kalla.genomgang === "lokal")
             ? ` · <span title="byggt utan AI">enkelt läge</span>` : ""}
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px">
+          <button class="btn" data-gen="genomgang" data-a="${a.id}">${a.harGenomgang ? "Ny sammanfattning" : "Skapa sammanfattning"}</button>
+          <button class="btn" data-gen="fragor" data-a="${a.id}">${a.antalFragor ? "Nytt quiz" : "Skapa quiz"}</button>
           <button class="btn" data-gen="kort" data-a="${a.id}">${a.antalKort ? "Nya kort" : "Skapa kort"}</button>
-          <button class="btn" data-gen="fragor" data-a="${a.id}">${a.antalFragor ? "Nya frågor" : "Skapa quiz"}</button>
-          <button class="btn" data-gen="genomgang" data-a="${a.id}">${a.harGenomgang ? "Ny genomgång" : "Skapa genomgång"}</button>
           <button class="btn" data-allt="${a.id}">Skapa allt</button>
           <button class="btn" data-radera="${a.id}">Ta bort</button>
         </div>
         <div class="genstatus" style="margin-top:12px"></div>
       </div>`).join("") +
       (harAI() ? "" : `<div class="note" style="background:color-mix(in srgb, var(--warn) 12%, transparent)">
-        <b>Ingen AI ansluten.</b> Utan AI kan biblioteket bara plocka enkla begreppskort och ordna
-        materialet till en läsbar genomgång — quiz går inte att göra, för distraktorerna måste
-        förstås, inte klippas ut. Koppla en API-nyckel i Fråga-panelen så byggs allt ur materialet.</div>`);
+        <b>Ingen AI ansluten.</b> Utan AI kan biblioteket bara plocka de definitioner som står utskrivna
+        och lyfta fram materialets egna rubriker — ingen TL;DR, och inget quiz, för det kräver att
+        materialet förstås. <div style="margin-top:10px"><button class="btn primary" data-go="/ai">Koppla in AI</button></div></div>`);
 
     rutan.querySelectorAll("[data-gen]").forEach(b => b.addEventListener("click",
       () => kor(b.dataset.a, [b.dataset.gen])));
     rutan.querySelectorAll("[data-allt]").forEach(b => b.addEventListener("click",
-      () => kor(b.dataset.allt, harAI() ? ["kort", "fragor", "genomgang"] : ["kort", "genomgang"])));
+      () => kor(b.dataset.allt, allaTyper())));
+    rutan.querySelectorAll("[data-valj]").forEach(b => b.addEventListener("change", () => {
+      if (b.checked) valda.add(b.dataset.valj); else valda.delete(b.dataset.valj);
+      ritaAvsnitt();
+    }));
+    rutan.querySelectorAll("[data-samlat]").forEach(b => b.addEventListener("click", async () => {
+      if (valda.size < 2) return;
+      const ruta = rutan.querySelector(".samlatstatus");
+      rutan.querySelectorAll("[data-samlat]").forEach(x => x.disabled = true);
+      ruta.innerHTML = `<div class="note" style="margin-top:12px"><b>Slår ihop ${valda.size} avsnitt…</b></div>`;
+      try {
+        const ordning = k.avsnitt.filter(a => valda.has(a.id)).map(a => a.id);
+        const ny = await skapaSamlatAvsnitt(k, ordning);
+        valda.clear();
+        ritaAvsnitt();
+        kor(ny.id, b.dataset.samlat === "allt" ? allaTyper() : [b.dataset.samlat]);
+        const panel = rutan.querySelector(`[data-avsnitt="${ny.id}"]`);
+        if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: "smooth", block: "center" });
+      } catch (e) {
+        ruta.innerHTML = `<div class="note" style="margin-top:12px; background:color-mix(in srgb, var(--err) 10%, transparent)">
+          <b>Det gick inte.</b> ${esc(String(e && e.message || e))}</div>`;
+        rutan.querySelectorAll("[data-samlat]").forEach(x => x.disabled = false);
+      }
+    }));
     rutan.querySelectorAll("[data-radera]").forEach(b => b.addEventListener("click", async () => {
       const a = egenAvsnitt(k, b.dataset.radera);
       if (!a) return;
-      if (!await bekrafta(`Ta bort ${a.namn} med de kort och frågor som byggts ur det?`, "Ta bort")) return;
+      if (!await bekrafta(`Ta bort ${a.namn} med sammanfattning, frågor och kort som byggts ur det?`, "Ta bort")) return;
       await edbRensaAvsnitt(k.id, a.id).catch(() => {});
       Object.keys(estore.rep).forEach(x => { if (x.indexOf(a.id + ":") === 0) delete estore.rep[x]; });
       k.avsnitt = k.avsnitt.filter(x => x.id !== a.id);
@@ -29397,37 +29994,48 @@ function viewEgenMaterial(id) {
     if (!ruta || jobb[aid]) return;
     jobb[aid] = true;
     rutan.querySelectorAll(`[data-avsnitt="${aid}"] .btn`).forEach(b => b.disabled = true);
+    const klara = [];
     for (const typ of typer) {
       const ord = EGEN_TYPER[typ].ord;
-      ruta.innerHTML = `<div class="note"><b>Bygger ${ord}…</b></div>`;
+      const skriv = html => { const r = rutan.querySelector(`[data-avsnitt="${aid}"] .genstatus`); if (r) r.innerHTML = html; };
+      skriv(`<div class="note"><b>Bygger ${ord}…</b></div>`);
       try {
         await generera(k.id, aid, typ, {
           onProgress: (i, n, antal) => {
-            ruta.innerHTML = `<div class="note"><b>Bygger ${ord}</b> — del ${i} av ${n}, ${antal} klara
-              <span class="bar" style="display:block; margin-top:9px"><i style="width:${Math.round(i / n * 100)}%"></i></span></div>`;
+            skriv(`<div class="note"><b>Bygger ${ord}</b> — del ${i} av ${n}${typ === "genomgang" ? "" : `, ${antal} klara`}
+              <span class="bar" style="display:block; margin-top:9px"><i style="width:${Math.round(i / n * 100)}%"></i></span></div>`);
           }
         });
-        ruta.innerHTML = `<div class="note" style="background:var(--teal-soft)"><b>${ord} klart.</b></div>`;
+        klara.push(typ);
+        skriv(`<div class="note" style="background:var(--teal-soft)"><b>${ord[0].toUpperCase() + ord.slice(1)} klar.</b>
+          ${lankarFor(klara)}</div>`);
       } catch (e) {
         const m = String(e && (e.message || e.code) || e);
-        ruta.innerHTML = `<div class="note" style="background:color-mix(in srgb, var(--err) 10%, transparent)">
+        skriv(`<div class="note" style="background:color-mix(in srgb, var(--err) 10%, transparent)">
           ${m === "ingen_ai_quiz"
-            ? `<b>Quiz kräver AI.</b> Att skriva rimliga felaktiga svarsalternativ går inte att göra
-               med textmönster — de måste förstås. Koppla en nyckel i Fråga-panelen, så byggs frågorna
+            ? `<b>Quiz kräver AI.</b> Att skriva trovärdiga felaktiga svarsalternativ går inte att göra
+               med textmönster — de måste förstås. <a href="#/ai">Koppla in en AI</a>, så byggs frågorna
                ur ditt material.`
             : m === "inget_gick_att_bygga"
               ? `<b>Ingenting gick att bygga ur avsnittet.</b> Materialet kan vara för kort, eller mest
                  bilder och rubriker utan brödtext.`
-              : `<b>Det gick inte.</b> ${esc(m)}`}</div>`;
+              : `<b>Det gick inte.</b> ${esc(m)}`}</div>`);
         break;
       }
     }
     jobb[aid] = false;
-    rutan.querySelectorAll(`[data-avsnitt="${aid}"] .btn`).forEach(b => b.disabled = false);
-    const kvar = ruta.innerHTML;
+    const kvar = (rutan.querySelector(`[data-avsnitt="${aid}"] .genstatus`) || {}).innerHTML || "";
     ritaAvsnitt();
     const ny = rutan.querySelector(`[data-avsnitt="${aid}"] .genstatus`);
     if (ny) ny.innerHTML = kvar;
+
+    function lankarFor(typer) {
+      const l = [];
+      if (typer.includes("genomgang")) l.push(`<button class="lankmal" data-go="/egen/${k.id}/genomgang/${aid}">Läs sammanfattningen</button>`);
+      if (typer.includes("fragor")) l.push(`<button class="lankmal" data-go="/egen/${k.id}/quiz">Gör quizet</button>`);
+      if (typer.includes("kort")) l.push(`<button class="lankmal" data-go="/egen/${k.id}/kort">Träna på korten</button>`);
+      return l.length ? `<span style="margin-left:6px">${l.join(" · ")}</span>` : "";
+    }
   }
 
   ritaAvsnitt();
@@ -29500,6 +30108,7 @@ function viewEgenKort(id) {
         <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px">
           ${due.length ? `<button class="btn primary" id="ekStart">Repetera ${due.length}</button>` : ""}
           <button class="btn" id="ekAlla">Öva på alla ${mina.length}</button>
+          <button class="btn" data-go="/egen/${k.id}/export">Exportera (Framsida/Baksida)</button>
           <button class="btn" data-go="/egen/${k.id}">Till kursen</button>
         </div>
       </div>
@@ -29661,6 +30270,7 @@ function viewEgenQuiz(id) {
             Kör ${Math.min(EGENQUIZ.antal, mina.length)} ur frågebanken</button>
           <button class="btn" id="eqKort">Bygg frågor ur korten</button>
           <button class="btn" id="eqAlla"${mina.length ? "" : " disabled"}>Kör alla ${mina.length}</button>
+          <button class="btn" id="eqText"${mina.length ? "" : " disabled"}>Kopiera som text (med facit)</button>
           <button class="btn" data-go="/egen/${k.id}">Till kursen</button>
         </div>
         <div id="eqbygg" style="margin-top:12px"></div>
@@ -29687,6 +30297,17 @@ function viewEgenQuiz(id) {
     });
     document.getElementById("eqStart").addEventListener("click", () => kor(alla, mina, Math.min(EGENQUIZ.antal, mina.length)));
     document.getElementById("eqAlla").addEventListener("click", () => kor(alla, mina, mina.length));
+    /* Quizet som text: DEL 1 med bara frågor och alternativ, sedan en
+       avskiljare och DEL 2 med facit och förklaringar. */
+    document.getElementById("eqText").addEventListener("click", async () => {
+      const ruta = document.getElementById("eqbygg");
+      const av = EGENQUIZ.avsnitt ? egenAvsnitt(k, EGENQUIZ.avsnitt) : null;
+      const ok = await kopieraText(quizSomText(mina, `${k.titel}${av ? " · " + av.namn : ""}`));
+      ruta.innerHTML = ok
+        ? `<div class="note" style="background:var(--teal-soft)"><b>${mina.length} frågor kopierade.</b>
+            DEL 1 har bara frågorna och alternativen A–E. Facit och förklaringar står efter <b>--- FACIT ---</b>.</div>`
+        : `<div class="note" style="background:color-mix(in srgb, var(--err) 10%, transparent)"><b>Kopieringen gick inte.</b></div>`;
+    });
 
     kopplaKortknapp(alla);
   }
@@ -29711,8 +30332,8 @@ function viewEgenQuiz(id) {
         ruta.innerHTML = `<div class="note" style="background:color-mix(in srgb, var(--err) 10%, transparent)">
           ${m === "inga_kort" ? `<b>Det finns inga kort att bygga av.</b> Skapa kort först.`
             : m === "for_fa_kort" ? `<b>För få kort för ett quiz utan AI.</b> Utan AI byggs
-               distraktorerna av de andra kortens baksidor, och då behövs minst fyra kort.
-               Koppla en nyckel så skrivs riktiga alternativ i stället.`
+               distraktorerna av de andra kortens baksidor, och då behövs minst fem kort.
+               <a href="#/ai">Koppla in en AI</a> så skrivs riktiga alternativ i stället.`
             : m === "inget_gick_att_bygga" ? `<b>Ingenting gick att bygga ur korten.</b>`
             : `<b>Det gick inte.</b> ${esc(m)}`}</div>`;
       }
@@ -29797,21 +30418,22 @@ function viewEgenGenomgang(id, aid) {
 
   if (!aid) {
     view.innerHTML = `
-      ${egenCrumbs(k, [{ t: "Genomgång" }])}
+      ${egenCrumbs(k, [{ t: "Sammanfattning" }])}
       <p class="eyebrow">${esc(k.titel)} · läge 03</p>
-      <h1>Genomgång</h1>
-      <p class="lede">Materialet skrivet som löpande text, i föreläsningens egen ordning, med sidhänvisning
-      på varje avsnitt. Markera ett ord och tryck <b>Förklara</b> om något är oklart.</p>
+      <h1>Sammanfattning</h1>
+      <p class="lede">Varje avsnitt sammanfattat i samma struktur: det övergripande konceptet i två–tre
+      meningar, de 3–5 viktigaste kärnpunkterna med vad, varför och hur de hänger ihop, och de
+      viktigaste nyckelorden. Markera ett ord och tryck <b>Förklara</b> om något är oklart.</p>
       <div class="rule"></div>
       ${klara.length
         ? `<div class="grid-modules">${klara.map((a, i) => `
             <button class="mod" data-go="/egen/${k.id}/genomgang/${a.id}">
               <span class="n">Avsnitt ${String(i + 1).padStart(2, "0")}</span>
               <span class="t">${esc(a.namn)}</span>
-              <span class="foot"><span class="c">${a.sidor} sidor material</span></span>
+              <span class="foot"><span class="c">${a.sidor} sidor material${a.kallor && a.kallor.length > 1 ? ` · ${a.kallor.length} filer` : ""}</span></span>
             </button>`).join("")}</div>`
-        : `<div class="empty"><b>Ingen genomgång ännu</b>
-            Lägg in en föreläsning och tryck <b>Skapa genomgång</b>.</div>
+        : `<div class="empty"><b>Ingen sammanfattning ännu</b>
+            Lägg in en föreläsning och tryck <b>Skapa sammanfattning</b>.</div>
            <div style="margin-top:16px"><button class="btn primary" data-go="/egen/${k.id}/material">Till materialet</button></div>`}`;
     return;
   }
@@ -29819,37 +30441,96 @@ function viewEgenGenomgang(id, aid) {
   const a = egenAvsnitt(k, aid);
   if (!a) return viewEgenGenomgang(id, null);
   view.innerHTML = `
-    ${egenCrumbs(k, [{ t: "Genomgång", href: "/egen/" + k.id + "/genomgang" }, { t: a.namn }])}
-    <p class="eyebrow">${esc(k.titel)} · genomgång</p>
+    ${egenCrumbs(k, [{ t: "Sammanfattning", href: "/egen/" + k.id + "/genomgang" }, { t: a.namn }])}
+    <p class="eyebrow">${esc(k.titel)} · sammanfattning</p>
     <h1>${esc(a.namn)}</h1>
-    <div id="egvy"><div class="note">Hämtar genomgången…</div></div>`;
+    ${a.kallor && a.kallor.length > 1 ? `<p style="margin:4px 0 0; font-size:13px; color:var(--ink-3)">
+      Ur ${a.kallor.length} filer: ${a.kallor.map(x => esc(x.namn)).join(" · ")}</p>` : ""}
+    <div id="egvy"><div class="note">Hämtar sammanfattningen…</div></div>`;
 
   const host = document.getElementById("egvy");
   edbAlla("genomgang", k.id).then(alla => {
     if (document.getElementById("egvy") !== host) return;
     const delar = alla.filter(x => x.avsnitt === aid).sort((x, y) => x.id < y.id ? -1 : 1);
     if (!delar.length) {
-      host.innerHTML = `<div class="empty"><b>Genomgången finns inte kvar</b>
+      host.innerHTML = `<div class="empty"><b>Sammanfattningen finns inte kvar</b>
         Bygg om den från materialsidan.</div>`;
       return;
     }
-    host.innerHTML = `
-      <div class="prose">${delar.map(d => `
-        <h3>${esc(d.rubrik)}</h3>
-        <div class="egtext">${mdlite(d.text)}</div>
-        ${(d.bilder || []).map(id => studiebild(id, "")).join("")}
-        ${d.sidor && d.sidor.length
-          ? `<p style="font-size:12.5px; color:var(--ink-3); margin-top:-4px">Sida ${d.sidor.join(", ")} i materialet</p>`
-          : ""}`).join("")}
-      </div>
+    const sm = delar.find(d => d.form === "sammanfattning");
+    const knappar = `
       <div class="rule"></div>
       <div style="display:flex; gap:10px; flex-wrap:wrap">
-        <button class="btn primary" data-go="/egen/${k.id}/kort">Träna på korten</button>
+        ${sm ? `<button class="btn" id="egKopiera">Kopiera sammanfattningen</button>` : ""}
+        <button class="btn primary" data-go="/egen/${k.id}/quiz">Gör quizet</button>
+        <button class="btn" data-go="/egen/${k.id}/kort">Träna på korten</button>
         <button class="btn" data-go="/egen/${k.id}/anteckningar">Anteckna</button>
-      </div>`;
+      </div>
+      <div id="egstatus" style="margin-top:12px"></div>`;
+
+    if (sm) {
+      const sid = lista => lista && lista.length
+        ? `<p class="smkalla">${esc(sidorEtikett(a, lista))}</p>` : "";
+      host.innerHTML = `
+        <div class="sammanf">
+          <section class="smtldr">
+            <p class="smetikett">1 · Övergripande koncept (TL;DR)</p>
+            ${sm.tldr ? `<p class="smtldrtext">${esc(sm.tldr)}</p>`
+              : `<p class="smtldrtext" style="color:var(--ink-3)">Ingen TL;DR — sammanfattningen byggdes utan AI,
+                  och en TL;DR kräver att materialet förstås. <a href="#/ai">Koppla in en AI</a> och bygg om.</p>`}
+          </section>
+
+          <p class="smetikett" style="margin-top:30px">2 · De viktigaste kärnpunkterna</p>
+          <ol class="smkarna">
+            ${sm.karnpunkter.map(p => `
+              <li>
+                <h3>${esc(p.rubrik)}</h3>
+                <dl>
+                  <dt>Vad</dt><dd>${esc(p.vad)}</dd>
+                  ${p.varfor ? `<dt>Varför det är viktigt</dt><dd>${esc(p.varfor)}</dd>` : ""}
+                  ${p.hur ? `<dt>Hur det hänger ihop</dt><dd>${esc(p.hur)}</dd>` : ""}
+                </dl>
+                ${(p.bilder || []).map(b => studiebild(b, "")).join("")}
+                ${sid(p.sidor)}
+              </li>`).join("")}
+          </ol>
+
+          ${sm.nyckelord && sm.nyckelord.length ? `
+          <p class="smetikett" style="margin-top:30px">3 · Nyckelord</p>
+          <dl class="smord">
+            ${sm.nyckelord.map(n => `
+              <div><dt>${esc(n.term)}</dt><dd>${esc(n.definition)}${n.sida
+                ? ` <span class="smsida">${esc(sidEtikett(a, n.sida))}</span>` : ""}</dd></div>`).join("")}
+          </dl>` : ""}
+        </div>
+        ${knappar}`;
+      const kop = document.getElementById("egKopiera");
+      if (kop) kop.addEventListener("click", async () => {
+        const ok = await kopieraText(`${a.namn}\n\n${sammanfattningSomText(sm, a, false)}`);
+        document.getElementById("egstatus").innerHTML = ok
+          ? `<div class="note" style="background:var(--teal-soft)"><b>Sammanfattningen är kopierad.</b></div>`
+          : `<div class="note" style="background:color-mix(in srgb, var(--err) 10%, transparent)"><b>Kopieringen gick inte.</b></div>`;
+      });
+    } else {
+      /* En äldre genomgång, byggd innan sammanfattningen fanns. Den visas som
+         den är, med ett erbjudande att bygga om. */
+      host.innerHTML = `
+        <div class="note" style="margin:6px 0 20px">Det här är en äldre genomgång. Tryck
+          <b>Ny sammanfattning</b> på <button class="lankmal" data-go="/egen/${k.id}/material">materialsidan</button>
+          för att få TL;DR, kärnpunkter och nyckelord.</div>
+        <div class="prose">${delar.map(d => `
+          <h3>${esc(d.rubrik)}</h3>
+          <div class="egtext">${mdlite(d.text)}</div>
+          ${(d.bilder || []).map(id => studiebild(id, "")).join("")}
+          ${d.sidor && d.sidor.length
+            ? `<p style="font-size:12.5px; color:var(--ink-3); margin-top:-4px">${esc(sidorEtikett(a, d.sidor))} i materialet</p>`
+            : ""}`).join("")}
+        </div>
+        ${knappar}`;
+    }
     fyllBilder(host);
   }).catch(e => {
-    host.innerHTML = `<div class="empty"><b>Genomgången kunde inte hämtas</b>${esc(String(e && e.message || e))}</div>`;
+    host.innerHTML = `<div class="empty"><b>Sammanfattningen kunde inte hämtas</b>${esc(String(e && e.message || e))}</div>`;
   });
 }
 
@@ -30004,12 +30685,13 @@ function kursTester() {
   ok("Sidnummer utanför materialet nollställs", kr[1] && kr[1].sida === null, String(kr[1] && kr[1].sida));
 
   const fr = rensaFragor([
-    { q: "Vad beskriver clearance?", options: ["Renad volym per tid", "Halva koncentrationen", "Andel som når blodet", "Mängd i vävnad"], svar: 0, forklaring: "x", sida: 2 },
+    { q: "Vad beskriver clearance?", options: ["Renad volym per tid", "Halva koncentrationen", "Andel som når blodet", "Mängd i vävnad", "Bunden andel"], svar: 0, forklaring: "x", sida: 2 },
     { q: "För få alternativ?", options: ["a", "b"], svar: 0, forklaring: "x", sida: 2 },
-    { q: "Svar utanför listan?", options: ["a", "b", "c", "d"], svar: 7, forklaring: "x", sida: 2 },
-    { q: "Dubbletter i alternativen?", options: ["a", "a", "c", "d"], svar: 0, forklaring: "x", sida: 2 }
+    { q: "Bara fyra alternativ?", options: ["a", "b", "c", "d"], svar: 0, forklaring: "x", sida: 2 },
+    { q: "Svar utanför listan?", options: ["a", "b", "c", "d", "e"], svar: 7, forklaring: "x", sida: 2 },
+    { q: "Dubbletter i alternativen?", options: ["a", "a", "c", "d", "e"], svar: 0, forklaring: "x", sida: 2 }
   ], sidor);
-  ok("Trasiga frågor sorteras bort", fr.length === 1, `${fr.length} kvar`);
+  ok("Trasiga frågor sorteras bort — bara fem alternativ A–E godkänns", fr.length === 1, `${fr.length} kvar`);
 
   const langst = rensaFragor([{
     q: "Vilket påstående stämmer?",
@@ -32417,10 +33099,11 @@ const SYS_KORT_SBA = `${REGLER}
 
 Du gör flervalsfrågor av tentatyp ur en uppsättning flashcards som studenten
 redan har. Formatet är en JSON-array:
-[{"q":"frågan","options":["a","b","c","d"],"svar":0,"forklaring":"varför","sida":3}]
+[{"q":"frågan","options":["A","B","C","D","E"],"svar":0,"forklaring":"varför","sida":3}]
 
-- Exakt fyra alternativ och exakt ett rätt. "svar" är index 0–3.
+- Exakt fem alternativ (A–E) och exakt ett rätt. "svar" är index 0–4.
 - Fråga på förståelse och samband, inte på att minnas kortets exakta ordalydelse.
+- Distraktorerna ska fånga vanliga missförstånd — inga uppenbart felaktiga alternativ.
 - Distraktorerna ska vara rimliga och ungefär lika långa som det rätta svaret.
   Det rätta svaret får aldrig gå att peka ut på att det är längst.
 - Håll frågan kort. Förklaringen är två meningar och säger gärna vad det brukar förväxlas med.
@@ -32431,13 +33114,13 @@ redan har. Formatet är en JSON-array:
    eget material — men det är trubbigare, och det sägs rakt ut. */
 function lokalaSbaFranKort(kort, antal) {
   const dugliga = kort.filter(k => k.bak && k.bak.length > 12 && k.bak.length < 200);
-  if (dugliga.length < 4) return [];
+  if (dugliga.length < 5) return [];
   const ut = [];
   const blandade = shuffle(dugliga);
   for (const k of blandade) {
     if (ut.length >= antal) break;
-    const andra = shuffle(dugliga.filter(x => x.id !== k.id && x.bak !== k.bak)).slice(0, 3);
-    if (andra.length < 3) continue;
+    const andra = shuffle(dugliga.filter(x => x.id !== k.id && x.bak !== k.bak)).slice(0, 4);
+    if (andra.length < 4) continue;
     const alternativ = shuffle([{ t: k.bak, r: true }].concat(andra.map(a => ({ t: a.bak, r: false }))));
     ut.push({
       q: k.fram,
@@ -32611,14 +33294,24 @@ Du gör öppna skrivfrågor med facit. Formatet är en JSON-array:
 - Frågan ska gå att besvara på några meningar.`;
   }
   const flera = p.tentatyp === "mcq";
+  if (!flera) {
+    return `${profilRegler(kurs)}
+
+${QUIZREGLER}
+
+Formatet är en JSON-array:
+[{"q":"frågan","options":["A","B","C","D","E"],"svar":0,"forklaring":"varför","sida":3}]
+"svar" är index 0–4 för det enda rätta alternativet.`;
+  }
   return `${profilRegler(kurs)}
 
 Du gör ${t.txt}. Formatet är en JSON-array:
-[{"q":"frågan","options":["a","b","c","d"],"svar":${flera ? "[0,2]" : "0"},"forklaring":"varför","sida":3}]
+[{"q":"frågan","options":["A","B","C","D","E"],"svar":[0,2],"forklaring":"varför","sida":3}]
 
-- Exakt fyra alternativ. ${flera ? '"svar" är en lista med index för de rätta alternativen.' : '"svar" är index 0–3 för det enda rätta.'}
-- Distraktorerna ska vara rimliga och ungefär lika långa som det rätta svaret. Det rätta svaret får aldrig gå att peka ut på att det är längst eller mest detaljerat.
-- Förklaringen säger varför svaret är rätt och gärna vad det brukar förväxlas med. Två meningar räcker.`;
+- Exakt fem alternativ (A–E). "svar" är en lista med index för de rätta alternativen.
+- Testa förståelse, samband och tillämpning — inte triviala fakta.
+- Distraktorerna ska vara trovärdiga och fånga vanliga missförstånd, och ungefär lika långa som de rätta.
+- Förklaringen säger varför svaret är rätt och gärna varför de vanligaste felen är fel. 1–2 meningar.`;
 }
 
 /* Profilen i klartext, för granskningssidan. */
@@ -32687,7 +33380,7 @@ const SYNLIGHET = [
 const DELBARA = [
   { id: "kortlek", namn: "Kortlek", lager: "kort" },
   { id: "fragor", namn: "Frågebank", lager: "fragor" },
-  { id: "genomgang", namn: "Genomgång", lager: "genomgang" }
+  { id: "genomgang", namn: "Sammanfattning", lager: "genomgang" }
 ];
 
 /* ---------- vad vännerna får se ---------- */
@@ -32762,7 +33455,14 @@ async function publiceraDelat(kurs, typ, synlighet, beskrivning, onProgress) {
     const ut = { id: x.id, bilder: x.bilder || [], sida: x.sida || 0 };
     if (typ === "kortlek") { ut.fram = x.fram; ut.bak = x.bak; }
     else if (typ === "fragor") { ut.q = x.q; ut.options = x.options; ut.svar = x.svar; ut.forklaring = x.forklaring; }
-    else { ut.rubrik = x.rubrik; ut.text = x.text; ut.sidor = x.sidor || []; }
+    else {
+      ut.rubrik = x.rubrik; ut.text = x.text; ut.sidor = x.sidor || [];
+      /* Sammanfattningens struktur följer med, så att kopian ser likadan ut. */
+      if (x.form === "sammanfattning") {
+        ut.form = x.form; ut.tldr = x.tldr || "";
+        ut.karnpunkter = x.karnpunkter || []; ut.nyckelord = x.nyckelord || [];
+      }
+    }
     return ut;
   });
 
@@ -33361,7 +34061,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20260923-2100";
+const BYGGID = "20260924-1200";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";

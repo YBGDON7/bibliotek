@@ -1,13 +1,14 @@
 {
-  "byggid": "20260923-2100",
+  "byggid": "20260924-1200",
   "namn": "Lärandemålsbiblioteket",
   "kurs": "Basvetenskap 5",
-  "uppdaterad": "2026-09-23",
+  "uppdaterad": "2026-09-24",
   "nytt": [
-    "Matchningsfrågor: rutnät med rader mot kolumner läses ur PDF:en, besvaras genom att klicka i rutnätet och rättas lokalt med poäng per rätt parad rad.",
-    "Delvis rätt visas som poäng i stället för Fel på matchnings- och flerkryssfrågor.",
-    "Resultatsidan visade fel svarsrad på flerkryssfrågor — fixat.",
-    "Matchningsfrågor följer med till delade tentor och dueller utan att rutnätet blandas.",
-    "AI-sidan listar matchningsfrågor som lokalt rättade, utan API-anrop."
+    "Lägg till kurs: sammanfattningen ersätter genomgången — TL;DR, 3–5 kärnpunkter med vad, varför och hur, och 3–5 nyckelord. Nivån följer kursprofilen.",
+    "SBA-quiz med fem alternativ A–E, trovärdiga distraktorer och förklaring. Valbart antal frågor. Kopiera som text med DEL 1, --- FACIT --- och DEL 2.",
+    "Flashcards: en idé per kort, baksida på högst två meningar, blandat 50/30/20 förståelse/definition/tillämpning. Valbart antal.",
+    "Export av korten som Framsida/Baksida-tabell, med tab för Anki och Quizlet (.txt) och som .apkg.",
+    "Flera PDF:er i samma anrop: slå ihop filerna vid uppladdning, eller kryssa i flera avsnitt och skapa ur dem tillsammans. Sidhänvisningarna säger vilken fil.",
+    "Hänvisningar till API-nyckeln pekar nu på sidan AI-rättning."
   ]
 }
