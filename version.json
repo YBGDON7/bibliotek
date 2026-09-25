@@ -1,13 +1,12 @@
 {
-  "byggid": "20260925-1400",
+  "byggid": "20260925-1800",
   "namn": "Lärandemålsbiblioteket",
   "kurs": "Basvetenskap 5",
   "uppdaterad": "2026-09-25",
   "nytt": [
-    "Flashcards för hela modulen: knappen Generera Flashcards för denna modul längst ned på modulsidan skickar modulens lärandemål och sammanfattningar till AI:n med SuperMemo-prompten.",
-    "Korten visas i ett rutnät och vänds med ett klick, med filter per submodul, Vänd alla och Blanda. Bilder från sammanfattningarna visas på baksidan.",
-    "Exportera till Anki: front;back;extra som .txt med Ankis rubrikrader, bilderna som .zip för collection.media, och hela modulen som JSON.",
-    "Modulen skickas en submodul i taget så att inget svar kapas. Kapade eller misslyckade delar kan köras om för sig.",
-    "Fortsätt där det slutade: stängs fliken eller nås API-gränsen körs bara de delar som saknas, och korten som redan finns ligger kvar."
+    "Färdiga flashcards för modul 1–3 (1 373 + 1 590 + 1 107 kort), gjorda med SuperMemo-prompten — ingen API-nyckel behövs, exporten fungerar direkt.",
+    "Skumma korten i listläge med fråga och svar på samma rad, och ta bort de kort du inte vill ha. Borttagna kort följer inte med i Anki-exporten eller JSON:en och går att ångra.",
+    "Filtrera på Behålls/Borttagna och per submodul, och ta bort eller behåll alla kort i vyn på en gång.",
+    "Generera om med egen AI-nyckel ersätter de färdiga korten; knappen Använd de färdiga korten igen tar tillbaka dem."
   ]
 }
