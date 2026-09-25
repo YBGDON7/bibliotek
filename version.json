@@ -1,14 +1,13 @@
 {
-  "byggid": "20260924-1200",
+  "byggid": "20260925-1400",
   "namn": "Lärandemålsbiblioteket",
   "kurs": "Basvetenskap 5",
-  "uppdaterad": "2026-09-24",
+  "uppdaterad": "2026-09-25",
   "nytt": [
-    "Lägg till kurs: sammanfattningen ersätter genomgången — TL;DR, 3–5 kärnpunkter med vad, varför och hur, och 3–5 nyckelord. Nivån följer kursprofilen.",
-    "SBA-quiz med fem alternativ A–E, trovärdiga distraktorer och förklaring. Valbart antal frågor. Kopiera som text med DEL 1, --- FACIT --- och DEL 2.",
-    "Flashcards: en idé per kort, baksida på högst två meningar, blandat 50/30/20 förståelse/definition/tillämpning. Valbart antal.",
-    "Export av korten som Framsida/Baksida-tabell, med tab för Anki och Quizlet (.txt) och som .apkg.",
-    "Flera PDF:er i samma anrop: slå ihop filerna vid uppladdning, eller kryssa i flera avsnitt och skapa ur dem tillsammans. Sidhänvisningarna säger vilken fil.",
-    "Hänvisningar till API-nyckeln pekar nu på sidan AI-rättning."
+    "Flashcards för hela modulen: knappen Generera Flashcards för denna modul längst ned på modulsidan skickar modulens lärandemål och sammanfattningar till AI:n med SuperMemo-prompten.",
+    "Korten visas i ett rutnät och vänds med ett klick, med filter per submodul, Vänd alla och Blanda. Bilder från sammanfattningarna visas på baksidan.",
+    "Exportera till Anki: front;back;extra som .txt med Ankis rubrikrader, bilderna som .zip för collection.media, och hela modulen som JSON.",
+    "Modulen skickas en submodul i taget så att inget svar kapas. Kapade eller misslyckade delar kan köras om för sig.",
+    "Fortsätt där det slutade: stängs fliken eller nås API-gränsen körs bara de delar som saknas, och korten som redan finns ligger kvar."
   ]
 }

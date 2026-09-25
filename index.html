@@ -711,6 +711,25 @@ details.panel summary::-webkit-details-marker{color:var(--ink-3)}
   padding:7px 11px; border-radius:8px; background:var(--surface-2); display:inline-block;
 }
 .btn:disabled{opacity:.45; cursor:not-allowed; box-shadow:none}
+/* ---- flashcards för hela modulen ---- */
+.mkfilter{display:flex; gap:8px; flex-wrap:wrap}
+.mkfilter .chip{cursor:pointer; font:inherit; font-size:12.5px}
+.mkgrid{display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:14px; align-items:start}
+.mkkort{all:unset; box-sizing:border-box; display:block; cursor:pointer; perspective:1200px; border-radius:14px}
+.mkkort:focus-visible{outline:2px solid var(--accent); outline-offset:3px}
+.mkinner{display:grid; transition:transform .45s cubic-bezier(.2,.7,.2,1); transform-style:preserve-3d; min-height:150px}
+.mkkort.vand .mkinner{transform:rotateY(180deg)}
+.mkyta{grid-area:1/1; backface-visibility:hidden; -webkit-backface-visibility:hidden; border:1px solid var(--line);
+  border-radius:14px; background:var(--surface); padding:16px 18px; display:flex; flex-direction:column; gap:8px;
+  box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.mkkort:hover .mkyta{border-color:var(--line-strong)}
+.mkbak{transform:rotateY(180deg); background:var(--accent-soft); border-color:transparent}
+.mketikett{font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3)}
+.mktext{font-size:15px; line-height:1.5; color:var(--ink)}
+.mkfram .mktext{font-weight:600}
+.mkextra{font-size:12.5px; line-height:1.5; color:var(--ink-2); border-top:1px solid var(--line); padding-top:8px; margin-top:auto}
+.kortbild{display:block; max-width:100%; max-height:220px; margin:8px 0 0; border-radius:8px; background:#fff}
+@media (prefers-reduced-motion: reduce){ .mkinner{transition:none} }
 /* ---- egen kurs: sammanfattning, flera PDF:er, export ---- */
 .egenval{display:flex; gap:10px; align-items:flex-start; margin:14px 0 0; font-size:13.5px; color:var(--ink-2); line-height:1.5; cursor:pointer}
 .egenval input{margin-top:3px; width:17px; height:17px; accent-color:var(--accent); flex:none}
@@ -8009,6 +8028,7 @@ function parse() {
     return { name: "mal", kurs: p[1], modul: +p[3], sub: +p[5], mal: decodeURIComponent(p[7]) };
   if (p[0] === "kurs" && p[2] === "modul" && p[4] === "sub")
     return { name: "sub", kurs: p[1], modul: +p[3], sub: +p[5] };
+  if (p[0] === "kurs" && p[2] === "modul" && p[4] === "kort") return { name: "modulkort", kurs: p[1], modul: +p[3] };
   if (p[0] === "kurs" && p[2] === "modul") return { name: "modul", kurs: p[1], modul: +p[3] };
   if (p[0] === "kurs") return { name: "kurs", kurs: p[1] };
   return { name: "hem" };
@@ -8177,7 +8197,8 @@ function viewModul(k, m) {
                <button class="btn primary wide" style="margin-top:14px"
                  data-go="/kurs/${k.id}/modul/${m.nr}/prov">Öppna</button>
              </div>
-           </div>` : ""}`
+           </div>` : ""}
+         ${malIModul(m).some(g => g.sammanfattning) ? modulKortPanel(k, m) : ""}`
       : `<p class="lede">Modulen är upplagd men saknar innehåll.</p>
          <div class="rule"></div>
          <div class="empty">
@@ -8185,6 +8206,7 @@ function viewModul(k, m) {
            Säg vilka submoduler modulen ska delas in i, så lägger jag upp dem —
            och bifoga lärandemålen när du har dem.
          </div>`}`;
+  kopplaModulKortPanel(k, m);
 }
 
 function viewSub(k, m, s) {
@@ -18283,7 +18305,7 @@ async function viaNyckel(m, allaTurer, opt) {
     kropp = {
       systemInstruction: { parts: [{ text: sys }] },
       contents: turns.map(t => ({ role: t.role === "assistant" ? "model" : "user", parts: [{ text: t.content }] })),
-      generationConfig: { maxOutputTokens: 8192 }
+      generationConfig: { maxOutputTokens: (opt && opt.maxTokens) || 8192 }
     };
     plocka = j => (j.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("");
   } else if (m.lev === "openai") {
@@ -18292,7 +18314,7 @@ async function viaNyckel(m, allaTurer, opt) {
     kropp = {
       model: m.modell,
       messages: [{ role: "system", content: sys }, ...turns.map(t => ({ role: t.role, content: t.content }))],
-      stream: true, max_completion_tokens: 4096
+      stream: true, max_completion_tokens: Math.min(16384, (opt && opt.maxTokens) || 4096)
     };
     plocka = j => j.choices?.[0]?.delta?.content || "";
   } else {
@@ -18301,7 +18323,7 @@ async function viaNyckel(m, allaTurer, opt) {
       "Content-Type": "application/json", "x-api-key": m.nyckel,
       "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true"
     };
-    kropp = { model: m.modell, max_tokens: 4096, stream: true, system: sys, messages: turns.map(t => ({ role: t.role, content: t.content })) };
+    kropp = { model: m.modell, max_tokens: (opt && opt.maxTokens) || 4096, stream: true, system: sys, messages: turns.map(t => ({ role: t.role, content: t.content })) };
     plocka = j => j.type === "content_block_delta" ? (j.delta?.text || "") : "";
   }
   const res = await fetch(url, { method: "POST", headers: huvuden, body: JSON.stringify(kropp), signal: opt.signal });
@@ -28367,6 +28389,7 @@ function render() {
       const m = k.moduler.find(x => x.nr === r.modul);
       if (!m) return viewKurs(k);
       if (r.name === "modul") viewModul(k, m);
+      else if (r.name === "modulkort") viewModulKort(k, m);
       else if (r.name === "prov") viewProv(k, m);
       else if (r.name === "provkor") viewProvKor(k, m);
       else if (r.name === "provres") viewProvResultat(k, m, r.nyckel);
@@ -29522,6 +29545,452 @@ function viewEgenExport(id) {
     host.innerHTML = `<div class="empty"><b>Korten kunde inte hämtas</b>${esc(String(e && e.message || e))}</div>`;
   });
 }
+
+
+/* =====================================================================
+   FLASHCARDS FÖR EN HEL MODUL
+   En knapp längst ned på modulsidan skickar modulens lärandemål och
+   sammanfattningar till AI:n med en fast prompt (SuperMemos 20 regler,
+   100 % täckning, strikt JSON). Svaret visas som kort man vänder genom
+   att klicka, och exporteras till Anki som semikolonseparerad text.
+
+   En modul är 100 000–150 000 tecken och kräver hundratals kort. Så
+   mycket ryms inte i ett enda svar — det skulle kapas mitt i JSON:en.
+   Därför skickas modulen i delar, en submodul i taget (och en stor
+   submodul i flera bitar), med samma prompt och samma modulnamn. Delarna
+   slås ihop till ett enda modulobjekt: {"module_name", "cards"}.
+   ===================================================================== */
+
+const MODKORT_PROMPT = `Du är en expert på kognitiv vetenskap, en mästare på att skapa Anki-kort utifrån "SuperMemo's 20 rules of formulating knowledge" och en expert på att strukturera webbdata.
+Jag kommer att ge dig lärandemålen och all text/sammanfattning för EN specifik inlärningsmodul. Din uppgift är att bryta ner detta till optimerade flashcards och formatera outputen som JSON.
+Dina instruktioner:
+
+1. 100 % Täckning (Viktigast!): Du MÅSTE säkerställa att exakt alla angivna lärandemål och all nyckelinformation i den bifogade texten täcks av de genererade korten. Inget lärandemål eller centralt koncept får utelämnas. Skapa så många kort som krävs för att täcka allt material.
+2. Atomisk information: Varje kort får bara testa EN specifik sak (Minimum Information Principle). Undvik långa listor i svaren. Om ett svar kräver en lista, bryt ner det i flera separata frågor.
+3. Korttyper:
+   * Basic/Definition: För tydliga begrepp och fakta (t.ex. "Vilken organell producerar ATP?").
+   * Konceptuella (Varför/Hur): För att testa orsak och verkan. Svaret ska vara kort och kärnfullt.
+4. Processer: Om modulen innehåller processer, bryt ner dem i sekventiella kort (vad händer före, under eller efter ett specifikt steg) istället för att be om hela processen på ett kort.
+5. Bilder: Sammanfattningarna innehåller bilder. Om en bild är relevant för att besvara en fråga eller förstå ett koncept, inkludera den i \`back\`-fältet med HTML-formatet: \`<img src="bildens_namn.jpg">\`. (Använd de filnamn som anges i texten).
+6. Språk: Skriv på svenska. Håll språket enkelt, direkt och kliniskt fritt från onödigt fluff.
+7. Format (Strikt JSON): Returnera ENDAST en giltig JSON-struktur. Inled inte med någon text eller förklaring. Formatet ska följa denna struktur exakt för den aktuella modulen:
+
+{
+  "module_name": "Namn på aktuell modul",
+  "cards": [
+    {
+      "front": "Frågan här?",
+      "back": "Svaret här (inkludera ev. <img src='...'> här)",
+      "extra": "Kort kontext för djupare förståelse"
+    }
+  ]
+}`;
+
+const MODKORT_KEY = "lmb.modkort.v1";
+const MODKORT_BIT = 22000;           /* tecken text per anrop */
+let modkort = {};
+try { modkort = JSON.parse(localStorage.getItem(MODKORT_KEY) || "{}") || {}; } catch (e) { modkort = {}; }
+function modkortSpara() { try { localStorage.setItem(MODKORT_KEY, JSON.stringify(modkort)); } catch (e) {} }
+function modkortNyckel(k, m) { return (k.id || "kurs") + ":" + m.nr; }
+function modulNamn(m) { return `Modul ${m.nr} – ${m.titel}`; }
+
+/* ---------- modulens text, med bilderna utskrivna som filnamn ---------- */
+function malSomText(g) {
+  const d = document.createElement("div");
+  d.innerHTML = g.sammanfattning || "";
+  d.querySelectorAll("script, style, button").forEach(x => x.remove());
+  d.querySelectorAll("[data-bild]").forEach(el => {
+    const key = el.dataset.bild;
+    if (!BILDDATA[key]) { el.remove(); return; }
+    const info = BILDINFO[key];
+    el.replaceWith(document.createTextNode(`\n[Bild: ${key}.jpg${info && info.t ? " – " + info.t : ""}]\n`));
+  });
+  d.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6, div, tr, br, dt, dd, table, section")
+    .forEach(el => el.insertAdjacentText("afterend", "\n"));
+  d.querySelectorAll("li").forEach(el => el.insertAdjacentText("afterbegin", "- "));
+  return d.textContent.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
+
+/* Delar modulen i anrop: en submodul i taget, och en stor submodul i flera
+   bitar — alltid hela lärandemål, aldrig ett mål kluvet på mitten. */
+function modulDelar(m) {
+  const ut = [];
+  subs(m).forEach(s => {
+    const mal = (s.mal || []).map(g => ({ g, text: malSomText(g) }));
+    let bit = [], langd = 0;
+    const stang = () => { if (bit.length) ut.push({ s, mal: bit }); bit = []; langd = 0; };
+    mal.forEach(x => {
+      if (bit.length && langd + x.text.length > MODKORT_BIT) stang();
+      bit.push(x); langd += x.text.length;
+    });
+    stang();
+  });
+  const perSub = {};
+  ut.forEach(d => { perSub[d.s.nr] = (perSub[d.s.nr] || 0) + 1; });
+  const raknare = {};
+  return ut.map((d, i) => {
+    raknare[d.s.nr] = (raknare[d.s.nr] || 0) + 1;
+    const flera = perSub[d.s.nr] > 1;
+    return Object.assign(d, {
+      id: `${m.nr}.${d.s.nr}${flera ? "." + raknare[d.s.nr] : ""}`,
+      etikett: `${m.nr}.${d.s.nr} ${d.s.titel}${flera ? ` (del ${raknare[d.s.nr]} av ${perSub[d.s.nr]})` : ""}`,
+      nr: i + 1
+    });
+  });
+}
+
+function modulDelTillText(m, d, antal) {
+  const mal = d.mal.map((x, i) => `${i + 1}. ${x.g.titel}${(x.g.delmal || []).length
+    ? "\n" + x.g.delmal.map(dm => "   - " + (typeof dm === "string" ? dm : (dm.t || dm.titel || JSON.stringify(dm)))).join("\n") : ""}`).join("\n");
+  const text = d.mal.map(x => `### ${x.g.titel}\n${x.text}`).join("\n\n");
+  return `AKTUELL MODUL - LÄRANDEMÅL OCH TEXT:
+Modul: ${modulNamn(m)}
+Del ${d.nr} av ${antal}: submodul ${d.etikett}. Modulen skickas i delar så att svaret inte kapas.
+Täck ALLT i just den här delen, och sätt "module_name" till "${modulNamn(m)}".
+
+LÄRANDEMÅL:
+${mal}
+
+TEXT/SAMMANFATTNING:
+${text}`;
+}
+
+/* ---------- svaret ---------- */
+/* Blir svaret kapat — för långt för modellens gräns — räddas de kort som
+   hann bli kompletta, i stället för att hela delen går förlorad. */
+function raddaKort(text) {
+  const ut = [];
+  const s = String(text || "");
+  const re = /\{\s*"front"\s*:/g;
+  let m;
+  while ((m = re.exec(s))) {
+    let djup = 0, iStr = false, esc = false, slut = -1;
+    for (let i = m.index; i < s.length; i++) {
+      const c = s[i];
+      if (iStr) { if (esc) esc = false; else if (c === "\\") esc = true; else if (c === '"') iStr = false; continue; }
+      if (c === '"') iStr = true;
+      else if (c === "{") djup++;
+      else if (c === "}") { djup--; if (!djup) { slut = i; break; } }
+    }
+    if (slut < 0) break;
+    try { ut.push(JSON.parse(s.slice(m.index, slut + 1))); } catch (e) {}
+    re.lastIndex = slut + 1;
+  }
+  return ut;
+}
+
+function tolkaModulSvar(text) {
+  let kort = null, helt = true;
+  try {
+    const j = plockaJSON(text);
+    kort = Array.isArray(j) ? j : Array.isArray(j.cards) ? j.cards : null;
+  } catch (e) {}
+  if (!kort) { kort = raddaKort(text); helt = false; }
+  return { kort, helt };
+}
+
+function rensaModulkort(lista, delId) {
+  const str = (v, max) => String(v == null ? "" : v).trim().slice(0, max);
+  return (lista || []).map(c => ({
+    front: str(c && (c.front || c.fram), 600),
+    back: str(c && (c.back || c.bak), 1600),
+    extra: str(c && c.extra, 1200),
+    del: delId
+  })).filter(c => c.front.length > 2 && c.back.length > 0);
+}
+
+/* ---------- genereringen ---------- */
+const MODKORTJOBB = {};                 /* nyckel -> { kor, status, klara, antal } */
+const _modkortLyssnare = new Set();
+function modkortMeddela() { _modkortLyssnare.forEach(fn => { try { fn(); } catch (e) {} }); }
+
+async function genereraModulkort(k, m, bara) {
+  const nyckel = modkortNyckel(k, m);
+  if (MODKORTJOBB[nyckel] && MODKORTJOBB[nyckel].kor) return;
+  if (!harAI()) throw new Error("ingen_ai");
+  const delar = modulDelar(m);
+  if (!delar.length) throw new Error("modulen saknar text");
+  const valda = bara && bara.length ? delar.filter(d => bara.includes(d.id)) : delar;
+
+  const gammal = modkort[nyckel];
+  const post = bara && gammal ? gammal : { module_name: modulNamn(m), cards: [], delar: {}, skapad: Date.now() };
+  post.module_name = modulNamn(m);
+  post.ordning = delar.map(d => d.id);
+  delar.forEach(d => { post.delar[d.id] = post.delar[d.id] || { etikett: d.etikett, status: "vantar", antal: 0 }; });
+  valda.forEach(d => { post.delar[d.id] = { etikett: d.etikett, status: "vantar", antal: 0 }; });
+  post.cards = post.cards.filter(c => !valda.some(d => d.id === c.del));
+  modkort[nyckel] = post; modkortSpara();
+
+  post.stopp = "";
+  const jobb = MODKORTJOBB[nyckel] = { kor: true, status: "", klara: 0, antal: valda.length };
+  modkortMeddela();
+  for (const d of valda) {
+    jobb.status = `Del ${valda.indexOf(d) + 1} av ${valda.length}: ${d.etikett}`;
+    post.delar[d.id].status = "kor";
+    modkortMeddela();
+    try {
+      const svar = await aiKo(() => fragaAI([
+        { role: "system", content: MODKORT_PROMPT },
+        { role: "user", content: modulDelTillText(m, d, delar.length) }
+      ], { maxTokens: 16000 }), "Flashcards för " + d.etikett);
+      const { kort, helt } = tolkaModulSvar(svar.text);
+      const rena = rensaModulkort(kort, d.id);
+      /* korten läggs in i modulens ordning, oavsett i vilken ordning delarna körs */
+      const plats = delar.findIndex(x => x.id === d.id);
+      const fore = post.cards.filter(c => delar.findIndex(x => x.id === c.del) < plats);
+      const efter = post.cards.filter(c => delar.findIndex(x => x.id === c.del) >= plats);
+      post.cards = fore.concat(rena, efter);
+      post.delar[d.id] = { etikett: d.etikett, antal: rena.length,
+        status: !rena.length ? "fel" : helt ? "klar" : "kapad",
+        fel: !rena.length ? "Svaret innehöll inga kort som gick att läsa." : "" };
+    } catch (e) {
+      post.delar[d.id] = { etikett: d.etikett, antal: 0, status: "fel",
+        fel: String(e && (e.message || e.code) || e).slice(0, 200) };
+      /* Nyckelfel eller API-gränsen: det är ingen idé att köra resten nu.
+         De delarna står kvar som ej körda, och "Fortsätt" tar vid här. */
+      if (e && (e.code === "nyckel_fel" || e.code === "ingen_motor" || e.code === "rate_limited")) {
+        if (e.code === "rate_limited") post.delar[d.id].fel = "API-gränsen nåddes — vänta en stund och tryck Fortsätt.";
+        post.stopp = e.code;
+        valda.slice(valda.indexOf(d) + 1).forEach(x => { post.delar[x.id] = { etikett: x.etikett, antal: 0, status: "vantar" }; });
+        modkortSpara(); jobb.klara++; break;
+      }
+    }
+    jobb.klara++;
+    post.uppdaterad = Date.now();
+    modkortSpara();
+    modkortMeddela();
+  }
+  jobb.kor = false; jobb.status = "";
+  modkortMeddela();
+}
+
+/* Delar som inte blev klara: misslyckade, kapade — och sådana som aldrig
+   hann köras för att fliken stängdes eller körningen stoppades. */
+function modkortOklara(k, m) {
+  const nyckel = modkortNyckel(k, m);
+  const post = modkort[nyckel];
+  if (!post) return [];
+  const kor = MODKORTJOBB[nyckel] && MODKORTJOBB[nyckel].kor;
+  return (post.ordning || Object.keys(post.delar || {})).map(id => Object.assign({ id }, post.delar[id] || {}))
+    .filter(d => d.status === "fel" || d.status === "kapad" || (!kor && (d.status === "vantar" || d.status === "kor")));
+}
+
+/* ---------- visning ---------- */
+/* Kortets text är data från AI:n. Allt escapas, och det enda som släpps
+   igenom är <img src="…"> som pekar på en bild som faktiskt finns i
+   biblioteket. */
+function kortHtml(text) {
+  return esc(String(text || "")).replace(/\n/g, "<br>")
+    .replace(/&lt;img\s+src=(?:&quot;|&#39;|'|")([\w.\-]+?)(?:\.jpe?g|\.png)?(?:&quot;|&#39;|'|")\s*\/?&gt;/gi, (hel, key) =>
+      BILDDATA[key] ? `<img class="kortbild" src="data:image/jpeg;base64,${BILDDATA[key]}" alt="${esc((BILDINFO[key] || {}).t || key)}">` : "");
+}
+function kortBilder(c) {
+  const ut = [];
+  String(c.back || "").replace(/<img\s+src=['"]([\w.\-]+?)(?:\.jpe?g|\.png)?['"]/gi, (_, key) => { if (BILDDATA[key] && !ut.includes(key)) ut.push(key); });
+  return ut;
+}
+
+/* ---------- export ---------- */
+function ankiFalt(v) {
+  const s = String(v == null ? "" : v).replace(/\r?\n/g, "<br>");
+  return /[;"]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+/* Samma format som i beskrivningen — front;back;extra per rad — men med
+   Ankis egna rubrikrader, och fält med semikolon eller citattecken inom
+   citattecken, så att en mening med semikolon inte blir fyra fält. */
+function modulkortSomAnki(post) {
+  const rader = ["#separator:Semicolon", "#html:true", "#columns:Front;Back;Extra"];
+  post.cards.forEach(c => rader.push(`${ankiFalt(c.front)};${ankiFalt(c.back)};${ankiFalt(c.extra)}`));
+  return rader.join("\n") + "\n";
+}
+function modulkortSomJSON(post) {
+  return JSON.stringify({ module_name: post.module_name,
+    cards: post.cards.map(c => ({ front: c.front, back: c.back, extra: c.extra })) }, null, 2);
+}
+function modulFilnamn(m, ext) {
+  return ("modul-" + m.nr + "-" + m.titel).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "." + ext;
+}
+
+function modulKortPanel(k, m) {
+  const post = modkort[modkortNyckel(k, m)];
+  const jobb = MODKORTJOBB[modkortNyckel(k, m)];
+  const antal = post ? post.cards.length : 0;
+  return `
+    <h2 style="font-size:20px; margin:34px 0 4px">Flashcards för hela modulen</h2>
+    <p class="s" style="margin:0 0 14px">Alla lärandemål och all text i modulen bryts ned till atomära
+    kort enligt SuperMemos 20 regler — ett kort per sak, processer steg för steg, och bilderna från
+    sammanfattningarna där de behövs. Korten vänds med ett klick och kan exporteras till Anki.</p>
+    <div class="panel modkortpanel">
+      ${jobb && jobb.kor
+        ? `<p style="margin:0"><b>Genererar…</b> ${esc(jobb.status)}</p>
+           <span class="bar" style="display:block; margin:10px 0 0"><i style="width:${Math.round(jobb.klara / jobb.antal * 100)}%"></i></span>`
+        : antal ? `<p style="margin:0"><b>${antal} kort</b> för ${esc(modulNamn(m))}${post.uppdaterad
+            ? ` · ${fmtDatum(post.uppdaterad)}` : ""}</p>` : `<p style="margin:0">Inga kort genererade ännu.</p>`}
+      ${!harAI() ? `<p class="s" style="margin:10px 0 0">Kräver en AI — hela modulen skrivs om till kort.
+         <button class="lankmal" data-go="/ai">Koppla in AI-rättning</button> först.</p>` : ""}
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px">
+        ${!(jobb && jobb.kor) && modkortOklara(k, m).length ? `<button class="btn primary" id="modkortFortsatt"${harAI() ? "" : " disabled"}>
+          Fortsätt där det slutade (${modkortOklara(k, m).length} av ${(post.ordning || []).length} delar kvar)</button>` : ""}
+        ${antal || (jobb && jobb.kor) ? `<button class="btn${!(jobb && jobb.kor) && modkortOklara(k, m).length ? "" : " primary"}" data-go="/kurs/${k.id}/modul/${m.nr}/kort">
+          ${jobb && jobb.kor ? "Följ genereringen" : `Öppna korten (${antal})`}</button>` : ""}
+        <button class="btn${antal ? "" : " primary"}" id="modkortGen"${!harAI() || (jobb && jobb.kor) ? " disabled" : ""}>
+          ${antal ? "Generera om" : "Generera Flashcards för denna modul"}</button>
+      </div>
+    </div>`;
+}
+
+function kopplaModulKortPanel(k, m) {
+  const f = document.getElementById("modkortFortsatt");
+  if (f) f.addEventListener("click", () => {
+    genereraModulkort(k, m, modkortOklara(k, m).map(d => d.id)).catch(() => {});
+    go(`#/kurs/${k.id}/modul/${m.nr}/kort`);
+  });
+  const b = document.getElementById("modkortGen");
+  if (!b) return;
+  b.addEventListener("click", async () => {
+    const post = modkort[modkortNyckel(k, m)];
+    if (post && post.cards.length &&
+        !await bekrafta(`Generera om alla kort för ${modulNamn(m)}? De ${post.cards.length} korten du har nu ersätts.`, "Generera om")) return;
+    genereraModulkort(k, m).catch(() => {});
+    go(`#/kurs/${k.id}/modul/${m.nr}/kort`);
+  });
+}
+
+let _modkortVy = { nyckel: null, del: "", vanda: new Set() };
+
+function viewModulKort(k, m) {
+  const nyckel = modkortNyckel(k, m);
+  if (_modkortVy.nyckel !== nyckel) _modkortVy = { nyckel, del: "", vanda: new Set() };
+  const rita = () => {
+    if (!document.getElementById("modkortvy")) return;
+    const post = modkort[nyckel];
+    const jobb = MODKORTJOBB[nyckel];
+    const host = document.getElementById("modkortvy");
+    if (!post) {
+      host.innerHTML = `<div class="empty"><b>Inga kort ännu</b>Tryck <b>Generera Flashcards för denna modul</b>
+        längst ned på modulsidan.</div>
+        <div style="margin-top:16px"><button class="btn primary" data-go="/kurs/${k.id}/modul/${m.nr}">Till modulen</button></div>`;
+      return;
+    }
+    const ordning = post.ordning || Object.keys(post.delar || {});
+    const delar = ordning.map(id => Object.assign({ id }, post.delar[id] || {}));
+    const felaktiga = modkortOklara(k, m);
+    const ejKorda = felaktiga.filter(d => d.status === "vantar" || d.status === "kor").length;
+    const mina = _modkortVy.del ? post.cards.filter(c => c.del === _modkortVy.del) : post.cards;
+    const bilder = [...new Set(post.cards.flatMap(kortBilder))];
+
+    host.innerHTML = `
+      ${jobb && jobb.kor ? `<div class="note" style="margin-bottom:18px"><b>Genererar…</b> ${esc(jobb.status)}
+        · ${post.cards.length} kort hittills
+        <span class="bar" style="display:block; margin-top:9px"><i style="width:${Math.round(jobb.klara / jobb.antal * 100)}%"></i></span>
+        <span style="display:block; margin-top:8px; font-size:12.5px; color:var(--ink-3)">Modulen skickas en
+        submodul i taget så att inget svar kapas. Korten dyker upp här allteftersom.</span></div>` : ""}
+      ${!(jobb && jobb.kor) && felaktiga.length ? `<div class="note" style="margin-bottom:18px; background:color-mix(in srgb, var(--warn) 12%, transparent)">
+        <b>${felaktiga.length} av ${delar.length} delar är inte klara.</b>
+        ${felaktiga.map(d => `${esc(d.etikett)} — ${d.status === "kapad" ? `svaret kapades, ${d.antal} kort räddades`
+          : d.status === "vantar" || d.status === "kor" ? "inte körd ännu" : esc(d.fel || "misslyckades")}`).join("<br>")}
+        <span style="display:block; margin-top:8px; font-size:12.5px; color:var(--ink-3)">Korten från de klara delarna
+        ligger kvar. Bara delarna ovan körs.</span>
+        <div style="margin-top:10px"><button class="btn primary" id="mkIgen"${harAI() ? "" : " disabled"}>${ejKorda
+          ? `Fortsätt där det slutade (${felaktiga.length} ${felaktiga.length === 1 ? "del" : "delar"})`
+          : "Generera de delarna igen"}</button></div></div>` : ""}
+
+      <div class="mkfilter" role="group" aria-label="Filtrera på submodul">
+        <button class="chip${!_modkortVy.del ? " accent" : ""}" data-del="">Alla · ${post.cards.length}</button>
+        ${delar.map(d => `<button class="chip${_modkortVy.del === d.id ? " accent" : ""}" data-del="${esc(d.id)}"
+          title="${esc(d.etikett || "")}">${esc(d.id)} · ${post.cards.filter(c => c.del === d.id).length}${
+          d.status === "kor" ? " …" : d.status === "fel" ? " ✕" : ""}</button>`).join("")}
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:14px 0 18px">
+        <button class="btn" id="mkVandAlla">${mina.length && mina.every(c => _modkortVy.vanda.has(post.cards.indexOf(c))) ? "Vänd tillbaka alla" : "Vänd alla"}</button>
+        <button class="btn" id="mkBlanda">Blanda</button>
+        <span style="font-size:13px; color:var(--ink-3)">Klicka på ett kort för att vända det.</span>
+      </div>
+
+      ${mina.length ? `<div class="mkgrid">${mina.map(c => {
+        const i = post.cards.indexOf(c);
+        return `<button class="mkkort${_modkortVy.vanda.has(i) ? " vand" : ""}" data-i="${i}" aria-pressed="${_modkortVy.vanda.has(i)}">
+          <span class="mkinner">
+            <span class="mkyta mkfram"><span class="mketikett">${esc(c.del)} · fråga</span>
+              <span class="mktext">${esc(c.front)}</span></span>
+            <span class="mkyta mkbak"><span class="mketikett">svar</span>
+              <span class="mktext">${kortHtml(c.back)}</span>
+              ${c.extra ? `<span class="mkextra">${esc(c.extra)}</span>` : ""}</span>
+          </span></button>`;
+      }).join("")}</div>`
+        : `<div class="empty"><b>Inga kort i den här delen ${jobb && jobb.kor ? "ännu" : ""}</b></div>`}
+
+      <div class="panel" style="margin-top:28px" id="mkexport">
+        <h4>Exportera till Anki</h4>
+        <p class="s" style="margin:0">En textfil med en rad per kort: <code>front;back;extra</code>. Importera i
+        Anki med Arkiv → Importera — Anki läser avgränsare och kolumner ur filens första rader. Välj en
+        anteckningstyp med tre fält, eller mappa <i>extra</i> till ett eget fält.</p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px">
+          <button class="btn primary" id="mkAnki"${post.cards.length ? "" : " disabled"}>Exportera till Anki</button>
+          ${bilder.length ? `<button class="btn" id="mkBilder">Bilderna till Anki (.zip, ${bilder.length})</button>` : ""}
+          <button class="btn" id="mkJson"${post.cards.length ? "" : " disabled"}>Ladda ned JSON</button>
+        </div>
+        ${bilder.length ? `<p class="s" style="margin:12px 0 0">Korten visar ${bilder.length} ${bilder.length === 1 ? "bild" : "bilder"}. Anki hittar
+          dem bara om bildfilerna ligger i kortlekens mediamapp: packa upp zip-filen i mappen
+          <b>collection.media</b> i din Anki-profil (Verktyg → Kontrollera media visar var den ligger).</p>` : ""}
+        <div id="mkstatus" style="margin-top:12px"></div>
+      </div>`;
+
+    host.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => { _modkortVy.del = b.dataset.del; rita(); }));
+    host.querySelectorAll(".mkkort").forEach(b => b.addEventListener("click", () => {
+      const i = +b.dataset.i;
+      if (_modkortVy.vanda.has(i)) _modkortVy.vanda.delete(i); else _modkortVy.vanda.add(i);
+      b.classList.toggle("vand"); b.setAttribute("aria-pressed", _modkortVy.vanda.has(i));
+    }));
+    document.getElementById("mkVandAlla").addEventListener("click", () => {
+      const idx = mina.map(c => post.cards.indexOf(c));
+      const alla = idx.every(i => _modkortVy.vanda.has(i));
+      idx.forEach(i => alla ? _modkortVy.vanda.delete(i) : _modkortVy.vanda.add(i));
+      rita();
+    });
+    document.getElementById("mkBlanda").addEventListener("click", () => {
+      const grid = host.querySelector(".mkgrid");
+      if (grid) shuffle([...grid.children]).forEach(el => grid.appendChild(el));
+    });
+    const igen = document.getElementById("mkIgen");
+    if (igen) igen.addEventListener("click", () => { genereraModulkort(k, m, felaktiga.map(d => d.id)).catch(() => {}); rita(); });
+
+    const status = document.getElementById("mkstatus");
+    const meddela = (t, bra) => { status.innerHTML = `<div class="note" style="background:${bra ? "var(--teal-soft)" : "color-mix(in srgb, var(--err) 10%, transparent)"}">${t}</div>`; };
+    const ladda = (bytes, namn, klar) => {
+      if (iViewer) return meddela(`<b>Läsvyn inuti Claude får inte spara filer.</b> Öppna biblioteket på ybgdon7.github.io/bibliotek.`, false);
+      laddaNed(bytes, namn); meddela(klar, true);
+    };
+    const anki = document.getElementById("mkAnki");
+    if (anki) anki.addEventListener("click", () => ladda(new TextEncoder().encode(modulkortSomAnki(post)), modulFilnamn(m, "txt"),
+      `<b>${post.cards.length} kort</b> sparade som <b>${esc(modulFilnamn(m, "txt"))}</b>.`));
+    const js = document.getElementById("mkJson");
+    if (js) js.addEventListener("click", () => ladda(new TextEncoder().encode(modulkortSomJSON(post)), modulFilnamn(m, "json"),
+      `JSON sparad som <b>${esc(modulFilnamn(m, "json"))}</b>.`));
+    const bi = document.getElementById("mkBilder");
+    if (bi) bi.addEventListener("click", () => ladda(
+      zipSkriv(bilder.map(key => ({ namn: key + ".jpg", data: base64TillBytes(BILDDATA[key]) }))),
+      modulFilnamn(m, "zip").replace(/\.zip$/, "-bilder.zip"),
+      `<b>${bilder.length} bilder</b> sparade. Packa upp dem i Ankis collection.media.`));
+  };
+
+  view.innerHTML = `
+    ${crumbs([{ t: "Översikt", href: "/" }, { t: k.titel, href: `/kurs/${k.id}` },
+      { t: "Modul " + m.nr, href: `/kurs/${k.id}/modul/${m.nr}` }, { t: "Flashcards" }])}
+    <p class="eyebrow">Modul ${String(m.nr).padStart(2, "0")} · flashcards</p>
+    <h1>${esc(m.titel)}</h1>
+    <div class="rule"></div>
+    <div id="modkortvy"></div>`;
+  rita();
+  if (_mkLyss) _modkortLyssnare.delete(_mkLyss);
+  _mkLyss = () => {
+    if (!document.getElementById("modkortvy")) { _modkortLyssnare.delete(_mkLyss); _mkLyss = null; return; }
+    rita();
+  };
+  _modkortLyssnare.add(_mkLyss);
+}
+let _mkLyss = null;
 
 async function egenaKort(kursId)   { return (await edbAlla("kort", kursId).catch(() => [])).sort((a, b) => a.id < b.id ? -1 : 1); }
 async function egenaFragor(kursId) { return (await edbAlla("fragor", kursId).catch(() => [])).sort((a, b) => a.id < b.id ? -1 : 1); }
@@ -34061,7 +34530,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20260924-1200";
+const BYGGID = "20260925-1400";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
