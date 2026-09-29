@@ -1,13 +1,13 @@
 {
-  "byggid": "20260925-2100",
+  "byggid": "20260929-2000",
   "namn": "Lärandemålsbiblioteket",
   "kurs": "Basvetenskap 5",
-  "uppdaterad": "2026-09-25",
+  "uppdaterad": "2026-09-29",
   "nytt": [
-    "Korten för modul 1–3 är sållade mot lärandemålen: 499, 546 och 457 kärnkort. Dubbletter är borta.",
-    "Nischkort ligger som fördjupning (855, 1002 och 640 kort), avstängda från början. Slå på dem för hela modulen eller en submodul i taget.",
-    "Anki-exporten lägger korten i underlekar per submodul (Basvetenskap 5::Modul 3 – Tumörlära::3.7 Bröstcancer) med fördjupningen i en egen underlek, plus taggar.",
-    "Filtren i kortvyn går per submodul med namn.",
-    "Prompten för egna AI-genereringar prioriterar det centrala och undviker dubbletter och nischdetaljer."
+    "Modul 4 Muskel och hjärta: 5 submoduler och 31 huvudlärandemål med figurer ur föreläsningarnas slides och källhänvisning.",
+    "Luckorna i föreläsningsmaterialet (metabolism, fibertyper, muskeltrötthet, laminärt/turbulent flöde, auskultation, vitamin C/E/selen) är skrivna ur kurslitteraturen och tydligt märkta.",
+    "iRAT-bank för modul 4: 169 frågor i tentastil, varav 27 bildfrågor.",
+    "Färdiga flashcards för modul 4: 589 kärnkort och 533 fördjupningskort, med Anki-underlekar per submodul.",
+    "Figurerna visar källan (föreläsning och sida) under bilden."
   ]
 }
