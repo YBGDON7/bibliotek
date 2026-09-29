@@ -1,13 +1,5 @@
 {
-  "byggid": "20260929-2000",
-  "namn": "Lärandemålsbiblioteket",
-  "kurs": "Basvetenskap 5",
-  "uppdaterad": "2026-09-29",
-  "nytt": [
-    "Modul 4 Muskel och hjärta: 5 submoduler och 31 huvudlärandemål med figurer ur föreläsningarnas slides och källhänvisning.",
-    "Luckorna i föreläsningsmaterialet (metabolism, fibertyper, muskeltrötthet, laminärt/turbulent flöde, auskultation, vitamin C/E/selen) är skrivna ur kurslitteraturen och tydligt märkta.",
-    "iRAT-bank för modul 4: 169 frågor i tentastil, varav 27 bildfrågor.",
-    "Färdiga flashcards för modul 4: 589 kärnkort och 533 fördjupningskort, med Anki-underlekar per submodul.",
-    "Figurerna visar källan (föreläsning och sida) under bilden."
-  ]
+  "bygg": "20260930-0900",
+  "namn": "Bilderna är inbakade i filen igen.",
+  "nar": "2026-09-29T20:43:40Z"
 }
