@@ -1037,6 +1037,226 @@ span.matchruta{cursor:default}
   </div>
 </div>
 
+<style>/* insp */
+/* ---------- Tentaläge i Inspera-stil ----------
+   Medvetet ljust och neutralt i båda teman: det ska se ut som skrivsalens skärm. */
+.insp{
+  --i-bg:#f1f1f1; --i-yta:#ffffff; --i-text:#111; --i-text2:#555; --i-linje:#c9c9c9;
+  --i-val:#c3d7ec; --i-bla:#3b6894; --i-marin:#22406a; --i-gra:#5a5a5a; --i-band:#1c3f7b;
+  --i-ok:#3c8d2f; --i-fel:#8e1c1c; --i-flagg:#d9822b;
+  position:fixed; inset:0; z-index:50; display:flex; flex-direction:column;
+  background:var(--i-bg); color:var(--i-text); color-scheme:light;
+  font-family:"Helvetica Neue", Helvetica, Arial, sans-serif; font-size:17px; line-height:1.45;
+}
+body.insp-pa{overflow:hidden}
+body.insp-pa #fragaknapp{display:none !important}
+.insp button{font-family:inherit}
+.insp-top{
+  flex:none; position:relative; display:flex; align-items:center; justify-content:space-between;
+  height:62px; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.12);
+  padding-top:env(safe-area-inset-top,0px);
+  padding-left:max(22px, env(safe-area-inset-left,0px)); padding-right:max(18px, env(safe-area-inset-right,0px));
+}
+.insp-kid{font-weight:700; font-size:18px}
+.insp-tophoger{display:flex; align-items:center; gap:18px; color:#222}
+.insp-tid{font-family:"Helvetica Neue", Arial, sans-serif; font-weight:700; font-size:16px; font-variant-numeric:tabular-nums; color:#222}
+.insp-tid.varning{color:var(--i-fel)}
+.insp-wifi{display:inline-flex; color:#222}
+.insp-ikonknapp{background:none; border:0; padding:6px; cursor:pointer; color:#222; display:inline-flex; border-radius:4px}
+.insp-ikonknapp:hover{background:#eee}
+.insp-framsteg{position:absolute; left:0; right:0; bottom:0; height:2px; background:transparent}
+.insp-framsteg i{display:block; height:100%; background:#4a8fd8; transition:width .3s}
+.insp-menypanel{
+  position:absolute; top:calc(62px + env(safe-area-inset-top,0px)); right:max(12px, env(safe-area-inset-right,0px)); z-index:5;
+  width:min(360px, calc(100vw - 24px)); background:#fff; border:1px solid #d5d5d5; box-shadow:0 8px 24px rgba(0,0,0,.18);
+  padding:8px 0; font-size:15px;
+}
+.insp-menytitel{margin:4px 16px 8px; font-weight:700; font-size:14px; color:var(--i-text2)}
+.insp-menyrad{display:flex; justify-content:space-between; align-items:center; width:100%; text-align:left;
+  background:none; border:0; padding:11px 16px; font-size:15px; color:var(--i-text); cursor:pointer}
+.insp-menyrad:hover{background:#eef3f9}
+.insp-menyrad.stark{color:#fff; background:var(--i-bla); margin-top:6px}
+.insp-menyrad.stark:hover{background:var(--i-marin)}
+.insp-menyrad kbd{font-family:inherit; font-size:12px; color:var(--i-text2); border:1px solid #ccc; border-radius:3px; padding:0 5px}
+.insp-menyinfo{padding:10px 16px; font-size:13.5px; color:var(--i-text2); border-top:1px solid #eee; border-bottom:1px solid #eee; margin:6px 0}
+.insp-live{flex:none; background:#fff; border-bottom:1px solid #ddd; padding:8px 22px}
+.insp-livetitel{display:block; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--i-text2); margin-bottom:4px}
+.insp-yta{flex:1; overflow-y:auto; overscroll-behavior:contain; padding:40px max(16px, env(safe-area-inset-right,0px)) 150px max(16px, env(safe-area-inset-left,0px))}
+.insp-fraga{display:grid; grid-template-columns:70px minmax(0, 1130px); gap:0 0; justify-content:center}
+.insp-nr{display:flex; flex-direction:column; align-items:flex-start; gap:14px; padding-top:10px; font-weight:700; font-size:17px}
+.insp-flaggknapp{background:none; border:0; padding:2px; cursor:pointer; color:#9a9a9a; fill:none; display:inline-flex}
+.insp-flaggknapp svg path{fill:transparent}
+.insp-flaggknapp:hover{color:var(--i-flagg)}
+.insp-flaggknapp.pa{color:var(--i-flagg)}
+.insp-flaggknapp.pa svg path{fill:var(--i-flagg)}
+.insp-kropp{min-width:0}
+.insp-rubrik{font-family:inherit; font-weight:700; font-size:clamp(24px, 3vw, 34px); line-height:1.15; margin:0 0 6px; color:var(--i-text)}
+.insp-under{margin:0 0 4px; font-size:14px; color:var(--i-text2)}
+.insp-stam{font-size:18px; line-height:1.5; margin:0 0 16px; white-space:pre-line; text-wrap:pretty}
+.insp-instr{font-weight:700; font-size:16px; margin:14px 0 10px}
+.insp .figbox img, .insp .qcrop{border-radius:0; border-color:#bbb}
+.insp-alt{display:flex; flex-direction:column; gap:4px; margin:6px 0 18px}
+.insp-opt{
+  display:flex; align-items:center; gap:14px; width:100%; text-align:left; min-height:56px;
+  padding:12px 22px; border:0; border-radius:0; background:transparent; color:var(--i-text);
+  font-size:18px; line-height:1.35; cursor:pointer;
+}
+.insp-opt:hover{background:#e6e6e6}
+.insp-opt.vald, .insp-opt.vald:hover{background:var(--i-val)}
+.insp-opt:focus-visible{outline:2px solid var(--i-bla); outline-offset:-2px}
+.insp-opttext{flex:1; min-width:0}
+.insp-radio{flex:none; width:20px; height:20px; border-radius:50%; border:1.5px solid #9b9b9b; background:#fff; display:inline-flex; align-items:center; justify-content:center}
+.insp-opt.vald .insp-radio{border-color:#a8a8a8; background:#fff}
+.insp-opt.vald .insp-radio::after{content:""; width:10px; height:10px; border-radius:50%; background:#b5b5b5}
+.insp-ruta{flex:none; width:20px; height:20px; border:1.5px solid #9b9b9b; background:#fff; display:inline-flex; align-items:center; justify-content:center; color:var(--i-marin)}
+.insp-ruta svg{width:15px; height:15px}
+.insp-markor{flex:none; width:34px; height:34px; display:inline-flex; margin-right:30px}
+.insp-alt.granska .insp-opt{cursor:default}
+.insp-alt.granska .insp-opt:hover{background:transparent}
+.insp-alt.granska .insp-opt.vald{background:var(--i-val)}
+.insp-linje{height:1px; background:#555; margin:22px 0 10px}
+.insp-totalpoang{text-align:right; margin:0; font-size:17px}
+.insp-forkl{margin-top:22px; background:#fff; border:1px solid #d8d8d8; padding:12px 18px; font-size:16px}
+.insp-forkl summary{cursor:pointer; font-weight:700}
+.insp-forkl p{margin:8px 0}
+.insp-facit{margin-top:14px; background:#fff; border:1px solid #cfe0cb; border-left:4px solid var(--i-ok); padding:12px 16px; white-space:pre-line}
+.insp-facit b{display:block; margin-bottom:4px}
+/* matchning */
+.insp .matchwrap{background:#fff; border:1px solid #777; border-radius:0; padding:24px 22px 18px; margin:8px 0 18px}
+.insp .matchtabell{font-size:16.5px; width:auto; min-width:100%}
+.insp .matchtabell th, .insp .matchtabell td{border-bottom:0; padding:12px 14px}
+.insp .matchtabell thead th{background:none; font-weight:400; color:var(--i-text); font-size:16.5px; text-transform:none; letter-spacing:0; vertical-align:bottom; text-align:center; font-family:inherit}
+.insp .matchtabell tbody th{font-weight:400; white-space:normal; min-width:200px; max-width:520px; line-height:1.3}
+.insp .matchtabell tbody td{border-left:1px solid #222; border-top:1px solid #222}
+.insp .matchtabell tbody td:first-of-type{border-left:0}
+.insp .matchtabell tbody tr:first-child td{border-top:0}
+.insp .matchtabell td:has(.matchruta.vald), .insp .matchtabell td:has(.matchruta.correct){background:var(--i-val)}
+.insp .matchtabell td:has(.matchruta.wrong){background:#f2d6d6}
+.insp .matchruta{background:none; border:0; padding:0; cursor:pointer}
+.insp .matchruta .ring{width:20px; height:20px; border:1.5px solid #9b9b9b; background:#fff; color:transparent; display:inline-flex; align-items:center; justify-content:center; border-radius:50%}
+.insp .matchruta .ring svg{display:none}
+.insp .matchruta.vald .ring, .insp .matchruta.correct .ring, .insp .matchruta.wrong .ring{border-color:#a8a8a8; background:#fff}
+.insp .matchruta.vald .ring::after, .insp .matchruta.correct .ring::after{content:""; width:10px; height:10px; border-radius:50%; background:#b5b5b5}
+.insp .matchruta.correct .ring::after{background:var(--i-ok)}
+/* textredigerare */
+.insp-editor{background:#fff; border:1px solid #888; margin:4px 0 16px}
+.insp-editor.full{position:fixed; inset:70px 4vw 70px; z-index:6; display:flex; flex-direction:column; box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.insp-editor.full textarea{flex:1}
+.insp-verktyg{display:flex; align-items:center; gap:4px; padding:8px 12px; border-bottom:1px solid #ccc; background:#f7f7f7; color:#777}
+.insp-verktyg button{background:none; border:0; min-width:32px; height:32px; font-size:19px; color:#666; cursor:pointer; border-radius:3px}
+.insp-verktyg button:hover{background:#e4e4e4; color:#222}
+.insp-vsep{width:1px; height:22px; background:#ccc; margin:0 4px}
+.insp-ordantal{margin-left:auto; font-size:13px; color:#777}
+.insp-tecken{display:flex; flex-wrap:wrap; gap:2px; padding:8px 12px; border-bottom:1px solid #ddd; background:#fafafa}
+.insp-tecken button{width:34px; height:32px; border:1px solid #ddd; background:#fff; font-size:17px; cursor:pointer}
+.insp-tecken button:hover{background:var(--i-val)}
+.insp-editor textarea{display:block; width:100%; border:0; resize:vertical; padding:12px 14px; font:inherit; font-size:17px; line-height:1.55; color:var(--i-text); background:#fff; min-height:220px}
+.insp-editor textarea:focus{outline:2px solid #8fb4dc; outline-offset:-2px}
+.insp-lastext{padding:12px 14px; white-space:pre-line; min-height:90px}
+/* pilar och frågefältet */
+.insp-pilar{position:absolute; right:max(36px, env(safe-area-inset-right,0px)); bottom:calc(98px + env(safe-area-inset-bottom,0px)); display:flex; gap:4px; z-index:3}
+.insp-pil{width:80px; height:74px; border:0; display:inline-flex; align-items:center; justify-content:center; color:#fff; cursor:pointer; background:var(--i-bla)}
+.insp-pil.vanster{background:var(--i-marin)}
+.insp-pil:disabled{background:var(--i-gra); cursor:default; opacity:1}
+.insp-pil:not(:disabled):hover{filter:brightness(1.12)}
+.insp-nav{
+  position:absolute; left:0; right:0; bottom:0; z-index:4; display:flex; align-items:stretch; height:calc(66px + env(safe-area-inset-bottom,0px));
+  padding-bottom:env(safe-area-inset-bottom,0px); background:#e9e9e9; border-top:1px solid #d0d0d0;
+}
+.insp-navknapp{flex:none; width:48px; border:0; border-top:5px solid var(--i-bla); background:#f4f4f4; color:#333; cursor:pointer; display:inline-flex; align-items:center; justify-content:center}
+.insp-navknapp.lamna{width:clamp(64px, 6vw, 108px); background:var(--i-bla); color:#fff; border-top-color:var(--i-bla)}
+.insp-navknapp.lamna:hover{background:var(--i-marin)}
+.insp-flikar{flex:1; min-width:0; display:flex; overflow-x:auto; scrollbar-width:thin}
+.insp-flik{
+  flex:none; min-width:48px; padding:0 8px; border:0; border-left:1px solid #fff; border-top:5px solid transparent;
+  background:#f4f4f4; color:#333; font-size:19px; cursor:pointer; font-variant-numeric:tabular-nums; position:relative;
+  box-shadow:inset 0 5px 0 -0px transparent;
+}
+.insp-flik:hover{background:#e2e9f1}
+.insp-flik.svarad{border-top-color:var(--i-bla)}
+.insp-flik.nu{background:var(--i-bla); color:#fff; border-top-color:var(--i-bla); font-weight:700}
+.insp-flik.flagg::after{content:""; position:absolute; top:0; right:0; border-style:solid; border-width:0 11px 11px 0; border-color:transparent var(--i-flagg) transparent transparent}
+.insp-flik.ratt{border-top-color:var(--i-ok)}
+.insp-flik.fel{border-top-color:#c0392b}
+.insp-flik.delvis{border-top-color:var(--i-flagg)}
+.insp-flik.nu.ratt{background:var(--i-ok)} .insp-flik.nu.fel{background:#b03a2e}
+.insp-oversikt{
+  position:absolute; left:0; right:0; bottom:calc(66px + env(safe-area-inset-bottom,0px)); z-index:5; max-height:min(70vh, 640px); overflow:auto;
+  background:#fff; border-top:1px solid #ccc; box-shadow:0 -10px 30px rgba(0,0,0,.18); padding:12px max(16px, env(safe-area-inset-left,0px)) 16px;
+}
+.insp-ovhuvud{display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:4px 6px 10px; font-size:15px}
+.insp-ovhuvud span{color:var(--i-text2)}
+.insp-ovlista{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap:2px 14px}
+.insp-ovlista button{display:flex; gap:12px; align-items:baseline; width:100%; text-align:left; background:none; border:0; padding:8px 6px; font-size:14.5px; cursor:pointer; color:var(--i-text)}
+.insp-ovlista button:hover, .insp-ovlista button.nu{background:#eef3f9}
+.insp-ovnr{flex:none; width:2.2em; font-weight:700; font-variant-numeric:tabular-nums}
+.insp-ovq{flex:1; min-width:0; color:#333}
+.insp-ovst{flex:none; font-size:12.5px; color:#999}
+.insp-ovst.ja{color:var(--i-bla)}
+@media (max-width:720px){
+  .insp-yta{padding-top:22px}
+  .insp-fraga{grid-template-columns:34px minmax(0,1fr)}
+  .insp-nr{font-size:15px}
+  .insp-opt{padding:12px 12px; font-size:16.5px}
+  .insp-stam{font-size:17px}
+  .insp-pil{width:62px; height:56px}
+  .insp-pilar{right:12px; bottom:calc(78px + env(safe-area-inset-bottom,0px))}
+  .insp-markor{margin-right:0}
+  .insp .matchwrap{padding:12px 8px; overflow-x:auto}
+}
+/* bandet och kortet på tentans sida */
+.insp-band{background:#1c3f7b; color:#fff; padding:18px 40px 24px; margin:0 0 30px; font-family:"Helvetica Neue", Helvetica, Arial, sans-serif}
+.insp-tillbaka{background:none; border:0; color:#fff; font:inherit; font-size:17px; font-weight:500; cursor:pointer; padding:4px 0}
+.insp-tillbaka:hover{text-decoration:underline}
+.insp-bandrad{display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-top:24px; padding-left:36px}
+.insp-taggar{display:flex; gap:8px; flex-wrap:wrap}
+.insp-tagg{font-size:13px; font-weight:700; letter-spacing:.14em; padding:3px 4px; border-radius:2px; border:1px solid #fff}
+.insp-tagg.ljus{background:#f2f2f2; color:#222}
+.insp-tagg.mork{background:#222; color:#fff}
+.insp-bandtitel{font-family:inherit; font-weight:700; color:#fff; font-size:clamp(24px, 3.4vw, 38px); line-height:1.2; margin:10px 0 0}
+.insp-betyg{flex:none; width:78px; height:78px; border:1.5px solid #fff; display:flex; align-items:center; justify-content:center; font-size:42px; font-weight:700}
+.insp-kort{background:var(--surface); border:1px solid var(--line); box-shadow:0 2px 10px rgba(0,0,0,.06); padding:26px 40px 30px; margin:0 0 30px; font-family:"Helvetica Neue", Helvetica, Arial, sans-serif; color:var(--ink)}
+.insp-kortrad{display:flex; justify-content:space-between; gap:12px 24px; flex-wrap:wrap; align-items:center}
+.insp-tidrad{display:flex; align-items:center; gap:12px; font-size:17px}
+.insp-tidrad svg{color:var(--ink-2)}
+.insp-stangd{font-size:16px; color:var(--ink-2)}
+.insp-gul{display:flex; align-items:center; gap:18px; flex-wrap:wrap; background:color-mix(in srgb, #f6efc9 70%, var(--surface)); color:#2a2a2a; padding:24px 46px; margin:24px 0 8px; font-size:17px}
+.insp-gulikon{color:#5aa85c; display:inline-flex}
+.insp-gulikon.pagar{color:#d9822b; font-size:22px}
+.insp-resrubrik{font-family:inherit; font-weight:700; font-size:20px; margin:30px 0 10px}
+.insp-streckad{border:1.5px dashed var(--line-strong); padding:22px 32px; display:flex; align-items:center; gap:14px 22px; flex-wrap:wrap}
+.insp-lank{background:none; border:0; padding:0; font:inherit; font-size:17px; color:#1c3f7b; cursor:pointer; display:inline-flex; align-items:center; gap:8px}
+.insp-lank:hover{text-decoration:underline}
+.insp-skilj{width:2px; height:28px; background:var(--ink)}
+.insp-resprocent{margin-left:auto; font-weight:700; font-size:17px}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .insp-lank{color:#9cc0f0} :root:not([data-theme="light"]) .insp-gul{color:var(--ink); background:color-mix(in srgb, #6b5a1c 35%, var(--surface))}}
+:root[data-theme="dark"] .insp-lank{color:#9cc0f0}
+:root[data-theme="dark"] .insp-gul{color:var(--ink); background:color-mix(in srgb, #6b5a1c 35%, var(--surface))}
+@media (max-width:720px){
+  .insp-band{padding:14px 16px 18px; margin:0 0 20px}
+  .insp-bandrad{padding-left:0}
+  .insp-betyg{width:58px; height:58px; font-size:30px}
+  .insp-kort{padding:18px 16px}
+  .insp-gul{padding:16px 18px}
+  .insp-streckad{padding:16px}
+}
+/* skriver över simulatorns gamla rutnätsknappar och tabellrubriker */
+.insp .insp-flik{width:auto; height:auto; min-width:48px; border-radius:0; margin:0; box-shadow:none;
+  border:0; border-left:1px solid #fff; border-top:5px solid transparent; background:#f4f4f4; color:#333;
+  font-family:inherit; font-size:19px; font-weight:400}
+.insp .insp-flik:hover{background:#e2e9f1; border-color:#fff; border-top-color:transparent}
+.insp .insp-flik.svarad{background:#f4f4f4; color:#333; border-top-color:var(--i-bla)}
+.insp .insp-flik.ratt{border-top-color:var(--i-ok)}
+.insp .insp-flik.fel{border-top-color:#c0392b}
+.insp .insp-flik.delvis{border-top-color:var(--i-flagg)}
+.insp .insp-flik.nu{background:var(--i-bla); color:#fff; border-top-color:var(--i-bla); font-weight:700; box-shadow:none}
+.insp .insp-flik.nu.ratt{background:var(--i-ok); border-top-color:var(--i-ok)}
+.insp .insp-flik.nu.fel{background:#b03a2e; border-top-color:#b03a2e}
+.insp .insp-flik.flagg, .insp .insp-flik.flagg.nu{box-shadow:none}
+.insp .matchtabell th{font-family:inherit; text-transform:none; letter-spacing:0; color:var(--i-text); font-size:16.5px; background:none}
+.insp .matchtabell thead th{min-width:92px; border-bottom:0}
+.insp .matchtabell tbody th{text-align:left}
+</style>
 <main id="view"></main>
 
 <button id="forklara">Förklara</button>
@@ -8523,6 +8743,7 @@ function parse() {
     if (p[1] === "ny") return { name: "tentany" };
     if (p[1] === "kor") return { name: "tentakor" };
     if (p[1] === "test") return { name: "tentatest" };
+    if (p[1] === "granska") return { name: "tentagranska", id: decodeURIComponent(p[2] || ""), pos: Number(p[3]) || 0 };
     if (p[1] === "resultat") return { name: "tentares", id: decodeURIComponent(p[2] || "") };
     return { name: "tentastart", id: decodeURIComponent(p[1]) };
   }
@@ -18318,10 +18539,14 @@ function viewTentaStart(id) {
       </tr>`;
   }).join("");
 
+  const _sen = inspSenasteForsok(t.id);
   view.innerHTML = `
-    ${tentaCrumbs([{ t: t.titel }])}
-    <p class="eyebrow">${t.inbyggd ? "Inbyggd tenta" : "Egen tenta"} · ${t.fragor.length} frågor</p>
-    <h1>${esc(t.titel)}</h1>
+    ${inspBand({ titel: t.titel, typ: t.inbyggd ? "INDIVIDUELL" : "EGEN TENTA",
+      status: tstore.aktivt && tstore.aktivt.tentaId === t.id ? "PÅGÅR" : _sen ? "INLÄMNAD" : "EJ PÅBÖRJAD",
+      betyg: _sen && _sen.sammanfattning ? inspBetyg(_sen.sammanfattning.procent) : "",
+      betygTitel: _sen && _sen.sammanfattning ? `Senaste försöket: ${_sen.sammanfattning.procent} %` : "" })}
+    ${inspStartKort(t)}
+    <h2 style="margin:6px 0 14px">Inställningar och frågor</h2>
 
     <div class="split">
       <div>
@@ -18456,6 +18681,184 @@ function viewTentaStart(id) {
   });
 }
 
+/* ===== Tentaläge i Inspera-stil (simulator, duell och livematch) ===== */
+const INSP_IKON = {
+  wifi: `<svg width="24" height="20" viewBox="0 0 24 20" aria-hidden="true"><path fill="currentColor" d="M12 16.2a1.9 1.9 0 1 1 0 3.8 1.9 1.9 0 0 1 0-3.8Zm0-5.2c2 0 3.8.8 5.2 2l-1.6 1.7A5.3 5.3 0 0 0 12 13.3c-1.4 0-2.7.5-3.6 1.4L6.8 13A7.6 7.6 0 0 1 12 11Zm0-5.3c3.4 0 6.5 1.3 8.8 3.4l-1.6 1.7A10.4 10.4 0 0 0 12 8c-2.8 0-5.3 1.1-7.2 2.8L3.2 9.1A12.7 12.7 0 0 1 12 5.7ZM12 .4c4.8 0 9.2 1.9 12 5L22.4 7A14.5 14.5 0 0 0 12 2.7 14.5 14.5 0 0 0 1.6 7L0 5.4C2.8 2.3 7.2.4 12 .4Z"/></svg>`,
+  meny: `<svg width="26" height="22" viewBox="0 0 26 22" aria-hidden="true"><path fill="currentColor" d="M0 1.5h26v3H0zM0 9.5h26v3H0zM0 17.5h26v3H0z"/></svg>`,
+  oversikt: `<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" d="M20 12.5V20H4V4h11"/><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="m8 11 4 4 9-10"/></svg>`,
+  bock: `<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" d="m4 12.5 5.5 5.5L20 6.5"/></svg>`,
+  vanster: `<svg width="18" height="30" viewBox="0 0 18 30" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" d="M15 2 3 15l12 13"/></svg>`,
+  hoger: `<svg width="18" height="30" viewBox="0 0 18 30" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" d="m3 2 12 13L3 28"/></svg>`,
+  flagga: `<svg width="16" height="20" viewBox="0 0 16 20" aria-hidden="true"><path d="M1.5 1.5h13v17L8 13.8 1.5 18.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`,
+  ratt: `<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" fill="#fff"/><path fill="none" stroke="#3c8d2f" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" d="m10.5 17.5 4.5 4.5 8.5-9.5"/></svg>`,
+  fel: `<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" fill="#8e1c1c"/><path stroke="#fff" stroke-width="3.6" stroke-linecap="round" d="m12 12 10 10M22 12 12 22"/></svg>`,
+  kalender: `<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect x="3" y="5" width="24" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path stroke="currentColor" stroke-width="1.8" d="M3 11h24M9 2v6M21 2v6"/></svg>`,
+  oga: `<svg width="22" height="16" viewBox="0 0 22 16" aria-hidden="true"><path fill="currentColor" d="M11 0C6 0 1.9 3.1 0 8c1.9 4.9 6 8 11 8s9.1-3.1 11-8c-1.9-4.9-6-8-11-8Zm0 13.3A5.3 5.3 0 1 1 11 2.7a5.3 5.3 0 0 1 0 10.6Zm0-8.5a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4Z"/></svg>`,
+  ladda: `<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path fill="currentColor" d="M8.5 1h3v8h3.5L10 14.2 5 9h3.5zM1 13h2.5v3.5h13V13H19v6H1z"/></svg>`
+};
+
+function inspSedan(ms) {
+  const s = Math.max(0, (Date.now() - ms) / 1000);
+  if (s < 60) return "nyss";
+  const m = s / 60, h = m / 60, d = h / 24, mn = d / 30.4, ar = d / 365;
+  const r = (v, en, fl) => { const n = Math.floor(v); return `för ${n} ${n === 1 ? en : fl} sedan`; };
+  if (m < 60) return r(m, "minut", "minuter");
+  if (h < 24) return r(h, "timme", "timmar");
+  if (d < 31) return r(d, "dag", "dagar");
+  if (ar < 1) return r(mn, "månad", "månader");
+  return r(ar, "år", "år");
+}
+
+/* Det blå bandet överst på tentans sida och resultatsidan. */
+function inspBand(o) {
+  return `<section class="insp-band">
+    <button class="insp-tillbaka" data-go="${o.tillbaka || "/tenta"}">←&nbsp; Tillbaka till lista</button>
+    <div class="insp-bandrad">
+      <div class="insp-bandtext">
+        <div class="insp-taggar"><span class="insp-tagg ljus">${esc(o.typ || "INDIVIDUELL")}</span>${o.status ? `<span class="insp-tagg mork">${esc(o.status)}</span>` : ""}</div>
+        <h1 class="insp-bandtitel">${esc(o.titel)}</h1>
+      </div>
+      ${o.betyg ? `<div class="insp-betyg" title="${esc(o.betygTitel || "")}">${esc(o.betyg)}</div>` : ""}
+    </div>
+  </section>`;
+}
+
+function inspSenasteForsok(tentaId) {
+  const lista = tstore.forsok.filter(f => f.tentaId === tentaId);
+  if (tstore.senaste && tstore.senaste.tentaId === tentaId) lista.push(tstore.senaste);
+  return lista.sort((a, b) => (b.slutad || 0) - (a.slutad || 0))[0] || null;
+}
+
+/* Kortet under bandet på tentans startsida. */
+function inspStartKort(t) {
+  const a = tstore.aktivt && tstore.aktivt.tentaId === t.id ? tstore.aktivt : null;
+  const sen = inspSenasteForsok(t.id);
+  return `<section class="insp-kort">
+    <div class="insp-kortrad">
+      <div class="insp-tidrad"><span>Skrivtid</span>${INSP_IKON.kalender}<b>${t.tid} minuter · ${t.fragor.length} frågor</b></div>
+      ${sen ? `<span class="insp-stangd">Senaste försöket ${fmtDatum(sen.slutad)}</span>` : ""}
+    </div>
+    ${a ? `<div class="insp-gul"><span class="insp-gulikon pagar">●</span>
+        <span>Tentan pågår – ${fmtTid(a.slutar - Date.now())} kvar.</span>
+        <button class="insp-lank" data-go="/tenta/kor">Fortsätt skriva</button></div>`
+      : sen ? `<div class="insp-gul"><span class="insp-gulikon">${INSP_IKON.bock}</span><span>Du lämnade in ${inspSedan(sen.slutad)}</span></div>` : ""}
+    ${sen ? `<h3 class="insp-resrubrik">Tentamensresultat</h3>
+      <div class="insp-streckad">
+        <button class="insp-lank" data-go="/tenta/granska/${encodeURIComponent(sen.id)}/0">${INSP_IKON.oga} Visa inlämnade svar</button>
+        <span class="insp-skilj"></span>
+        <button class="insp-lank" data-go="/tenta/resultat/${encodeURIComponent(sen.id)}">${INSP_IKON.ladda} Visa resultat</button>
+        <span class="insp-resprocent">${sen.sammanfattning ? `${sen.sammanfattning.procent} %` : ""}</span>
+      </div>` : ""}
+  </section>`;
+}
+
+function inspBetyg(procent) {
+  const g = arGodkand(procent);
+  return g === true ? "G" : g === false ? "U" : "";
+}
+
+/* Gemensam ram: översta raden, frågeytan, pilar och frågefältet nedtill. */
+function inspRam(o) {
+  return `<div class="insp" id="insp">
+    <header class="insp-top">
+      <div class="insp-kid">Kandidat-ID</div>
+      <div class="insp-tophoger">
+        ${o.timer || ""}
+        <span class="insp-wifi" title="${o.live ? "Livematch – ansluten" : "Svaren sparas lokalt"}">${INSP_IKON.wifi}</span>
+        <button class="insp-ikonknapp" id="inspmeny" aria-haspopup="true" aria-expanded="false" aria-label="Meny">${INSP_IKON.meny}</button>
+      </div>
+      <div class="insp-framsteg"><i style="width:${o.framsteg || 0}%"></i></div>
+    </header>
+    <div class="insp-menypanel" id="inspmenypanel" hidden>
+      <p class="insp-menytitel">${esc(o.titel)}</p>
+      ${o.meny}
+    </div>
+    ${o.over || ""}
+    <main class="insp-yta" id="inspyta">
+      <div class="insp-fraga">
+        <div class="insp-nr">${o.nrKolumn}</div>
+        <div class="insp-kropp">${o.kropp}</div>
+      </div>
+    </main>
+    <div class="insp-pilar">
+      <button class="insp-pil vanster" id="prev"${o.forsta ? " disabled" : ""} aria-label="Föregående fråga">${INSP_IKON.vanster}</button>
+      <button class="insp-pil hoger" id="next"${o.sista ? " disabled" : ""} aria-label="Nästa fråga">${INSP_IKON.hoger}</button>
+    </div>
+    <div class="insp-oversikt" id="inspoversikt" hidden>${o.oversikt}</div>
+    <nav class="insp-nav" aria-label="Frågor">
+      <button class="insp-navknapp ikon" id="inspoversiktknapp" aria-label="Översikt över alla frågor">${INSP_IKON.oversikt}</button>
+      <div class="insp-flikar" id="tgrid">${o.flikar}</div>
+      ${o.slutknapp}
+    </nav>
+  </div>`;
+}
+
+function inspKopplaRam() {
+  const meny = document.getElementById("inspmeny"), panel = document.getElementById("inspmenypanel");
+  const ov = document.getElementById("inspoversikt");
+  meny.addEventListener("click", e => {
+    e.stopPropagation();
+    panel.hidden = !panel.hidden; meny.setAttribute("aria-expanded", String(!panel.hidden));
+    ov.hidden = true;
+  });
+  document.getElementById("inspoversiktknapp").addEventListener("click", e => {
+    e.stopPropagation(); ov.hidden = !ov.hidden; panel.hidden = true;
+  });
+  document.getElementById("insp").addEventListener("click", e => {
+    if (!e.target.closest("#inspmenypanel, #inspmeny")) panel.hidden = true;
+    if (!e.target.closest("#inspoversikt, #inspoversiktknapp")) ov.hidden = true;
+  });
+  const nu = document.querySelector(".insp-flik.nu");
+  if (nu) nu.scrollIntoView({ block: "nearest", inline: "center" });
+}
+
+/* Specialtecken som behövs i medicinska skrivsvar. */
+const INSP_TECKEN = ["→", "←", "↑", "↓", "↔", "±", "≈", "≤", "≥", "×", "÷", "°", "²", "³", "₂", "₃", "⁺", "⁻",
+  "α", "β", "γ", "δ", "κ", "λ", "μ", "π", "σ", "Δ", "Ω", "½", "‰", "·"];
+
+function inspEditor(varde, rader, lasbar) {
+  const ord = String(varde || "").trim() ? String(varde).trim().split(/\s+/).length : 0;
+  return `<div class="insp-editor${lasbar ? " las" : ""}" id="inspeditor">
+    ${lasbar ? "" : `<div class="insp-verktyg" role="toolbar" aria-label="Textverktyg">
+      <button type="button" data-ed="undo" title="Ångra">↶</button>
+      <button type="button" data-ed="redo" title="Gör om">↷</button>
+      <span class="insp-vsep"></span>
+      <button type="button" data-ed="tecken" title="Specialtecken" aria-expanded="false">Ω</button>
+      <span class="insp-vsep"></span>
+      <button type="button" data-ed="full" title="Helskärm">⤢</button>
+      <span class="insp-ordantal" id="inspord">${ord} ord</span>
+    </div>
+    <div class="insp-tecken" id="insptecken" hidden>${INSP_TECKEN.map(c => `<button type="button" data-tecken="${c}">${c}</button>`).join("")}</div>`}
+    ${lasbar
+      ? `<div class="insp-lastext">${String(varde || "").trim() ? esc(varde) : "<i>Obesvarad</i>"}</div>`
+      : `<textarea id="tskriv" rows="${rader}" spellcheck="true" placeholder="Fyll i ditt svar här">${esc(varde || "")}</textarea>`}
+  </div>`;
+}
+
+function inspKopplaEditor() {
+  const ed = document.getElementById("inspeditor"), ta = document.getElementById("tskriv");
+  if (!ed || !ta) return;
+  const ord = document.getElementById("inspord"), tk = document.getElementById("insptecken");
+  const rakna = () => { const s = ta.value.trim(); ord.textContent = (s ? s.split(/\s+/).length : 0) + " ord"; };
+  ta.addEventListener("input", rakna);
+  ed.querySelector(".insp-verktyg").addEventListener("click", e => {
+    const b = e.target.closest("[data-ed]"); if (!b) return;
+    const k = b.dataset.ed;
+    if (k === "undo" || k === "redo") { ta.focus(); try { document.execCommand(k); } catch (x) {} return; }
+    if (k === "tecken") { tk.hidden = !tk.hidden; b.setAttribute("aria-expanded", String(!tk.hidden)); return; }
+    if (k === "full") { ed.classList.toggle("full"); ta.focus(); }
+  });
+  tk.addEventListener("click", e => {
+    const b = e.target.closest("[data-tecken]"); if (!b) return;
+    const c = b.dataset.tecken, s = ta.selectionStart, slut = ta.selectionEnd;
+    ta.focus();
+    let ok = false;
+    try { ok = document.execCommand("insertText", false, c); } catch (x) {}
+    if (!ok) { ta.value = ta.value.slice(0, s) + c + ta.value.slice(slut); ta.selectionStart = ta.selectionEnd = s + c.length; }
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
 /* ===== 4. Genomför tentan ===== */
 function viewTentaKor() {
   const a = tstore.aktivt;
@@ -18469,149 +18872,128 @@ function viewTentaKor() {
   const fi = a.ordning[pos];
   const f = t.fragor[fi];
   const valt = a.svar[fi];
-  const svarade = a.ordning.filter(oi => harSvarat(a.svar[oi])).length;
+  const antalSvar = () => a.ordning.filter(oi => harSvarat(a.svar[oi])).length;
+  const antalFlagg = Object.keys(a.flagg).length;
 
-  view.innerHTML = `
-    <div class="tentahead">
-      <div>
-        <span class="eyebrow" style="display:block">${esc(t.titel)}</span>
-        <b class="ttimer" id="ttimer" role="timer" aria-live="off">${fmtTid(a.slutar - Date.now())}</b>
-      </div>
-      <div class="tmeta">
-        <span class="chip" id="tsvar">${svarade} av ${n} besvarade</span>
-        <span class="chip${Object.keys(a.flagg).length ? " accent" : ""}">${Object.keys(a.flagg).length} flaggade</span>
-      </div>
-      <button class="btn primary" id="lamna">Lämna in</button>
-    </div>
+  let svar;
+  if (f.typ === "text") {
+    svar = `<p class="insp-instr">Fyll i ditt svar här</p>${inspEditor(typeof valt === "string" ? valt : "", f.poang >= 3 ? 14 : 8, false)}`;
+  } else if (f.typ === "matchning") {
+    svar = `<p class="insp-instr">Para ihop värdena:</p><div id="topts">${matchningsRutnat(f, valt, "svara")}</div>`;
+  } else if (f.typ === "flerval") {
+    svar = `<p class="insp-instr">Välj ett eller flera alternativ:</p>
+      <div class="insp-alt" id="topts" role="group" aria-label="Svarsalternativ, flera kan vara rätt">${f.options.map((o, oi) => {
+        const i = Array.isArray(valt) && valt.includes(oi);
+        return `<button class="opt insp-opt${i ? " vald" : ""}" data-o="${oi}" role="checkbox" aria-checked="${i}">
+          <span class="insp-ruta">${i ? INSP_IKON.bock : ""}</span><span class="insp-opttext">${esc(o)}</span></button>`;
+      }).join("")}</div>`;
+  } else {
+    svar = `<div class="insp-alt" id="topts" role="radiogroup" aria-label="Svarsalternativ">${f.options.map((o, oi) => `
+        <button class="opt insp-opt${valt === oi ? " vald" : ""}" data-o="${oi}" role="radio" aria-checked="${valt === oi}">
+          <span class="insp-radio"></span><span class="insp-opttext">${esc(o)}</span></button>`).join("")}</div>`;
+  }
 
-    ${a.live ? `<div class="panel" style="margin:0 0 14px; padding:12px 14px">
-      <div style="font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3);
-        font-family:var(--mono); margin-bottom:7px">Livematch — så här långt har de kommit</div>
-      <div id="liveremsa" style="display:flex; flex-wrap:wrap">${liveRemsaInnehall()}</div>
-    </div>` : ""}
+  const kropp = `
+    <h2 class="insp-rubrik">Fråga ${pos + 1}</h2>
+    ${f.sort || f.avsnitt ? `<p class="insp-under">${esc([f.sort, f.avsnitt].filter(Boolean).join(" · "))}</p>` : ""}
+    <div class="insp-stam">${esc(f.q)}</div>
+    ${bildplatser(f, "Figur till frågan")}
+    ${svar}
+    <div class="insp-linje"></div>
+    ${f.poang > 1 ? `<p class="insp-totalpoang">Totalpoäng: ${fmtPoang(f.poang)}</p>` : ""}`;
 
-    <div class="tgrid" id="tgrid" role="navigation" aria-label="Frågeöversikt">
-      ${a.ordning.map((oi, p) => `
-        <button class="tnum${p === pos ? " nu" : ""}${harSvarat(a.svar[oi]) ? " svarad" : ""}${a.flagg[oi] ? " flagg" : ""}"
-          data-pos="${p}" aria-label="Fråga ${p + 1}${harSvarat(a.svar[oi]) ? ", besvarad" : ""}${a.flagg[oi] ? ", flaggad" : ""}"
-          aria-current="${p === pos}">${p + 1}</button>`).join("")}
-    </div>
+  const nrKolumn = `<span>${pos + 1}</span>
+    <button class="insp-flaggknapp${a.flagg[fi] ? " pa" : ""}" id="flagga" aria-pressed="${!!a.flagg[fi]}"
+      title="${a.flagg[fi] ? "Flaggad – klicka för att ta bort" : "Flagga för granskning (F)"}">${INSP_IKON.flagga}</button>`;
 
-    <div class="qcard" style="max-width:none; margin-top:20px">
-      <div class="qnum">Fråga ${pos + 1} av ${n}${f.poang > 1 ? ` · ${f.poang} p` : ""}${
-        f.sort ? ` · ${esc(f.sort)}` : ""}${f.avsnitt ? ` · ${esc(f.avsnitt)}` : ""}</div>
-      <div class="qtext">${esc(f.q)}</div>
-      ${bildplatser(f, "Figur till frågan")}
-      ${f.typ === "text" ? `
-        <textarea id="tskriv" rows="${f.poang >= 3 ? 12 : 6}" placeholder="Skriv ditt svar här…"
-          style="${INPSTIL}; width:100%; margin-top:12px; line-height:1.6; resize:vertical"
-          >${esc(typeof valt === "string" ? valt : "")}</textarea>
-        <p style="font-size:12.5px; color:var(--ink-3); margin:8px 0 0">
-          Skrivsvar rättas efter inlämning: du får se facit bredvid ditt svar och sätter poängen själv,
-          med hjälp av vilka begrepp som saknas.</p>`
-        : f.typ === "matchning" ? `
-        <p class="flervalsrad">Para ihop varje rad med rätt kolumn — ett kryss per rad.</p>
-        <div id="topts">${matchningsRutnat(f, valt, "svara")}</div>`
-        : f.typ === "flerval" ? `
-        <p class="flervalsrad">Flera alternativ kan vara rätt — kryssa i alla som stämmer.</p>
-        <div class="opts flerval" id="topts" role="group" aria-label="Svarsalternativ, flera kan vara rätt">
-        ${f.options.map((o, oi) => {
-          const i = Array.isArray(valt) && valt.includes(oi);
-          return `<button class="opt${i ? " vald" : ""}" data-o="${oi}" role="checkbox" aria-checked="${i}">
-            <span class="lt ruta">${i ? TICK : ""}</span><span>${esc(o)}</span>
-          </button>`; }).join("")}
-      </div>`
-        : `<div class="opts" id="topts" role="radiogroup" aria-label="Svarsalternativ">
-        ${f.options.map((o, oi) => `
-          <button class="opt${valt === oi ? " vald" : ""}" data-o="${oi}" role="radio" aria-checked="${valt === oi}">
-            <span class="lt">${String.fromCharCode(65 + oi)}</span><span>${esc(o)}</span>
-          </button>`).join("")}
-      </div>`}
-      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; align-items:center">
-        <button class="btn" id="prev"${pos === 0 ? " disabled" : ""}>← Föregående</button>
-        <button class="btn" id="next"${pos === n - 1 ? " disabled" : ""}>Nästa →</button>
-        <button class="btn${a.flagg[fi] ? " done" : ""}" id="flagga">${a.flagg[fi] ? "Flaggad för granskning" : "Flagga för granskning"}</button>
-        ${Object.keys(a.flagg).length
-          ? `<button class="btn accent" id="nastaflagg">Nästa flaggade →</button>` : ""}
-        ${harSvarat(valt) ? `<button class="btn" id="rensa">Rensa svaret</button>` : ""}
-      </div>
-    </div>
+  const flikar = a.ordning.map((oi, p) => `<button class="tnum insp-flik${p === pos ? " nu" : ""}${harSvarat(a.svar[oi]) ? " svarad" : ""}${a.flagg[oi] ? " flagg" : ""}"
+      data-pos="${p}" aria-label="Fråga ${p + 1}${harSvarat(a.svar[oi]) ? ", besvarad" : ", ej besvarad"}${a.flagg[oi] ? ", flaggad" : ""}"
+      aria-current="${p === pos}">${p + 1}</button>`).join("");
 
-    <p style="font-size:12.5px; color:var(--ink-3); margin-top:14px">
-      Svaren sparas löpande i webbläsaren — du kan ladda om sidan utan att förlora något.
-      Flaggade frågor är markerade i rutnätet ovanför och du hoppar mellan dem med knappen
-      <b>Nästa flaggade</b>.
-      Tangentbord: <b>A–H</b> svarar, <b>←/→</b> byter fråga, <b>F</b> flaggar,
-      <b>N</b> hoppar till nästa flaggade.${
-        (t.fragor || []).some(x => x.typ === "matchning")
-          ? " Matchningsfrågornas rutnät klickar du i." : ""}</p>`;
+  const oversikt = `<div class="insp-ovhuvud"><b>Översikt</b><span>${antalSvar()} av ${n} besvarade · ${antalFlagg} flaggade</span></div>
+    <ol class="insp-ovlista">${a.ordning.map((oi, p) => {
+      const q = t.fragor[oi];
+      const st = harSvarat(a.svar[oi]) ? "Besvarad" : "Ej besvarad";
+      return `<li><button data-pos="${p}" class="${p === pos ? "nu" : ""}">
+        <span class="insp-ovnr">${p + 1}</span><span class="insp-ovq">${esc(q.q.slice(0, 110))}${q.q.length > 110 ? "…" : ""}</span>
+        <span class="insp-ovst ${harSvarat(a.svar[oi]) ? "ja" : ""}">${a.flagg[oi] ? "⚑ " : ""}${st}</span></button></li>`;
+    }).join("")}</ol>`;
 
-  /* Det de andra får se är antalet besvarade frågor, inte vilken man står på. */
-  const antalBesvarade = () => a.ordning.filter(oi => harSvarat(a.svar[oi])).length;
-  const meddelaFramsteg = () => { if (a.live) liveSkrivPos(antalBesvarade(), n); };
+  const meny = `
+    <button class="insp-menyrad" data-meny="flagga">${a.flagg[fi] ? "Ta bort flaggan" : "Flagga frågan för granskning"}<kbd>F</kbd></button>
+    ${antalFlagg ? `<button class="insp-menyrad" id="nastaflagg">Nästa flaggade fråga (${antalFlagg})<kbd>N</kbd></button>` : ""}
+    ${harSvarat(valt) ? `<button class="insp-menyrad" id="rensa">Rensa svaret på fråga ${pos + 1}</button>` : ""}
+    <div class="insp-menyinfo">${antalSvar()} av ${n} besvarade. Svaren sparas löpande i webbläsaren.<br>
+      Tangentbord: <b>A–H</b> väljer alternativ, <b>←/→</b> byter fråga, <b>F</b> flaggar, <b>N</b> nästa flaggade.</div>
+    <button class="insp-menyrad" data-go="/tenta">Lämna tentaläget (svaren sparas)</button>
+    <button class="insp-menyrad stark" data-meny="lamna">Lämna in</button>`;
 
+  const live = a.live ? `<div class="insp-live"><span class="insp-livetitel">Livematch</span>
+    <div id="liveremsa" style="display:flex; flex-wrap:wrap">${liveRemsaInnehall()}</div></div>` : "";
+
+  view.innerHTML = inspRam({
+    titel: t.titel, live: !!a.live,
+    timer: `<b class="ttimer insp-tid" id="ttimer" role="timer" aria-live="off">${fmtTid(a.slutar - Date.now())}</b>`,
+    framsteg: Math.round(100 * antalSvar() / n),
+    meny, over: live, nrKolumn, kropp, oversikt, flikar,
+    forsta: pos === 0, sista: pos === n - 1,
+    slutknapp: `<button class="insp-navknapp lamna" id="lamna" aria-label="Lämna in" title="Lämna in">${INSP_IKON.bock}</button>`
+  });
+  inspKopplaRam();
+  inspKopplaEditor();
+
+  const meddelaFramsteg = () => { if (a.live) liveSkrivPos(antalSvar(), n); };
   const gaTill = p => {
     a.pos = Math.max(0, Math.min(p, n - 1));
-    tsave();
-    meddelaFramsteg();
-    render();
+    tsave(); meddelaFramsteg(); render();
   };
 
   const optsRuta = view.querySelector("#topts");
   if (optsRuta) optsRuta.addEventListener("click", e => {
-    const b = e.target.closest(".opt, [data-match]"); if (!b) return;
     const ruta = e.target.closest("[data-match]");
     if (ruta && f.typ === "matchning") {
       const [ri, ki] = ruta.dataset.match.split(":").map(Number);
       const nu = Array.isArray(a.svar[fi]) ? a.svar[fi].slice() : [];
       while (nu.length < (f.matchrader || []).length) nu.push(null);
-      /* Ett kryss per rad: samma ruta igen tar bort valet. */
       nu[ri] = nu[ri] === ki ? null : ki;
       a.svar[fi] = nu;
       tsave(); meddelaFramsteg(); render();
       return;
     }
+    const b = e.target.closest(".opt"); if (!b) return;
     const oi = +b.dataset.o;
     if (f.typ === "flerval") {
-      /* Flerkryss: varje klick slår på eller av ett alternativ, och man går
-         vidare först när man själv vill. */
       const nu = new Set(Array.isArray(a.svar[fi]) ? a.svar[fi] : []);
       if (nu.has(oi)) nu.delete(oi); else nu.add(oi);
       a.svar[fi] = [...nu].sort((x, y) => x - y);
-      tsave(); meddelaFramsteg(); render();
-      return;
+    } else {
+      a.svar[fi] = oi;
     }
-    a.svar[fi] = oi; tsave();
-    meddelaFramsteg();
-    if (pos < n - 1) gaTill(pos + 1); else render();
+    tsave(); meddelaFramsteg(); render();
   });
+
   const svarsruta = document.getElementById("tskriv");
   if (svarsruta) {
     let spar = null;
+    const uppdatera = () => {
+      const k = view.querySelector(`.tnum[data-pos="${pos}"]`);
+      if (k) k.classList.toggle("svarad", harSvarat(a.svar[fi]));
+      const fr = view.querySelector(".insp-framsteg i");
+      if (fr) fr.style.width = Math.round(100 * antalSvar() / n) + "%";
+    };
     svarsruta.addEventListener("input", () => {
       a.svar[fi] = svarsruta.value;
       clearTimeout(spar);
-      spar = setTimeout(() => { tsave(); uppdateraRutnat(); }, 400);
+      spar = setTimeout(() => { tsave(); uppdatera(); meddelaFramsteg(); }, 400);
     });
-    svarsruta.addEventListener("blur", () => { clearTimeout(spar); tsave(); uppdateraRutnat(); });
+    svarsruta.addEventListener("blur", () => { clearTimeout(spar); tsave(); uppdatera(); });
   }
-  /* frågeöversikten ska visa att en skrivfråga blivit besvarad */
-  function uppdateraRutnat() {
-    const knapp = view.querySelector(`.tnum[data-pos="${pos}"]`);
-    if (knapp) knapp.classList.toggle("svarad", harSvarat(a.svar[fi]));
-    const chip = document.getElementById("tsvar");
-    if (chip) chip.textContent =
-      `${a.ordning.filter(x => harSvarat(a.svar[x])).length} av ${n} besvarade`;
-  }
+
   document.getElementById("prev").addEventListener("click", () => gaTill(pos - 1));
   document.getElementById("next").addEventListener("click", () => gaTill(pos + 1));
   document.getElementById("flagga").addEventListener("click", () => {
     if (a.flagg[fi]) delete a.flagg[fi]; else a.flagg[fi] = 1; tsave(); render();
   });
-
-  /* Hoppa till nästa flaggade fråga, cirkulärt. Att flagga en fråga man är
-     osäker på är bara till nytta om man hittar tillbaka till den utan att
-     leta i rutnätet — särskilt i en livematch där klockan går. */
   const nastaFlaggade = () => {
     const platser = a.ordning.map((oi, p) => ({ oi, p })).filter(x => a.flagg[x.oi]);
     if (!platser.length) return;
@@ -18622,45 +19004,46 @@ function viewTentaKor() {
   if (nf) nf.addEventListener("click", nastaFlaggade);
   const rensa = document.getElementById("rensa");
   if (rensa) rensa.addEventListener("click", () => { delete a.svar[fi]; tsave(); render(); });
-  view.querySelector("#tgrid").addEventListener("click", e => {
+  view.querySelectorAll("[data-meny]").forEach(b => b.addEventListener("click", () => {
+    document.getElementById(b.dataset.meny).click();
+  }));
+  document.getElementById("tgrid").addEventListener("click", e => {
     const b = e.target.closest(".tnum"); if (b) gaTill(+b.dataset.pos);
   });
+  document.getElementById("inspoversikt").addEventListener("click", e => {
+    const b = e.target.closest("[data-pos]"); if (b) gaTill(+b.dataset.pos);
+  });
   document.getElementById("lamna").addEventListener("click", async () => {
-    const kvar = n - a.ordning.filter(oi => harSvarat(a.svar[oi])).length;
-    if (kvar && !await bekrafta(`${kvar} ${kvar === 1 ? "fråga är" : "frågor är"} obesvarade. Lämna in ändå?`, "Lämna in")) return;
+    const kvar = n - antalSvar();
+    const txt = kvar
+      ? `${kvar} ${kvar === 1 ? "fråga är" : "frågor är"} obesvarade. Lämna in ändå?`
+      : "Alla frågor är besvarade. Lämna in tentan?";
+    if (!await bekrafta(txt, "Lämna in")) return;
     lamnaIn(false);
   });
 
-  /* stoppa gammal timer och lyssnare innan nya registreras */
   stoppaTimer();
-
-  /* tangentbord: A–H svarar, piltangenter byter fråga, F flaggar */
-  view.querySelector(".qcard").setAttribute("tabindex", "-1");
   _tentaTangent = e => {
     if (!tstore.aktivt || parse().name !== "tentakor") return;
     if (/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName)) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (document.querySelector(".dlg")) return;
     const k = e.key;
     if (k === "ArrowLeft") { e.preventDefault(); gaTill(pos - 1); return; }
     if (k === "ArrowRight") { e.preventDefault(); gaTill(pos + 1); return; }
+    if (k === "Escape") { document.getElementById("inspmenypanel").hidden = true; document.getElementById("inspoversikt").hidden = true; return; }
     if (k === "f" || k === "F") { e.preventDefault(); document.getElementById("flagga").click(); return; }
-    /* n, inte g: bokstäverna a–h är upptagna av svarsalternativen, och en
-       fråga med sju alternativ skulle annars aldrig kunna svaras med G. */
     if (k === "n" || k === "N") { e.preventDefault(); nastaFlaggade(); return; }
+    if (f.typ === "matchning" || f.typ === "text") return;
     const i = "abcdefgh".indexOf(String(k).toLowerCase());
-    if (f.typ === "matchning") return;         /* rutnät svaras med musen */
     if (i >= 0 && i < f.options.length) {
       e.preventDefault();
       if (f.typ === "flerval") {
         const nu = new Set(Array.isArray(a.svar[fi]) ? a.svar[fi] : []);
         if (nu.has(i)) nu.delete(i); else nu.add(i);
         a.svar[fi] = [...nu].sort((x, y) => x - y);
-        tsave(); meddelaFramsteg(); render();
-        return;
-      }
-      a.svar[fi] = i; tsave();
-      meddelaFramsteg();
-      if (pos < n - 1) gaTill(pos + 1); else render();
+      } else a.svar[fi] = i;
+      tsave(); meddelaFramsteg(); render();
     }
   };
   document.addEventListener("keydown", _tentaTangent);
@@ -18674,6 +19057,95 @@ function viewTentaKor() {
     el.classList.toggle("varning", kvar <= 5 * 60000);
   }, 250);
 }
+
+/* ===== Visa inlämnade svar – samma vy, med rättningen inritad ===== */
+function viewTentaGranska(fid, posArg) {
+  const fo = forsokById(fid);
+  const t = fo ? forsokTenta(fo) : null;
+  if (!fo || !t) {
+    view.innerHTML = `${tentaCrumbs([{ t: "Saknas" }])}<h1>Försöket hittades inte</h1>
+      <div class="empty"><b>Svaren finns inte kvar</b>Endast de 40 senaste försöken sparas.</div>`;
+    return;
+  }
+  const r = ratta(fo, t);
+  const n = r.rader.length;
+  const pos = Math.max(0, Math.min(Number(posArg) || 0, n - 1));
+  const rad = r.rader[pos];
+  const f = rad.fraga;
+  const v = rad.svarat;
+  const hor = egenKurs(t);
+  const ref = (hor || f.konf === "manuell" || f.konf === "hög") ? rad.ref : null;
+  const forkl = ref && typeof forklaringUrMal === "function" ? forklaringUrMal(ref, f) : null;
+  const bas = `/tenta/granska/${encodeURIComponent(fo.id)}/`;
+
+  let svar;
+  if (f.typ === "text") {
+    svar = `${inspEditor(typeof v === "string" ? v : "", 0, true)}
+      ${f.facit ? `<div class="insp-facit"><b>Facit</b><div>${esc(f.facit)}</div></div>` : ""}
+      <p class="insp-instr">${rad.bedomd ? `Bedömt: ${fmtPoang(rad.poangFatt)} av ${fmtPoang(rad.poangMax)} p.` : "Inte bedömd ännu."}
+        <button class="insp-lank" data-go="/tenta/resultat/${encodeURIComponent(fo.id)}">Sätt poängen i resultatvyn</button></p>`;
+  } else if (f.typ === "matchning") {
+    svar = matchningsRutnat(f, v, "resultat");
+  } else {
+    const fler = f.typ === "flerval";
+    const facit = fler ? (Array.isArray(f.svar) ? f.svar : []) : [f.svar];
+    const mina = fler ? (Array.isArray(v) ? v : []) : (v === undefined || v === null ? [] : [v]);
+    svar = `<div class="insp-alt granska">${f.options.map((o, oi) => {
+      const mitt = mina.includes(oi), ratt = rad.bedombar && facit.includes(oi);
+      return `<div class="insp-opt${mitt ? " vald" : ""}">
+        <span class="${fler ? "insp-ruta" : "insp-radio"}">${fler && mitt ? INSP_IKON.bock : ""}</span>
+        <span class="insp-opttext">${esc(o)}</span>
+        <span class="insp-markor">${mitt && !ratt ? INSP_IKON.fel : ratt ? INSP_IKON.ratt : ""}</span></div>`;
+    }).join("")}</div>
+    ${!rad.harSvar ? `<p class="insp-instr">Du svarade inte på frågan.</p>` : ""}`;
+  }
+
+  const kropp = `
+    <h2 class="insp-rubrik">Fråga ${pos + 1}</h2>
+    <div class="insp-stam">${esc(f.q)}</div>
+    ${bildplatser(f, "Figur till frågan")}
+    ${svar}
+    <div class="insp-linje"></div>
+    <p class="insp-totalpoang">${rad.bedomd ? `Din poäng: ${fmtPoang(rad.poangFatt)} &nbsp;·&nbsp; ` : ""}Totalpoäng: ${fmtPoang(rad.poangMax)}</p>
+    ${forkl ? `<details class="insp-forkl" open><summary>Förklaring</summary>${forkl.map(b => b.typ === "formel"
+      ? `<div class="formula">${b.html}</div>` : `<p>${b.html}</p>`).join("")}</details>` : ""}`;
+
+  const status = x => !x.bedombar || (x.text && !x.bedomd) ? "" : x.ratt ? " ratt" : (x.poangFatt > 0 ? " delvis" : " fel");
+  const flikar = r.rader.map((x, p) => `<button class="tnum insp-flik svarad${p === pos ? " nu" : ""}${status(x)}${x.flaggad ? " flagg" : ""}"
+      data-pos="${p}" aria-current="${p === pos}" aria-label="Fråga ${p + 1}">${p + 1}</button>`).join("");
+  const oversikt = `<div class="insp-ovhuvud"><b>Översikt</b><span>${r.antalRatt} rätt av ${r.bedombara} bedömda · ${r.totalProcent} %</span></div>
+    <ol class="insp-ovlista">${r.rader.map((x, p) => `<li><button data-pos="${p}" class="${p === pos ? "nu" : ""}">
+      <span class="insp-ovnr">${p + 1}</span><span class="insp-ovq">${esc(x.fraga.q.slice(0, 110))}${x.fraga.q.length > 110 ? "…" : ""}</span>
+      <span class="insp-ovst ${x.ratt ? "ja" : ""}">${!x.harSvar ? "Obesvarad" : !x.bedombar ? "Ej bedömd" : x.ratt ? "Rätt" : x.text && !x.bedomd ? "Väntar" : "Fel"}</span></button></li>`).join("")}</ol>`;
+
+  view.innerHTML = inspRam({
+    titel: fo.titel,
+    timer: `<span class="insp-tid granska">${r.totalProcent} %</span>`,
+    framsteg: Math.round(100 * (pos + 1) / n),
+    meny: `<div class="insp-menyinfo">Inlämnad ${fmtDatum(fo.slutad)} · ${r.totalProcent} % · ${inspBetyg(r.totalProcent) === "G" ? "Godkänd" : "Underkänd"} (gräns ${godkantGrans()} %)</div>
+      <button class="insp-menyrad" data-go="/tenta/resultat/${encodeURIComponent(fo.id)}">Till resultatet</button>
+      <button class="insp-menyrad" data-go="/tenta">Tillbaka till listan</button>`,
+    nrKolumn: `<span>${pos + 1}</span>`,
+    kropp, oversikt, flikar,
+    forsta: pos === 0, sista: pos === n - 1,
+    slutknapp: `<button class="insp-navknapp lamna" data-go="/tenta/resultat/${encodeURIComponent(fo.id)}" aria-label="Till resultatet" title="Till resultatet">${INSP_IKON.bock}</button>`
+  });
+  inspKopplaRam();
+  const gaTill = p => go("#" + bas + Math.max(0, Math.min(p, n - 1)));
+  document.getElementById("prev").addEventListener("click", () => gaTill(pos - 1));
+  document.getElementById("next").addEventListener("click", () => gaTill(pos + 1));
+  document.getElementById("tgrid").addEventListener("click", e => { const b = e.target.closest(".tnum"); if (b) gaTill(+b.dataset.pos); });
+  document.getElementById("inspoversikt").addEventListener("click", e => { const b = e.target.closest("[data-pos]"); if (b) gaTill(+b.dataset.pos); });
+  stoppaTimer();
+  _tentaTangent = e => {
+    if (parse().name !== "tentagranska") return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName)) return;
+    if (e.key === "ArrowLeft") { e.preventDefault(); gaTill(pos - 1); }
+    if (e.key === "ArrowRight") { e.preventDefault(); gaTill(pos + 1); }
+  };
+  document.addEventListener("keydown", _tentaTangent);
+}
+
 
 /* ===== 5. Resultat ===== */
 function viewTentaResultat(fid) {
@@ -18773,6 +19245,7 @@ function viewTentaResultat(fid) {
             : rad.ratt ? `<span class="chip done" style="margin-left:8px">Rätt</span>`
             : `<span class="chip" style="margin-left:8px; background:color-mix(in srgb, var(--err) 12%, transparent); color:var(--err); border-color:transparent">Fel</span>`}
           ${rad.flaggad ? `<span class="chip accent" style="margin-left:6px">flaggad</span>` : ""}
+          <button class="lankmal" style="margin-left:8px" data-go="/tenta/granska/${encodeURIComponent(f.id)}/${rad.plats - 1}">Visa i tentavyn</button>
         </div>
         <div class="qtext" style="font-size:16px">${esc(f2.q)}</div>
         ${bildplatser(f2, "Figur till frågan")}
@@ -18806,9 +19279,19 @@ function viewTentaResultat(fid) {
   }).join("");
 
   view.innerHTML = `
-    ${tentaCrumbs([{ t: esc(t.titel), href: "/tenta/" + encodeURIComponent(t.id) }, { t: "Resultat" }])}
-    <p class="eyebrow">Resultat · ${fmtDatum(f.slutad)}</p>
-    <h1>${esc(f.titel)}</h1>
+    ${inspBand({ titel: f.titel, typ: f.duell ? "DUELL" : f.live ? "LIVEMATCH" : "INDIVIDUELL", status: "INLÄMNAD",
+      betyg: inspBetyg(r.totalProcent), betygTitel: `${r.totalProcent} %, gräns ${godkantGrans()} %`,
+      tillbaka: f.duell ? "/duell/m/" + encodeURIComponent(f.duell.seed) : "/tenta/" + encodeURIComponent(t.id) })}
+    <section class="insp-kort">
+      <div class="insp-kortrad"><div class="insp-tidrad"><span>Start- och sluttid</span>${INSP_IKON.kalender}
+        <b>${fmtDatum(f.startad)} till ${fmtDatum(f.slutad)}</b></div></div>
+      <div class="insp-gul"><span class="insp-gulikon">${INSP_IKON.bock}</span><span>Du lämnade in ${inspSedan(f.slutad)}</span></div>
+      <h3 class="insp-resrubrik">Tentamensresultat</h3>
+      <div class="insp-streckad">
+        <button class="insp-lank" data-go="/tenta/granska/${encodeURIComponent(f.id)}/0">${INSP_IKON.oga} Visa inlämnade svar</button>
+        <span class="insp-resprocent">${r.totalProcent} % · ${r.godkand ? "Godkänd" : "Underkänd"}</span>
+      </div>
+    </section>
 
     ${f.facitOk === false ? `<div class="note" style="background:color-mix(in srgb, var(--err) 10%, transparent)">
       <b>Facit ändrades under försöket.</b> Resultatet kan inte verifieras och bör tolkas med försiktighet.</div>` : ""}
@@ -25369,6 +25852,7 @@ function aiRattningsPanel(tenta) {
 
 function render() {
   const r = parse();
+  document.body.classList.toggle("insp-pa", r.name === "tentakor" || r.name === "tentagranska");
   document.querySelectorAll(".overlay").forEach(o => o.remove());
   stoppaTimer();
   stoppaProvKlocka();
@@ -25390,6 +25874,7 @@ function render() {
   else if (r.name === "tentastart") viewTentaStart(r.id);
   else if (r.name === "tentakor") viewTentaKor();
   else if (r.name === "tentares") viewTentaResultat(r.id);
+  else if (r.name === "tentagranska") viewTentaGranska(r.id, r.pos);
   else if (r.name === "tentatest") viewTentaTest();
   else if (r.name === "ai") viewAI();
   else if (r.name === "tentaanalys") viewTentaanalys(r.p);
@@ -31746,7 +32231,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261025-2000";
+const BYGGID = "20261031-1200";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
