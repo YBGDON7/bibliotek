@@ -1,5 +1,5 @@
 {
-  "bygg": "20261101-1600",
-  "namn": "Tentasimulatorn läser nu Word-tentor med gulmarkerat facit (numrerade och namngivna frågor).",
-  "nar": "2026-11-01T15:14:35+00:00"
+  "bygg": "20261101-2100",
+  "namn": "Alla tentor går att läsa in: Inspera utan Välj-rad, inskannade tentor (textigenkänning) och AI-tolkning. Tentaanalys har knappar till nästa avsnitt.",
+  "nar": "2026-11-01T17:37:27+00:00"
 }
