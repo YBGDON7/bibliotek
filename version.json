@@ -1,5 +1,5 @@
 {
-  "bygg": "20261101-2100",
-  "namn": "Alla tentor går att läsa in: Inspera utan Välj-rad, inskannade tentor (textigenkänning) och AI-tolkning. Tentaanalys har knappar till nästa avsnitt.",
-  "nar": "2026-11-01T17:37:27+00:00"
+  "bygg": "20261101-2200",
+  "namn": "Tentaanalys: efter sista övningsfrågan kommer du direkt vidare till nästa avsnitt, modul eller tenta.",
+  "nar": "2026-11-01T18:06:54+00:00"
 }
