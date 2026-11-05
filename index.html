@@ -3661,6 +3661,10 @@ Object.assign(window.BILDER_EXTRA, {"m7f1bisk": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wB
 .ta-fr{font-weight:600; font-size:14.5px}
 .ta-ba{display:none; margin-top:8px; padding-top:8px; border-top:1px dashed var(--line); font-size:14px; color:var(--ink-2)}
 .ta-kort.open .ta-ba,.ta-kl.alla .ta-ba{display:block}
+.ta-anki{display:flex; flex-wrap:wrap; gap:12px 18px; align-items:center; justify-content:space-between; margin:0 0 14px}
+.ta-anki > div:first-child{flex:1 1 320px}
+.ta-anki .ta-sub{display:block; margin-top:3px}
+.ta-kortbild{display:block; max-width:100%; max-height:260px; margin-top:8px; border-radius:6px; background:#fff}
 .ta-bild{display:block; margin-top:6px; font-size:12px; font-family:var(--mono); color:var(--accent-ink)}
 .ta-ovahead{display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 18px}
 .ta-av{color:var(--ink-3); font-weight:500}
@@ -3800,6 +3804,7 @@ function taOversikt() {
     <div class="ta-knappar">
       <button class="btn primary" data-go="/tentaanalys/tentor">Öva på tentorna</button>
       <button class="btn" data-go="/tentaanalys/facit">Facit och rättelser</button>
+      <button class="btn" data-ta-anki="alla" title="En .apkg med alla flashcards och deras bilder, sorterade i en kortlek per modul">Alla ${D.moduler.reduce((a, m) => a + m.kort.length, 0)} flashcards till Anki</button>
       ${fel ? `<button class="btn" data-go="/tentaanalys/ova/fel/ny">Repetera dina fel (${fel})</button>` : ""}
     </div>
     <div class="rule"></div>
@@ -3875,12 +3880,18 @@ function taModul(n, flik, temaI) {
         ${nastaKnapp(m.teman, k)}</div></article>`).join("");
   } else if (flik === "kort") {
     const nc = m.kort.filter(k => k[2]).length;
-    const fmt = s => esc(s).replace(/&lt;br&gt;/g, "<br>").replace(/\[Lägg in bild på: ([^\]]+)\]/g, `<span class="ta-bild">Bild: $1</span>`);
-    body = `<div class="ta-kbar"><button class="btn primary" data-ta-kopiera="alla">Kopiera alla ${m.kort.length} som CSV</button>
+    const fmt = taKortHtml;
+    const antalBild = m.kort.filter(k => [...(k[0] + k[1]).matchAll(RE_TA_BILD)].some(x => taKortBild(x[1]))).length;
+    body = `<div class="ta-anki panel">
+        <div><b>Till Anki</b><span class="ta-sub">En färdig kortlek (.apkg) – öppna filen så importeras korten direkt, med bilder${antalBild ? ` (${antalBild} kort har bild)` : ""}. Korten hamnar i kortleken <i>BV5 Tentaanalys::Modul ${String(n).padStart(2, "0")}</i>.</span></div>
+        <div class="ta-knappar" style="margin:0">
+          <button class="btn primary" data-ta-anki="${n}">Modulens ${m.kort.length} kort till Anki</button>
+          <button class="btn" data-ta-anki="alla">Alla moduler till Anki</button></div></div>
+      <div class="ta-kbar"><button class="btn" data-ta-kopiera="alla">Kopiera alla ${m.kort.length} som CSV</button>
       <button class="btn" data-ta-kopiera="c">Kopiera bara 🔥 (${nc})</button>
       <label class="ta-tog"><input type="checkbox" id="ta-visasvar"> Visa baksidor</label>
       <label class="ta-tog"><input type="checkbox" id="ta-barac"> Bara 🔥</label><span class="ta-kmsg" aria-live="polite"></span></div>
-      <p class="ta-sub">Format <code>Framsida;Baksida</code>, ett kort per rad. I Anki: Arkiv → Importera, välj semikolon som fältavgränsare och tillåt HTML. Klicka på ett kort för att vända det.</p>
+      <p class="ta-sub">CSV-formatet är <code>Framsida;Baksida</code> utan bilder (i Anki: Arkiv → Importera, semikolon, tillåt HTML). Klicka på ett kort för att vända det.</p>
       <textarea id="ta-csv" class="ta-csv" readonly hidden></textarea>
       <ol class="ta-kl" id="ta-kl">${m.kort.map(k => `<li class="ta-kort" data-c="${k[2]}"><div class="ta-fr">${k[2] ? "🔥 " : ""}${fmt(k[0])}</div><div class="ta-ba">${fmt(k[1])}</div></li>`).join("")}</ol>`;
   }
@@ -3934,6 +3945,163 @@ function taModul(n, flik, temaI) {
     }));
   }
 }
+
+/* ---------- Tentaanalysens flashcards till Anki ----------
+   En .apkg med en kortlek per modul under "BV5 Tentaanalys", så att korten
+   sorteras in i moduler direkt när de importeras. Bilderna följer med i
+   paketet: ur bibliotekets bildbank eller ur tentornas egna figurer. */
+const TA_KORTBILD = {
+  "Starlingkrafter längs kapillären": "B:m5a2starling",
+  "groddcentrum med mörk och ljus zon": "B:m2b6gc",
+  "granulom med epiteloida celler och Langhans jättecell": "B:m2d1langhans",
+  "makrovesikulär steatos i lever": "B:m2d2steatos",
+  "Barretts esofagus med bägarceller": "B:m2d3barrett",
+  "hornpärlor i skivepitelcancer": "B:m7f9scc",
+  "högt differentierad skivepitelcancer med hornpärlor": "B:m7f9scc",
+  "längd–kraftkurva för sarkomer": "B:m41aktivpassiv",
+  "interkalerad disk med gap junctions och desmosomer": "B:m43kittlinjer",
+  "korsbryggecykeln": "B:m42korsbrygga",
+  "kammarmyocytens AP med faserna 0–4": "F:Ordinarie HT24 #55",
+  "Wiggersdiagram": "B:m43hjartcykelekg",
+  "tryck–volymslinga med ESPVR och EDPVR": "B:m43pvloop",
+  "pacemaker-AP med brant och flack fas 4": "B:m43sanod",
+  "aterosklerotiskt plack med fibrös kappa och lipidkärna": "B:m44stabilvulnerabel",
+  "infarkt med neutrofilinfiltrat": "B:m44infarkt1",
+  "normalt EKG-komplex med intervall": "B:m43normalekg",
+  "EKG vid förmaksflimmer": "B:m44arytmiremsor",
+  "HCM med förtjockat septum": "B:m44hcm",
+  "Fallots tetrad": "B:m44fallot",
+  "njure med blek kilformad infarkt": "B:m5a7vitnjure",
+  "tvärsnitt av aorta med falskt lumen i media": "B:m5a7dissektion",
+  "temporalisbiopsi med jätteceller": "B:m5a8gca",
+  "njurens kärlträd i frontalsnitt": "B:m6e2karltrad",
+  "EM-bild av glomerulär kapillärvägg med de tre lagren": "B:m6e2barriar",
+  "juxtaglomerulära apparaten med macula densa och arterioler": "B:m6e3jga",
+  "proximal tubuluscell med SGLT2 apikalt och GLUT2 basolateralt": "B:m6e4glut",
+  "Darrow–Yannet-diagram med normal och streckad box": "F:Ordinarie HT23 #112",
+  "glomerulus med cellulär crescent i Bowmans rum": "B:m6e10crescent",
+  "EM av podocyter med utplånade fotutskott": "B:m6e10mcnem",
+  "proximal tubulus med borstbrämsförlust vid ATN": "B:m6e10atn",
+  "glomerulus med Kimmelstiel–Wilson-noduli": "B:m6e10dm",
+  "klarcellig njurcancer i HE-färgning": "B:m6e11klarcellig",
+  "statiskt spirogram med volymer och kapaciteter": "F:Ordinarie VT23 #69",
+  "bronkbiopsi vid astma": "B:m2b7astma",
+  "kaseöst TB-granulom": "B:m2d2kaseos"
+};
+const RE_TA_BILD = /\[Lägg in bild på: ([^\]]+)\]/g;
+
+/* Bildens data-URL för en platshållare, eller null om ingen bild finns. */
+function taKortBild(text) {
+  const nyckel = TA_KORTBILD[String(text || "").trim()];
+  if (!nyckel) return null;
+  if (nyckel.startsWith("B:")) {
+    const k = nyckel.slice(2);
+    const data = typeof BILDDATA !== "undefined" ? BILDDATA[k] : null;
+    if (!data) return null;
+    const info = typeof BILDINFO !== "undefined" ? BILDINFO[k] : null;
+    return { id: k, url: "data:image/jpeg;base64," + data, ext: "jpg", titel: info ? info.t : text };
+  }
+  const f = taData().fragor[nyckel.slice(2)];
+  if (!f || !f.fig) return null;
+  const m = String(f.fig).match(/^data:image\/(\w+);/);
+  return { id: nyckel.slice(2).replace(/[^A-Za-z0-9]+/g, "-"), url: f.fig, ext: m ? (m[1] === "jpeg" ? "jpg" : m[1]) : "jpg", titel: "Ur " + f.t };
+}
+
+/* Kortets text som HTML: radbrytningar behålls, bildplatshållare blir
+   bilden (här i webbläsaren) eller en kort notis när bild saknas. */
+function taKortHtml(s) {
+  return esc(s).replace(/&lt;br&gt;/g, "<br>").replace(RE_TA_BILD, (m, t) => {
+    const b = taKortBild(t);
+    return b ? `<img class="ta-kortbild" src="${b.url}" alt="${esc(t)}" loading="lazy">` : `<span class="ta-bild">Bild: ${esc(t)}</span>`;
+  });
+}
+
+let _taAnkiPagar = false;
+async function taAnkiExport(vad, knapp) {
+  if (_taAnkiPagar) return;
+  _taAnkiPagar = true;
+  const D = taData();
+  const moduler = vad === "alla" ? D.moduler : D.moduler.filter(m => String(m.m) === String(vad));
+  const fore = knapp ? knapp.textContent : "";
+  const status = t => { if (knapp) knapp.textContent = t; };
+  try {
+    status("Bygger kortleken…");
+    await new Promise(r => setTimeout(r, 30));
+    const SQL = await sqlMotor();
+    const db = new SQL.Database();
+    db.run(ANKI_SCHEMA);
+    const nu = Date.now(), sek = Math.floor(nu / 1000);
+    const crt = Math.floor(new Date(new Date().setHours(4, 0, 0, 0)).getTime() / 1000);
+    const mid = 1700000000517;
+    const modell = ankiModell(mid);
+    modell[mid].name = "BV5 Tentaanalys";
+    modell[mid].css += "\n.bildtips{margin-top:10px; font-size:13px; color:#8b7f8c; font-style:italic}";
+    /* en kortlek per modul, under en gemensam förälder */
+    const decks = ankiDeck(1700000000100, "BV5 Tentaanalys");
+    const deckId = {};
+    moduler.forEach(m => {
+      const did = 1700000000100 + m.m;
+      deckId[m.m] = did;
+      decks[did] = { ...decks[1700000000100], id: did,
+        name: `BV5 Tentaanalys::Modul ${String(m.m).padStart(2, "0")} – ${m.namn}`.replace(/"/g, "'") };
+    });
+    db.run(`INSERT INTO col VALUES (1, ?, ?, ?, 11, 0, -1, 0, ?, ?, ?, ?, '{}')`, [
+      crt, nu, nu, JSON.stringify({ ...ANKI_CONF, curModel: String(mid) }), JSON.stringify(modell),
+      JSON.stringify(decks), JSON.stringify(ANKI_DCONF)
+    ]);
+
+    const media = {}, medieFiler = [], sedda = {};
+    let medieNr = 0, nr = 0;
+    const totalt = moduler.reduce((n, m) => n + m.kort.length, 0);
+    const ankiHtml = s => ankiText(s).replace(/&lt;br&gt;/g, "<br>");
+    for (const m of moduler) {
+      for (const k of m.kort) {
+        nr++;
+        if (nr % 200 === 0) { status(`Bygger kortleken… ${nr} av ${totalt}`); await new Promise(r => setTimeout(r, 0)); }
+        const bilder = (s) => s.replace(RE_TA_BILD, (hel, t) => {
+          const b = taKortBild(t);
+          if (!b) return `<div class="bildtips">Bild: ${ankiText(t)}</div>`;
+          let fil = sedda[b.id];
+          if (!fil) {
+            fil = `bv5-${b.id}.${b.ext}`;
+            media[String(medieNr)] = fil;
+            medieFiler.push({ namn: String(medieNr), data: base64TillBytes(b.url.slice(b.url.indexOf(",") + 1)) });
+            sedda[b.id] = fil;
+            medieNr++;
+          }
+          return `<br><img src="${fil}">`;
+        });
+        const fram = bilder(ankiHtml(k[0]));
+        const bak = bilder(ankiHtml(k[1]));
+        const kalla = ankiText(`Tentaanalys BV5 · Modul ${m.m} – ${m.namn}${k[2] ? " · 🔥 centralt" : ""}`);
+        const taggar = " BV5_Tentaanalys Modul_" + String(m.m).padStart(2, "0") + (k[2] ? " centralt" : "") + " ";
+        const nid = nu + nr * 2;
+        db.run(`INSERT INTO notes VALUES (?, ?, ?, ?, -1, ?, ?, ?, ?, 0, '')`,
+          [nid, ankiGuid("ta:" + m.m + ":" + k[0]), mid, sek, taggar, [fram, bak, kalla].join("\x1f"), fram, await ankiCsum(fram)]);
+        db.run(`INSERT INTO cards VALUES (?, ?, ?, 0, ?, -1, 0, 0, ?, 0, 0, 0, 0, 0, 0, 0, 0, '')`,
+          [nid + 1, nid, deckId[m.m], sek, nr]);
+      }
+    }
+    const bin = db.export();
+    db.close();
+    const paket = zipSkriv([{ namn: "collection.anki2", data: bin }, { namn: "media", data: JSON.stringify(media) }].concat(medieFiler));
+    const namn = vad === "alla" ? "BV5-Tentaanalys-alla-moduler.apkg"
+      : `BV5-Tentaanalys-modul-${String(moduler[0].m).padStart(2, "0")}.apkg`;
+    laddaNed(paket, namn);
+    status(`Klart – ${totalt} kort${medieNr ? ` och ${medieNr} bilder` : ""}`);
+    setTimeout(() => status(fore), 4000);
+  } catch (e) {
+    status("Det gick inte: " + String(e && e.message || e));
+    setTimeout(() => status(fore), 6000);
+  } finally {
+    _taAnkiPagar = false;
+  }
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest("[data-ta-anki]");
+  if (b) { e.preventDefault(); taAnkiExport(b.dataset.taAnki, b); }
+});
+
 
 function taTentor() {
   const D = taData();
@@ -33467,7 +33635,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261105-2100";
+const BYGGID = "20261105-2200";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
