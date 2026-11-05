@@ -1105,6 +1105,18 @@ body.insp-pa #fragaknapp{display:none !important}
 .insp-opt.vald, .insp-opt.vald:hover{background:var(--i-val)}
 .insp-opt:focus-visible{outline:2px solid var(--i-bla); outline-offset:-2px}
 .insp-opttext{flex:1; min-width:0}
+.matchlista{display:flex; flex-direction:column; gap:12px; margin:8px 0 16px}
+.matchlista-rad{display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px}
+.matchlista-rad > span:first-child{flex:1 1 220px; min-width:0}
+.matchsel{font:inherit; padding:6px 10px; border-radius:6px; border:1px solid #9a9a9a; background:#fff; color:#222; max-width:100%}
+.lucktext p{line-height:2.4; margin:10px 0 16px}
+.lucktext .matchsel{margin:0 4px}
+.ordbank{display:flex; flex-wrap:wrap; gap:8px; margin:4px 0 6px}
+.ordbank span{border:1px solid #b9b9b9; border-radius:4px; padding:4px 12px; background:#fff; color:#222; font-size:14px}
+.matchsvar{padding:2px 8px; border-radius:5px; border:1px solid var(--line)}
+.matchsvar.ratt{border-color:var(--ok); color:var(--ok)}
+.matchsvar.fel{border-color:var(--err); color:var(--err)}
+.matchfacit{color:var(--ok); margin-left:4px}
 .altbild{display:block; max-width:100%; max-height:220px; margin:2px 0; background:#fff; border-radius:4px}
 .insp-radio{flex:none; width:20px; height:20px; border-radius:50%; border:1.5px solid #9b9b9b; background:#fff; display:inline-flex; align-items:center; justify-content:center}
 .insp-opt.vald .insp-radio{border-color:#a8a8a8; background:#fff}
@@ -3781,7 +3793,7 @@ function taOversikt() {
     <h1>Tentaanalys</h1>
     <p class="lede">Alla gamla SBA-frågor sorterade i återkommande teman och kopplade till lärandemålen, med en 80/20-guide,
     en heltäckande guide, facitgranskning, flashcards och alla tentor att öva på. Sidan är fristående: din övning här
-    påverkar inte Tentamenssimulatorn eller Tentaprediktorn.</p>
+    påverkar inte Tentamenssimulatorn.</p>
     <div class="ta-stats"><div><b>${nq}</b><span>frågor</span></div><div><b>${D.tentor.length}</b><span>tentor</span></div>
       <div><b>${alla.length}</b><span>teman</span></div><div><b>${alla.filter(t => t.c).length}</b><span>🔥 centrala teman</span></div>
       <div><b>${D.moduler.reduce((a, m) => a + m.kort.length, 0)}</b><span>flashcards</span></div></div>
@@ -8898,10 +8910,9 @@ function parse() {
   }
   if (p[0] === "ai") return { name: "ai" };
   if (p[0] === "tentaanalys") return { name: "tentaanalys", p: p.slice(1) };
+  /* Tentaprediktorn finns inte längre – gamla länkar går till simulatorn */
   if (p[0] === "prediktor") {
-    if (p[1] === "ny") return { name: "prediktorny" };
-    if (p[1] === "analys") return { name: "prediktoranalys" };
-    return { name: "prediktor" };
+    return { name: "tenta" };
   }
   if (p[0] === "duell") {
     if (!p[1]) return { name: "duell" };
@@ -8988,7 +8999,6 @@ function viewHem() {
     ${nastaTentaKort()}
     <div style="display:flex; gap:10px; flex-wrap:wrap; margin:22px 0 24px; align-items:center">
       <button class="btn primary" data-go="/tenta">Tentamenssimulator</button>
-      <button class="btn" data-go="/prediktor">Tentaprediktor</button>
       <button class="btn" data-go="/tentaanalys">Tentaanalys</button>
       <button class="btn" data-go="/ai">AI-rättning</button>
       <button class="btn" data-go="/duell">Duell</button>
@@ -16150,6 +16160,8 @@ async function pdfSidData(sida) {
     return {
       text: txt, y: r.y, x0: bs[0].x, x1: bs[bs.length - 1].x, h: bs[0].h,
       xe: Math.max(...bs.map(b => b.x + (b.w || 0))), glyfLucka,
+      /* textbitarna med läge – behövs för rutnät och luckor */
+      delar: bs.map(b => ({ s: b.s, x: b.x, xe: b.x + (b.w || 0) })),
       fet: langa.length > 0 && langa.every(b => b.fet)
     };
   }).filter(r => r.text);
@@ -16280,7 +16292,7 @@ async function pdfLasTenta(bytes, onProgress, opt) {
         diagnos: {
           sidor: doc.numPages, rader: rader.length, skannad: false, lage: "inspera",
           utanFacit: F.filter(f => f.typ !== "text" && (f.svar === null || (Array.isArray(f.svar) && !f.svar.length))).length,
-          oense: 0, flersvar: F.filter(f => f.typ === "flerval").length, matchning: 0,
+          oense: 0, flersvar: F.filter(f => f.typ === "flerval").length, matchning: F.filter(f => f.typ === "matchning").length,
           medBild: F.filter(f => fragansBilder(f).length).length,
           metoder: F.reduce((o, f) => { if (f.hur) o[f.hur] = (o[f.hur] || 0) + 1; return o; }, {}),
           ocr
@@ -16503,6 +16515,9 @@ function redAvst(a, b) {
   return f[n];
 }
 function arTotalpoang(t) {
+  /* engelska Inspera-utskrifter: "Maximum marks: 1.5" */
+  if (/^\s*(maximum|max\.?)\s*(marks?|points?|poäng)\s*[:;.]?\s*[\d.,]+\s*$/i.test(String(t || ""))) return true;
+  if (/^\s*total\s*(points?|marks?)\s*[:;.]?\s*[\d.,]+\s*$/i.test(String(t || ""))) return true;
   const m = String(t || "").trim().match(/^([A-Za-zÅÄÖåäö0|]{8,13})\s*[:;.,]?\s*([\d.,]+)?\s*$/);
   if (!m) return false;
   return redAvst(normRad(m[1]).replace(/0/g, "o").replace(/[1|]/g, "l"), "totalpoäng") <= 2;
@@ -16514,11 +16529,23 @@ function poangUr(t) {
 function arValjRad(t) {
   const s = String(t || "").trim();
   if (RE_VALJ.test(s)) return true;
-  if (s.length > 48) return false;
+  if (s.length > 60) return false;
+  /* engelska: "Select one alternative:", "Select one or more alternatives:",
+     "Select all the alternatives that apply:", matchning: "Please match the values:" */
+  if (/^select\s+(one|two|three|four|all the|all|one or more|the correct)\s+alternatives?(\s+that apply)?\s*:?\s*$/i.test(s)) return true;
+  if (/^(please\s+match|para ihop|matcha)\b/i.test(s)) return true;
   const n = normRad(s);
   return /^v[aä]lj/.test(n) && /alternativ/.test(n);
 }
-function arFleraRad(t) { return RE_FLERA.test(t) || /eller\s*flera/i.test(t); }
+function arFleraRad(t) { return RE_FLERA.test(t) || /eller\s*flera|one or more|all the alternatives|select all/i.test(t); }
+const RE_FRITEXT = /^\s*(fill in your answer here|write your answer here|skriv (in )?(ditt|ert) svar( här)?|fyll i ditt svar( här)?)\s*:?\s*$/i;
+const RE_ROLLGARDIN = /\b(select alternative|välj alternativ)\b/i;
+/* rader i textredigerarens verktygsfält och räknare */
+const RE_REDIGERARE = /^\s*(format\b.*|words?\s*:\s*\d+|ord\s*:\s*\d+|tecken\s*:\s*\d+|characters?\s*:\s*\d+)\s*$/i;
+function arRedigerarSkrap(t) {
+  const s = String(t || "").replace(/[\uE000-\uF8FF\s]/g, "");
+  return !s || RE_REDIGERARE.test(t) || /^[Σ∑ΩΣ\-–|]+$/.test(s);
+}
 
 /* ---------- är det en Inspera-tenta? ---------- */
 function arInsperaTenta(sidor) {
@@ -16731,7 +16758,7 @@ function parsaInspera(sidor, opt) {
     const seg = allaRader.slice(start, slut[k]);
     const tp = allaRader[slut[k]];
     const nastaStart = slut[k] + 1;
-    const f = byggInsperaFraga(seg, tp, k, { arRubrik, radioVidRad, knapparPaSida, bockar, figurer, brodH, ocr, sidor,
+    const f = byggInsperaFraga(seg, tp, k, { arRubrik, radioVidRad, knapparPaSida, bockar, kandidater, figurer, brodH, ocr, sidor,
       nastaRad: allaRader[nastaStart] || null, forraSlut: k ? allaRader[slut[k - 1]] : null });
     if (f) {
       /* numren går i följd – ett feltolkat nummer (OCR) rättas av ordningen */
@@ -16750,6 +16777,14 @@ function byggInsperaFraga(seg, tpRad, k, C) {
   if (!seg.length) return null;
   /* ---- rubriken ---- */
   let i0 = 0, nr = k + 1, rubrik = "";
+  /* Informationssidor (utan poäng) hamnar före frågans rubrik i segmentet –
+     frågan börjar vid rubriken, inte vid segmentets början. */
+  {
+    const stopp = seg.findIndex(r => arValjRad(r.text) || RE_FRITEXT.test(r.text) || RE_ROLLGARDIN.test(r.text));
+    const gr = stopp >= 0 ? stopp : seg.length;
+    const hit = seg.slice(0, gr).findIndex(r => C.arRubrik(r));
+    if (hit > 0) seg = seg.slice(hit);
+  }
   for (let i = 0; i < Math.min(3, seg.length); i++) {
     const m = C.arRubrik(seg[i]);
     if (m) {
@@ -16773,9 +16808,12 @@ function byggInsperaFraga(seg, tpRad, k, C) {
   }
   /* rubriken kan gå över två rader */
   if (rubrik) {
-    while (i0 < seg.length && (seg[i0].fet || (C.ocr && seg[i0].h > C.brodH * 1.12)) &&
+    const sdR = (C.sidor || []).find(q => q.nr === seg[0].sida) || {};
+    const bred = (sdR.bredd || 595) * 0.66;
+    let forraXe = seg[i0 - 1] ? (seg[i0 - 1].xe || 0) : 0;
+    while (i0 < seg.length && (seg[i0].fet || (C.ocr && seg[i0].h > C.brodH * 1.12)) && forraXe > bred &&
         !arValjRad(seg[i0].text) && seg[i0].text.length < 120) {
-      rubrik += " " + seg[i0].text; i0++;
+      rubrik += " " + seg[i0].text; forraXe = seg[i0].xe || 0; i0++;
     }
   } else if (i0 < seg.length && seg[i0].fet && /^(modul|del|tema|avsnitt)\b/i.test(seg[i0].text) && !arValjRad(seg[i0].text)) {
     rubrik = seg[i0].text; i0++;
@@ -16799,13 +16837,22 @@ function byggInsperaFraga(seg, tpRad, k, C) {
   const figs = [];
   sidorna.forEach(s => (C.figurer[s] || []).forEach(r => { if (inom(s, r)) figs.push({ sida: s, ruta: { ...r } }); }));
 
+  /* ---- specialtyper ---- */
+  const special = hittaSpecialtyp(kropp, sidorna, inom, C);
+  if (special) {
+    /* figurer som täcker rutnät, ordbank eller luckor är inga figurer */
+    if (special.ruta) for (let i = figs.length - 1; i >= 0; i--) {
+      if (special.ruta.some(R => R.sida === figs[i].sida && rutorMots(R, figs[i].ruta, 2))) figs.splice(i, 1);
+    }
+  }
+
   /* ---- var börjar alternativen? ---- */
-  let v = kropp.findIndex(r => arValjRad(r.text));
+  let v = special ? special.v : kropp.findIndex(r => arValjRad(r.text));
   const flersvar = v >= 0 && arFleraRad(kropp[v].text);
   if (v < 0) v = kropp.findIndex(r => C.radioVidRad(r.sida, r).length);
   const stamRader = v >= 0 ? kropp.slice(0, v) : kropp.slice();
-  const altRader = v >= 0 ? kropp.slice(arValjRad((kropp[v] || {}).text) ? v + 1 : v) : [];
-  const valjRad = v >= 0 && arValjRad(kropp[v].text) ? kropp[v] : (altRader[0] || null);
+  const altRader = special ? [] : v >= 0 ? kropp.slice(arValjRad((kropp[v] || {}).text) ? v + 1 : v) : [];
+  const valjRad = special ? (kropp[v] || null) : v >= 0 && arValjRad(kropp[v].text) ? kropp[v] : (altRader[0] || null);
 
   /* Etikett: liten text alldeles intill en vektorfigur, i stammen. Alternativ
      (rader med en radioknapp) är aldrig etiketter. */
@@ -16874,7 +16921,7 @@ function byggInsperaFraga(seg, tpRad, k, C) {
     return behall;
   });
   const element = [];
-  stamRader.filter(r => !iFigur(r)).forEach(r => element.push({ typ: "rad", sida: r.sida, y: r.y, r }));
+  stamRader.filter(r => !iFigur(r) && !/^\s*(help|hjälp)\s*$/i.test(r.text)).forEach(r => element.push({ typ: "rad", sida: r.sida, y: r.y, r }));
   stamFig.forEach(fg => element.push({ typ: "fig", sida: fg.sida, y: fg.ruta.y1, fg }));
   element.sort((a, b) => a.sida - b.sida || b.y - a.y);
 
@@ -16904,6 +16951,21 @@ function byggInsperaFraga(seg, tpRad, k, C) {
     forra = r;
   });
   q = q.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+
+  if (special) {
+    const figurer2 = platser.map(p => ({ pos: p.pos, sida: p.fg.sida, ruta: p.fg.ruta }));
+    const bas = {
+      id: "f" + (k + 1), nr, q,
+      avsnitt: /^(fråga|uppgift|question)\s*\d+\s*$/i.test(rubrik.trim()) ? "" : rubrik.replace(/\s+/g, " ").trim(),
+      poang: tpRad ? poangUr(tpRad.text) : 1, sida: forsta.sida, y: forsta.y, oense: false,
+      mal: null, konf: null, facit: "", _figurer: figurer2
+    };
+    if (special.typ === "text") return { ...bas, typ: "text", options: [], svar: null, facit: special.facit || "", hur: special.facit ? "facittext" : null };
+    const sv = special.svar || special.rader.map(() => null);
+    return { ...bas, typ: "matchning", options: special.kolumner, matchrader: special.rader, svar: sv,
+      visning: special.visning || "", lucktext: special.lucktext || "",
+      hur: sv.some(x => x !== null && x !== undefined) ? "bock" : null };
+  }
 
   /* ---- alternativen ---- */
   const radios = [];
@@ -17169,6 +17231,204 @@ function altHtml(f, oi, o) {
   if (!b) return esc(o);
   const auto = /^Alternativ [A-H]$/.test(String(o || "").trim()) || !!(Array.isArray(f.altErsatt) && f.altErsatt[oi]);
   return `${auto ? "" : esc(o) + " "}<img class="altbild" data-media="${esc(b)}" alt="${esc(o || "Bild")}"${arDataUrl(b) ? ` src="${b}"` : ""}>`;
+}
+
+/* ---------- specialtyper i Inspera ----------
+   Fritext ("Fill in your answer here"), rullgardiner ("Select alternative"),
+   matchningsrutnät (knappar i rader och kolumner) och ifyllnad av luckor med
+   en ordbank. Returnerar null för vanliga flervalsfrågor. */
+function hittaSpecialtyp(kropp, sidorna, inom, C) {
+  /* fritext */
+  const fi = kropp.findIndex(r => RE_FRITEXT.test(r.text));
+  if (fi >= 0) {
+    const efter = kropp.slice(fi + 1).filter(r => !arRedigerarSkrap(r.text));
+    return { typ: "text", v: fi, facit: efter.map(r => r.text.trim()).join("\n").trim() };
+  }
+  /* rullgardiner: "Etikett [Select alternative] (A, B, C)." */
+  const ri = kropp.findIndex(r => RE_ROLLGARDIN.test(r.text));
+  if (ri >= 0) {
+    const txt = kropp.slice(ri).map(r => r.text.trim()).join(" ").replace(/\s+/g, " ");
+    const re = /(.+?)\s*(?:select alternative|välj alternativ)\s*\(([^()]*)\)\s*[.;]?/gi;
+    const rader = [], kolumner = [];
+    let m;
+    while ((m = re.exec(txt))) {
+      const etikett = m[1].replace(/^[\s.;,]+/, "").trim();
+      const alt = m[2].split(/\s*,\s*/).map(x => x.trim()).filter(Boolean);
+      alt.forEach(a => { if (!kolumner.includes(a)) kolumner.push(a); });
+      rader.push(etikett);
+    }
+    if (rader.length && kolumner.length >= 2) return { typ: "matchning", visning: "lista", v: ri, rader, kolumner };
+  }
+  /* matchningsrutnät */
+  const rut = hittaRutnat(kropp, sidorna, inom, C);
+  if (rut) return rut;
+  /* luckor med ordbank */
+  const luck = hittaLuckor(kropp, sidorna, inom, C);
+  if (luck) return luck;
+  return null;
+}
+
+function klustra(varden, tol) {
+  const s = varden.slice().sort((a, b) => a - b), ut = [];
+  s.forEach(v => { const sist = ut[ut.length - 1]; if (sist && v - sist.max <= tol) { sist.max = v; sist.v.push(v); } else ut.push({ min: v, max: v, v: [v] }); });
+  return ut.map(k => k.v.reduce((a, b) => a + b, 0) / k.v.length);
+}
+
+function hittaRutnat(kropp, sidorna, inom, C) {
+  for (const sn of sidorna) {
+    const sd = (C.sidor || []).find(q => q.nr === sn);
+    if (!sd || (sd.smaVagar || 0) > 250 || C.ocr) continue;
+    const kand = (C.kandidater[sn] || []).filter(c => inom(sn, { y0: c.yc, y1: c.yc }));
+    if (kand.length < 4) continue;
+    const xs = klustra(kand.map(c => c.xc), 3), ys = klustra(kand.map(c => c.yc), 3).sort((a, b) => b - a);
+    if (xs.length < 2 || ys.length < 2 || kand.length < xs.length * ys.length * 0.8) continue;
+    /* gränser mellan kolumnerna och raderna */
+    const dx = xs.length > 1 ? Math.min(...xs.slice(1).map((x, i) => x - xs[i])) : 60;
+    const kolGr = xs.map((x, i) => [i ? (xs[i - 1] + x) / 2 : x - dx / 2, i < xs.length - 1 ? (x + xs[i + 1]) / 2 : x + dx / 2]);
+    const dy = ys.length > 1 ? Math.min(...ys.slice(1).map((y, i) => ys[i] - y)) : 30;
+    const radGr = ys.map(y => [y - dy / 2, y + dy / 2]);
+    const rader = kropp.filter(r => r.sida === sn);
+    const pv = kropp.findIndex(r => arValjRad(r.text));
+    /* kolumnrubriker: text ovanför första raden */
+    const huvud = xs.map(() => []);
+    const huvudRader = rader.filter(r => r.y > ys[0] + dy * 0.35 && r.y < ys[0] + dy * 4 && r.x0 >= kolGr[0][0] - 6 &&
+      (pv < 0 || r.y < kropp[pv].y - 2 || kropp[pv].sida !== sn));
+    huvudRader.forEach(r => {
+      (r.delar || [{ s: r.text, x: r.x0, xe: r.xe || r.x0 }]).forEach(d => {
+        if (!d.s.trim()) return;
+        const mx = (d.x + (d.xe || d.x)) / 2;
+        const ki = kolGr.findIndex(([a, b]) => mx >= a && mx < b);
+        if (ki >= 0) huvud[ki].push({ y: r.y, x: d.x, s: d.s.trim() });
+      });
+    });
+    const foga = l => l.sort((a, b) => b.y - a.y || a.x - b.x).map(o => o.s)
+      .reduce((t, d) => !t ? d : /-$/.test(t) && /^[a-zåäö]/.test(d) ? t + d : t + " " + d, "").replace(/\s+/g, " ").trim();
+    const kolumner = huvud.map(foga);
+    /* radetiketter: text till vänster om första kolumnen */
+    const vanster = kolGr[0][0];
+    /* radgränser ur tabellens linjer och cellrutor */
+    const kanter = [];
+    (sd.vektorer || []).forEach(v => {
+      if (v.x1 - v.x0 > (sd.bredd || 595) * 0.85) return;
+      if (v.x0 < kolGr[0][0] - 12 || v.x1 > kolGr[kolGr.length - 1][1] + 12) return;
+      if (v.y1 < ys[ys.length - 1] - dy * 1.5 || v.y0 > ys[0] + dy * 1.5) return;
+      kanter.push(v.y0, v.y1);
+    });
+    const kantY = klustra(kanter, 2);
+    const band = ys.map(y => {
+      const over = kantY.filter(k => k > y + 2), under = kantY.filter(k => k < y - 2);
+      return over.length && under.length ? [Math.max(...under), Math.min(...over)] : [y - dy / 2, y + dy / 2];
+    });
+    const etiketter = ys.map(() => []);
+    const etikettRader = [];
+    rader.forEach(r => {
+      const my = r.y + r.h * 0.3;
+      if (my > Math.max(ys[0] + dy * 0.6, band[0][1]) || my < Math.min(ys[ys.length - 1] - dy * 0.6, band[band.length - 1][0])) return;
+      (r.delar || [{ s: r.text, x: r.x0, xe: r.xe || r.x0 }]).forEach(d => {
+        if (!d.s.trim() || (d.xe || d.x) > vanster + 2) return;
+        /* raden vars cell (mellan tabellens linjer) rymmer texten; annars närmaste rad */
+        let ri = band.findIndex(([lo, hi]) => my > lo && my < hi);
+        if (ri < 0) {
+          let bd = Infinity;
+          ys.forEach((y, i) => { if (Math.abs(y - my) < bd) { bd = Math.abs(y - my); ri = i; } });
+        }
+        etiketter[ri].push({ y: r.y, x: d.x, s: d.s.trim() });
+        etikettRader.push(r);
+      });
+    });
+    const radtext = etiketter.map(foga);
+    if (radtext.filter(Boolean).length < ys.length * 0.6) continue;
+    /* facit: bock i en ruta */
+    const svar = ys.map(() => null);
+    (C.bockar[sn] || []).forEach(b => {
+      const ki = kolGr.findIndex(([a, c]) => b.xc >= a && b.xc < c + dx * 0.4);
+      const ri = radGr.findIndex(([a, c]) => b.yc >= a && b.yc < c);
+      if (ki >= 0 && ri >= 0) svar[ri] = ki;
+    });
+    const ruta = { sida: sn, x0: Math.min(vanster, ...rader.filter(r => r.y > ys[ys.length - 1] - dy && r.y < ys[0] + dy * 3).map(r => r.x0)) - 4,
+      x1: kolGr[kolGr.length - 1][1] + 4, y0: ys[ys.length - 1] - dy, y1: ys[0] + dy * 3 };
+    const forstaDel = kropp.findIndex(r => huvudRader.includes(r) || etikettRader.includes(r));
+    const v = pv >= 0 ? pv : forstaDel >= 0 ? forstaDel : kropp.length;
+    return { typ: "matchning", visning: "", v, rader: radtext.map((t, i) => t || `Rad ${i + 1}`),
+      kolumner: kolumner.map((t, i) => t || `Kolumn ${i + 1}`), svar, ruta: [ruta] };
+  }
+  return null;
+}
+
+function hittaLuckor(kropp, sidorna, inom, C) {
+  for (const sn of sidorna) {
+    const sd = (C.sidor || []).find(q => q.nr === sn);
+    if (!sd || C.ocr) continue;
+    /* rektanglar i lagom storlek: ordbankens rutor och luckorna */
+    const rekt = [];
+    (sd.vektorer || []).forEach(v => {
+      const b = v.x1 - v.x0, h = v.y1 - v.y0;
+      if (b < 18 || b > 200 || h < 10 || h > 32) return;
+      if (!inom(sn, v)) return;
+      if (!rekt.some(o => Math.abs(o.x0 - v.x0) < 2 && Math.abs(o.y0 - v.y0) < 2 && Math.abs(o.x1 - v.x1) < 2)) rekt.push({ ...v });
+    });
+    if (rekt.length < 4) continue;
+    const rader = kropp.filter(r => r.sida === sn);
+    const delarI = R => {
+      const ut = [];
+      rader.forEach(r => (r.delar || []).forEach(d => {
+        const mx = (d.x + (d.xe || d.x)) / 2, my = r.y + r.h * 0.3;
+        if (d.s.trim() && mx > R.x0 && mx < R.x1 && my > R.y0 - 1 && my < R.y1 + 1) ut.push({ r, d });
+      }));
+      return ut;
+    };
+    rekt.forEach(R => { R.inne = delarI(R); });
+    /* en rad är en ordbanksrad om all dess text står i rutor */
+    const iRuta = (r, d) => rekt.some(R => R.inne.some(o => o.d === d));
+    const bankRader = new Set(rader.filter(r => (r.delar || []).filter(d => d.s.trim()).length >= 2 &&
+      (r.delar || []).filter(d => d.s.trim()).every(d => iRuta(r, d))));
+    const bank = rekt.filter(R => R.inne.length && R.inne.every(o => bankRader.has(o.r)));
+    const luckor = rekt.filter(R => !bank.includes(R) && rader.some(r => !bankRader.has(r) && Math.abs(r.y + r.h * 0.3 - (R.y0 + R.y1) / 2) < 9));
+    if (bank.length < 2 || !luckor.length) continue;
+    bank.sort((a, b) => b.y1 - a.y1 > 4 ? 1 : a.y1 - b.y1 > 4 ? -1 : a.x0 - b.x0);
+    const ord = [];
+    bank.forEach(R => { const t = R.inne.map(o => o.d.s.trim()).join(" "); if (t && !ord.includes(t)) ord.push(t); });
+    /* meningarna med luckor */
+    const bankTopp = Math.max(...bank.map(R => R.y1)), bankBotten = Math.min(...bank.map(R => R.y0));
+    const menRader = rader.filter(r => !bankRader.has(r) && r.y < bankBotten).sort((a, b) => b.y - a.y);
+    let lucktext = "", n = 0;
+    const svar = [];
+    menRader.forEach(r => {
+      const delar = (r.delar || [{ s: r.text, x: r.x0, xe: r.xe }]).filter(d => d.s.trim());
+      const pa = luckor.filter(R => Math.abs(r.y + r.h * 0.3 - (R.y0 + R.y1) / 2) < 9);
+      const elem = delar.filter(d => !pa.some(R => R.inne.some(o => o.d === d))).map(d => ({ x: d.x, s: d.s.trim() }))
+        .concat(pa.map(R => ({ x: R.x0, lucka: R })));
+      elem.sort((a, b) => a.x - b.x);
+      elem.forEach(e => {
+        if (e.lucka) {
+          lucktext += (lucktext && !/\s$/.test(lucktext) ? " " : "") + "{{" + n + "}}";
+          /* en ifylld lucka (facit) */
+          const fylld = e.lucka.inne.map(o => o.d.s.trim()).join(" ");
+          svar.push(fylld && ord.includes(fylld) ? ord.indexOf(fylld) : null);
+          n++;
+        } else lucktext += (lucktext && !/^[.,;:!?)]/.test(e.s) ? " " : "") + e.s;
+      });
+    });
+    lucktext = lucktext.replace(/\s+([.,;:!?)])/g, "$1").trim();
+    if (!n) continue;
+    /* radetiketter till andra vyer: orden runt luckan */
+    const delarTxt = lucktext.split(/(\{\{\d+\}\})/);
+    const rad = [];
+    for (let i = 0; i < delarTxt.length; i++) {
+      const m = delarTxt[i].match(/^\{\{(\d+)\}\}$/);
+      if (!m) continue;
+      const fore = (delarTxt[i - 1] || "").replace(/\{\{\d+\}\}/g, "…").trim().split(/\s+/).slice(-4).join(" ");
+      const efter = (delarTxt[i + 1] || "").replace(/\{\{\d+\}\}/g, "…").trim().split(/\s+/).slice(0, 3).join(" ");
+      rad.push(`${fore} ___ ${efter}`.trim());
+    }
+    /* stammen slutar före ordbanken (och "Help"-länken) */
+    const forstaBank = kropp.findIndex(r => r.sida === sn && r.y <= bankTopp + 30);
+    const ruta = bank.concat(luckor).map(R => ({ sida: sn, x0: R.x0, x1: R.x1, y0: R.y0, y1: R.y1 }));
+    ruta.push({ sida: sn, x0: Math.min(...bank.map(R => R.x0)) - 2, x1: Math.max(...bank.map(R => R.x1)) + 2, y0: bankBotten - 2, y1: bankTopp + 2 });
+    return { typ: "matchning", visning: "lucka", v: forstaBank >= 0 ? forstaBank : kropp.length, rader: rad, kolumner: ord,
+      lucktext, svar, ruta };
+  }
+  return null;
 }
 
 
@@ -17851,6 +18111,7 @@ function matchningsRutnat(f, valt, lage) {
   const kol = f.options || [];
   const v = Array.isArray(valt) ? valt : [];
   const facit = Array.isArray(f.svar) ? f.svar : [];
+  if (f.visning === "lista" || f.visning === "lucka") return matchningsRullgardin(f, v, facit, lage);
   return `<div class="matchwrap"><table class="matchtabell">
     <thead><tr><th></th>${kol.map(k => `<th>${esc(k)}</th>`).join("")}</tr></thead>
     <tbody>
@@ -17874,6 +18135,35 @@ function matchningsRutnat(f, valt, lage) {
           }).join("")}
         </tr>`).join("")}
     </tbody></table></div>`;
+}
+
+/* Rullgardiner (Inspera "Select alternative") och luckor med ordbank.
+   Samma data som ett matchningsrutnät: en rad per rullgardin eller lucka,
+   alternativen i options och svaret som ett index per rad. */
+function matchningsRullgardin(f, v, facit, lage) {
+  const kol = f.options || [], rader = f.matchrader || [];
+  const val = ri => {
+    const nu = lage === "svara" ? v[ri] : lage === "facit" ? facit[ri] : v[ri];
+    if (lage === "svara" || lage === "facit") {
+      return `<select class="matchsel" data-matchsel="${ri}" aria-label="${esc(rader[ri] || "Lucka " + (ri + 1))}">
+        <option value="">Välj…</option>
+        ${kol.map((k, ki) => `<option value="${ki}"${nu === ki ? " selected" : ""}>${esc(k)}</option>`).join("")}</select>`;
+    }
+    const ratt = facit[ri], mitt = v[ri];
+    const ok = mitt !== null && mitt !== undefined && mitt === ratt;
+    return `<span class="matchsvar ${ok ? "ratt" : mitt === null || mitt === undefined ? "tom" : "fel"}">${
+      mitt === null || mitt === undefined ? "–" : esc(kol[mitt] || "")}${!ok && ratt !== null && ratt !== undefined
+      ? ` <b class="matchfacit">${esc(kol[ratt] || "")}</b>` : ""}</span>`;
+  };
+  if (f.visning === "lucka" && f.lucktext) {
+    const bank = `<div class="ordbank">${kol.map(k => `<span>${esc(k)}</span>`).join("")}</div>`;
+    const text = String(f.lucktext).split(/(\{\{\d+\}\})/).map(d => {
+      const m = d.match(/^\{\{(\d+)\}\}$/);
+      return m ? val(+m[1]) : esc(d);
+    }).join("");
+    return `<div class="lucktext">${bank}<p>${text}</p></div>`;
+  }
+  return `<div class="matchlista">${rader.map((r, ri) => `<div class="matchlista-rad"><span>${esc(r)}</span>${val(ri)}</div>`).join("")}</div>`;
 }
 
 /* Rättar en matchningsfråga lokalt: poäng per rätt parad rad. */
@@ -18833,6 +19123,9 @@ function normaliseraTenta(t) {
         : f.typ === "matchning" ? "matchning" : "sba",
       /* Matchningsfrågans rader; kolumnerna ligger i options som vanligt. */
       matchrader: Array.isArray(f.matchrader) ? f.matchrader.map(x => String(x || "")) : [],
+      /* hur matchningen visas: rutnät (""), rullgardiner ("lista") eller luckor i en text ("lucka") */
+      visning: f.visning === "lista" || f.visning === "lucka" ? f.visning : "",
+      lucktext: typeof f.lucktext === "string" ? f.lucktext : "",
       sort: f.sort || "",
       namn: f.namn || "",
       poang: Number(f.poang) > 0 ? Number(f.poang) : 1,
@@ -19956,6 +20249,14 @@ function viewTentaNy() {
       const omOCR = document.getElementById("lasOmOCR");
       if (omOCR) omOCR.addEventListener("click", () => korOm("ocr"));
 
+      status.querySelectorAll("select[data-matchsel]").forEach(sel => sel.addEventListener("change", () => {
+        const kort = sel.closest("[data-fraga]");
+        const i = +kort.dataset.fraga;
+        const nu = Array.isArray(F[i].svar) ? F[i].svar.slice() : [];
+        while (nu.length < (F[i].matchrader || []).length) nu.push(null);
+        nu[+sel.dataset.matchsel] = sel.value === "" ? null : +sel.value;
+        F[i].svar = nu; F[i].hur = "manuell";
+      }));
       status.querySelectorAll("[data-match]").forEach(b => b.addEventListener("click", () => {
         const kort = b.closest("[data-fraga]");
         const i = +kort.dataset.fraga;
@@ -20033,18 +20334,17 @@ function viewTentaNy() {
            paus så att knappen hinner rita om sig på mobilen. */
         await new Promise(r => setTimeout(r, 30));
         try { autokoppla(t); } catch (e) {}
-        /* Duplikatfiltrering: samma tenta två gånger skulle räkna varje mönster
-           dubbelt i Tentaprediktorn. */
+        /* Samma tenta två gånger blir bara en dubblett i listan. */
         const dubb = typeof predDubblett === "function" ? predDubblett(t, allaTentor()) : null;
         if (dubb) {
           const behall = await bekrafta(
             `Den här tentan verkar redan vara inläst som ”${dubb.titel}” (${(dubb.fragor || []).length} frågor). ` +
-            `Lägger du in den igen räknas varje fråga dubbelt i Tentaprediktorn. Vill du lägga in den ändå?`,
+            `Vill du lägga in den en gång till ändå?`,
             "Lägg in ändå");
           if (!behall) {
             knapp.disabled = false; knapp.textContent = "Spara tentan";
             _tentaRetur = null;
-            go(dubb.inbyggd || !dubb.id ? "#/prediktor" : "#/tenta/" + encodeURIComponent(dubb.id));
+            go(dubb.inbyggd || !dubb.id ? "#/tenta" : "#/tenta/" + encodeURIComponent(dubb.id));
             return;
           }
         }
@@ -20523,7 +20823,7 @@ function viewTentaKor() {
   if (f.typ === "text") {
     svar = `<p class="insp-instr">Fyll i ditt svar här</p>${inspEditor(typeof valt === "string" ? valt : "", f.poang >= 3 ? 14 : 8, false)}`;
   } else if (f.typ === "matchning") {
-    svar = `<p class="insp-instr">Para ihop värdena:</p><div id="topts">${matchningsRutnat(f, valt, "svara")}</div>`;
+    svar = `<p class="insp-instr">${f.visning === "lucka" ? "Fyll i luckorna:" : f.visning === "lista" ? "Välj rätt alternativ i varje lista:" : "Para ihop värdena:"}</p><div id="topts">${matchningsRutnat(f, valt, "svara")}</div>`;
   } else if (f.typ === "flerval") {
     svar = `<p class="insp-instr">Välj ett eller flera alternativ:</p>
       <div class="insp-alt" id="topts" role="group" aria-label="Svarsalternativ, flera kan vara rätt">${f.options.map((o, oi) => {
@@ -20592,6 +20892,17 @@ function viewTentaKor() {
   };
 
   const optsRuta = view.querySelector("#topts");
+  /* rullgardiner och luckor */
+  if (optsRuta) optsRuta.addEventListener("change", e => {
+    const sel = e.target.closest("select[data-matchsel]");
+    if (!sel || f.typ !== "matchning") return;
+    const ri = +sel.dataset.matchsel;
+    const nu = Array.isArray(a.svar[fi]) ? a.svar[fi].slice() : [];
+    while (nu.length < (f.matchrader || []).length) nu.push(null);
+    nu[ri] = sel.value === "" ? null : +sel.value;
+    a.svar[fi] = nu;
+    tsave(); meddelaFramsteg();
+  });
   if (optsRuta) optsRuta.addEventListener("click", e => {
     const ruta = e.target.closest("[data-match]");
     if (ruta && f.typ === "matchning") {
@@ -26345,57 +26656,11 @@ function viewProvResultat(k, m, nyckel) {
 }
 
 
-/* =====================================================================
-   TENTAPREDIKTOR
-   Tväranalys av minst två gamla tentor: vilka frågor och ämnesområden
-   återkommer, och hur sannolikt är det att de dyker upp igen?
-
-   Fristående från tentamenssimulatorn, men läser samma tentor och
-   använder exakt samma uppladdning och avläsning — en tenta som lästs in
-   en gång finns i båda funktionerna.
-
-   Mönstren redovisas på tre nivåer, eftersom de betyder olika saker för
-   pluggandet: ordagrant återanvända frågor, omformuleringar av samma
-   kärnfakta, och ämneskategorier med hög frekvens.
-
-   Hela analysen körs lokalt. Tre saker avgör om två frågor hör ihop:
-   texten, svarsalternativen och vilket lärandemål frågan kopplats till.
-   ===================================================================== */
-
-const PREDKEY = "lmb.pred.v1";
-let predstore = { valda: null };
-try {
-  const raw = localStorage.getItem(PREDKEY);
-  if (raw) predstore = Object.assign(predstore, JSON.parse(raw));
-} catch (e) {}
-function predsave() { try { localStorage.setItem(PREDKEY, JSON.stringify(predstore)); } catch (e) {} }
-
-/* Tentabanken delas med Tentamenssimulatorn, så en borttagning här tar bort
-   tentan på riktigt. Inbyggda tentor går inte att ta bort. */
-function predTaBort(id) {
-  tstore.egna = tstore.egna.filter(x => x.id !== id); tsave();
-  predstore.valda = (predstore.valda || []).filter(x => x !== id);
-  if (predstore.senaste) {
-    predstore.senaste.ids = predstore.senaste.ids.filter(x => x !== id);
-    if (predstore.senaste.ids.length < 2) predstore.senaste = null;
-  }
-  predsave();
+/* Dubblettkontroll när en tenta sparas (kvar från Tentaprediktorn). */
+function normText(s) {
+  return String(s || "").toLowerCase().replace(/[^a-zåäöéü0-9]+/g, " ").trim();
 }
 
-/* Efter en körning nollställs urvalet, så att nästa gång börjar rent.
-   Själva resultatet sparas bara så länge det visas. */
-function predNollstall(ids) {
-  predstore.senaste = { ids, nar: Date.now() };
-  predstore.valda = [];
-  predsave();
-}
-
-/* ---------- duplikatfiltrering ----------
-   Samma tenta uppladdad två gånger skulle räknas som två oberoende
-   förekomster och blåsa upp varje siffra i analysen. Identiteten avgörs
-   av terminen när den går att läsa ut, och annars av ett fingeravtryck
-   byggt av frågetexterna — samma frågor är samma tenta även om filen
-   döpts om. */
 function predFingeravtryck(t) {
   const delar = (t.fragor || [])
     .map(f => normText(f.q).slice(0, 60))
@@ -26408,7 +26673,6 @@ function predFingeravtryck(t) {
   return delar.length + ":" + (h >>> 0).toString(36);
 }
 
-/* Returnerar den redan inlästa tentan som den nya är en dubblett av, annars null. */
 function predDubblett(ny, bland) {
   const nyTerm = terminOrdning(ny);
   const nyFp = predFingeravtryck(ny);
@@ -26426,10 +26690,6 @@ function predDubblett(ny, bland) {
   }) || null;
 }
 
-/* ---------- tidsordning ----------
-   Aktualiteten ska väga tungt, så tentorna måste kunna sorteras i tid.
-   Terminsbeteckningen i titeln är den säkraste källan — HT25, VT-26,
-   "ht 2025" — och först därefter ett datumfält. */
 function terminOrdning(t) {
   const txt = `${t.titel || ""} ${t.kalla || ""} ${t.datum || ""}`;
   const m = txt.match(/\b(HT|VT)\s*-?\s*((?:19|20)\d{2}|\d{2})\b/i);
@@ -26447,672 +26707,6 @@ function terminOrdning(t) {
   return { ord: null, etikett: "" };
 }
 
-/* Tentorna rankas nyast först. Saknas terminsuppgift hamnar tentan i
-   mitten i stället för sist — en okänd termin är inte samma sak som en
-   gammal termin, och ska inte straffas som om den vore det. */
-function predRanka(tentor) {
-  const med = tentor.map(t => ({ t, ...terminOrdning(t) }));
-  const kanda = med.filter(x => x.ord !== null).map(x => x.ord);
-  const mitt = kanda.length ? kanda.sort((a, b) => a - b)[Math.floor(kanda.length / 2)] : 0;
-  med.forEach(x => { x.sort = x.ord === null ? mitt + 0.5 : x.ord; });
-  med.sort((a, b) => b.sort - a.sort);
-  const n = med.length;
-  med.forEach((x, i) => {
-    /* Nyast får full vikt, äldst 0,35, och däremellan jämnt fördelat. */
-    x.vikt = n <= 1 ? 1 : 1 - (i / (n - 1)) * 0.65;
-    x.plats = i;
-  });
-  return med;
-}
-
-/* ---------- textlikhet ---------- */
-function predTok(txt) { return new Set(tokens(txt)); }
-function jaccard(a, b) {
-  if (!a.size || !b.size) return 0;
-  let snitt = 0;
-  a.forEach(t => { if (b.has(t)) snitt++; });
-  return snitt / (a.size + b.size - snitt);
-}
-function normText(s) {
-  return String(s || "").toLowerCase().replace(/[^a-zåäöéü0-9]+/g, " ").trim();
-}
-
-/* Plockar isär en tenta i jämförbara frågeposter. */
-function predFragor(rankad) {
-  const ut = [];
-  rankad.forEach(r => {
-    (r.t.fragor || []).forEach(f => {
-      const q = String(f.q || "").trim();
-      if (q.length < 12) return;
-      ut.push({
-        tenta: r.t, tentaTitel: r.t.titel, etikett: r.etikett, vikt: r.vikt, plats: r.plats,
-        q, nr: f.nr, mal: f.mal || null, typ: f.typ,
-        tk: predTok(q),
-        ok: predTok((f.options || []).join(" ")),
-        norm: normText(q)
-      });
-    });
-  });
-  return ut;
-}
-
-/* Hur två frågor hänger ihop, och på vilken grund. Grunderna är
-   ordagrann, snarlik, alternativ och område — samma fyra som
-   matchningskriterierna. */
-function predLikhet(a, b) {
-  if (a.norm && a.norm === b.norm) return { sim: 1, grund: "ordagrann" };
-  const jt = jaccard(a.tk, b.tk);
-  if (jt >= 0.82) return { sim: jt, grund: "ordagrann" };
-  const jo = jaccard(a.ok, b.ok);
-  const sammaMal = a.mal && b.mal && a.mal === b.mal;
-  if (jt >= 0.5) return { sim: jt, grund: "snarlik" };
-  if (jo >= 0.55 && jt >= 0.2) return { sim: Math.max(jt, jo * 0.9), grund: "alternativ" };
-  if (sammaMal && jt >= 0.16) return { sim: Math.max(jt, 0.42), grund: "område" };
-  if (sammaMal && jo >= 0.35) return { sim: 0.4, grund: "område" };
-  return { sim: 0, grund: null };
-}
-
-/* Klustrar frågorna med union-find över alla par som når över tröskeln. */
-function predKluster(fragor) {
-  const far = fragor.map((_, i) => i);
-  const hitta = i => { while (far[i] !== i) { far[i] = far[far[i]]; i = far[i]; } return i; };
-  const slaIhop = (i, j) => { const a = hitta(i), b = hitta(j); if (a !== b) far[a] = b; };
-  const grunder = new Map();
-
-  for (let i = 0; i < fragor.length; i++) {
-    for (let j = i + 1; j < fragor.length; j++) {
-      const { sim, grund } = predLikhet(fragor[i], fragor[j]);
-      if (!grund || sim < 0.4) continue;
-      slaIhop(i, j);
-      const nyckel = hitta(i);
-      if (!grunder.has(nyckel)) grunder.set(nyckel, []);
-      grunder.get(nyckel).push({ grund, sim });
-    }
-  }
-
-  const grupper = new Map();
-  fragor.forEach((f, i) => {
-    const r = hitta(i);
-    if (!grupper.has(r)) grupper.set(r, []);
-    grupper.get(r).push(f);
-  });
-
-  /* Grunderna samlades under den rot klustret hade när paret slogs ihop,
-     och roten kan ha flyttat sedan dess. Därför läggs de ihop på nytt. */
-  const grundPer = new Map();
-  grunder.forEach((lista, gammalRot) => {
-    const r = hitta(gammalRot);
-    if (!grundPer.has(r)) grundPer.set(r, []);
-    grundPer.get(r).push(...lista);
-  });
-
-  return [...grupper.entries()].map(([r, medlemmar]) => ({
-    medlemmar, grunder: grundPer.get(r) || []
-  }));
-}
-
-/* ---------- ämnesnamn ---------- */
-function predAmne(kluster) {
-  const malRakning = new Map();
-  kluster.medlemmar.forEach(f => { if (f.mal) malRakning.set(f.mal, (malRakning.get(f.mal) || 0) + 1); });
-  const bast = [...malRakning.entries()].sort((a, b) => b[1] - a[1])[0];
-  /* Målets titel används bara när minst hälften av frågorna i klustret pekar
-     på samma mål. Gör de inte det beskriver målet något annat än det frågorna
-     faktiskt har gemensamt, och då är de gemensamma orden ärligare. */
-  if (bast && bast[1] >= Math.max(2, Math.ceil(kluster.medlemmar.length / 2))) {
-    const ref = malRef(bast[0]);
-    if (ref) return { titel: ref.mal.titel, malId: bast[0], ref };
-  }
-  let gem = null;
-  kluster.medlemmar.forEach(f => {
-    if (!gem) { gem = new Set(f.tk); return; }
-    gem = new Set([...gem].filter(t => f.tk.has(t)));
-  });
-  const ord = [...(gem || [])].sort((a, b) => b.length - a.length).slice(0, 4);
-  if (ord.length) return { titel: ord.join(", "), malId: null, ref: null };
-  const f = kluster.medlemmar[0];
-  return { titel: f.q.slice(0, 70) + (f.q.length > 70 ? "…" : ""), malId: null, ref: null };
-}
-
-/* ---------- prediktion ----------
-   Två faktorer: hur stor andel av tentorna ämnet förekommer i, och hur
-   nyliga de tentorna är. Frekvensen sätter taket, aktualiteten avgör hur
-   mycket av taket som tas ut. */
-function predChans(kluster, antalTentor) {
-  const tentor = [...new Set(kluster.medlemmar.map(f => f.tentaTitel))];
-  const relativ = tentor.length / Math.max(1, antalTentor);
-  const vikter = [...new Map(kluster.medlemmar.map(f => [f.tentaTitel, f.vikt])).values()];
-  const aktualitet = vikter.length ? Math.max(...vikter) * 0.6 + (vikter.reduce((a, b) => a + b, 0) / vikter.length) * 0.4 : 0;
-  const poang = relativ * (0.55 + 0.45 * aktualitet);
-  const procent = Math.round(poang * 100);
-  return { poang, procent, relativ, aktualitet, niva: predNiva(procent), tentor };
-}
-
-/* Tröskelvärdena för mätaren: 0–33 rött, 34–66 gult, 67–100 grönt. */
-function predNiva(procent) { return procent <= 33 ? "lag" : procent <= 66 ? "medel" : "stor"; }
-const PREDNAMN = { stor: "Stor chans", medel: "Medel chans", lag: "Låg chans" };
-
-/* Förloppsmätaren som ersatte de färgade kvadraterna. */
-function predMatare(procent, etikett) {
-  const niva = predNiva(procent);
-  return `<div class="predmatare ${niva}" role="img"
-    aria-label="${PREDNAMN[niva]}, ${procent} procent">
-      <div class="predmatare-spar"><i style="width:${Math.max(2, Math.min(100, procent))}%"></i></div>
-      <span class="predmatare-tal">${procent} %</span>
-      ${etikett === false ? "" : `<span class="predmatare-text">${PREDNAMN[niva]}</span>`}
-    </div>`;
-}
-
-/* ---------- analysen ---------- */
-const PREDNIVAER = {
-  ordagrann: { nyckel: "ordagrant", rubrik: "Ordagrant återanvända frågor",
-    ingress: "Samma fråga har återkommit i praktiskt taget oförändrad form. Det här är det billigaste du kan plugga — kan du svaret sitter poängen." },
-  omformulering: { nyckel: "omformulering", rubrik: "Omformuleringar av samma kärnfakta",
-    ingress: "Frågan ställs olika mellan terminerna, men prövar samma sak — ofta med samma svarsalternativ. Lär dig konceptet, inte ordalydelsen." },
-  område: { nyckel: "omrade", rubrik: "Områden som testas om och om igen",
-    ingress: "Olika frågor, samma ämnesområde. Här räcker det inte att kunna en detalj; hela området kan komma." }
-};
-function predGrundNiva(grund) {
-  if (grund === "ordagrann") return "ordagrann";
-  if (grund === "snarlik" || grund === "alternativ") return "omformulering";
-  return "område";
-}
-
-function predAnalys(valdaIds) {
-  const alla = allaTentor().filter(t => valdaIds.includes(t.id));
-  const rankad = predRanka(alla);
-  const fragor = predFragor(rankad);
-  const kluster = predKluster(fragor);
-
-  const rader = kluster
-    /* Strikt filtrering: allt som bara testas en gång ignoreras helt. */
-    .filter(kl => kl.medlemmar.length >= 2)
-    .map(kl => {
-      const amne = predAmne(kl);
-      const chans = predChans(kl, alla.length);
-      const grundRakning = {};
-      kl.grunder.forEach(g => { grundRakning[g.grund] = (grundRakning[g.grund] || 0) + 1; });
-      const grund = ["ordagrann", "snarlik", "alternativ", "område"]
-        .filter(g => grundRakning[g])
-        .sort((a, b) => grundRakning[b] - grundRakning[a])[0] || "område";
-      return { ...kl, amne, chans, grund, niva: predGrundNiva(grund) };
-    })
-    .sort((a, b) => b.chans.poang - a.chans.poang || b.medlemmar.length - a.medlemmar.length);
-
-  return { tentor: rankad, fragor, rader, antalTentor: alla.length,
-           omraden: predOmraden(fragor, rankad, alla.length) };
-}
-
-/* Nivå tre: ämneskategoriernas frekvens. Kategorin är submodulen som
-   lärandemålet hör till — det är den nivå kursen själv delar in stoffet
-   i. Frågor utan koppling till ett mål kan inte kategoriseras och räknas
-   därför inte här. */
-function predOmraden(fragor, rankad, antalTentor) {
-  const per = new Map();
-  fragor.forEach(f => {
-    if (!f.mal) return;
-    const ref = malRef(f.mal);
-    if (!ref) return;
-    const nyckel = `${ref.modul.nr}.${ref.sub.nr}`;
-    if (!per.has(nyckel)) per.set(nyckel, {
-      nyckel, titel: ref.sub.titel, modul: ref.modul, sub: ref.sub,
-      fragor: [], tentor: new Set(), mal: new Set()
-    });
-    const o = per.get(nyckel);
-    o.fragor.push(f); o.tentor.add(f.tentaTitel); o.mal.add(f.mal);
-  });
-  const tot = fragor.filter(f => f.mal && malRef(f.mal)).length || 1;
-  return [...per.values()]
-    /* Samma strikta tröskel: ett område som bara testats en gång är ingen trend. */
-    .filter(o => o.fragor.length >= 2)
-    .map(o => {
-      const vikter = [...new Map(o.fragor.map(f => [f.tentaTitel, f.vikt])).values()];
-      const aktualitet = Math.max(...vikter) * 0.6 + (vikter.reduce((a, b) => a + b, 0) / vikter.length) * 0.4;
-      const relativ = o.tentor.size / Math.max(1, antalTentor);
-      const andel = o.fragor.length / tot;
-      const procent = Math.round(Math.min(1, relativ * (0.55 + 0.45 * aktualitet) + andel * 0.35) * 100);
-      return { ...o, tentor: [...o.tentor], antalMal: o.mal.size, andel, procent, niva: predNiva(procent) };
-    })
-    .sort((a, b) => b.procent - a.procent || b.fragor.length - a.fragor.length);
-}
-
-const PREDGRUND = {
-  ordagrann: "ordagrant eller nästan ordagrant samma fråga",
-  snarlik: "snarlik formulering",
-  alternativ: "liknande svarsalternativ",
-  område: "samma specifika ämnesområde"
-};
-
-/* ---------- startsidan ---------- */
-function viewPrediktor() {
-  const tentor = allaTentor();
-  const rankad = predRanka(tentor);
-  const valda = new Set(predstore.valda || tentor.map(t => t.id));
-  const sen = predstore.senaste && predstore.senaste.ids.filter(id => tentor.some(t => t.id === id));
-
-  view.innerHTML = `
-    ${crumbs([{ t: "Översikt", href: "/" }, { t: "Tentaprediktor" }])}
-    <p class="eyebrow">Tentaprediktor</p>
-    <h1>Vad kommer på nästa tenta?</h1>
-    <p class="lede">Ladda upp minst två gamla tentor, så tväranalyseras de efter mönster på tre nivåer:
-    ordagrant återanvända frågor, omformuleringar av samma kärnfakta, och vilka ämnesområden som testas
-    oftast. Bara det som förekommer <b>minst två gånger</b> redovisas — allt som bara testats en enda
-    gång ignoreras.</p>
-    <div class="rule"></div>
-
-    ${tentor.length < 2 ? `
-      <div class="empty">
-        <b>Prediktorn behöver minst två tentor</b>
-        ${tentor.length === 1
-          ? "Du har en tenta inläst. Ladda upp minst en till, så kan mönstren mellan dem analyseras."
-          : "Ingen tenta är inläst ännu. Ladda upp två eller fler gamla tentor med facit."}
-      </div>
-      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:18px">
-        <button class="btn primary" data-go="/prediktor/ny">Läs in en tenta</button>
-        <button class="btn" data-go="/tenta">Till tentamenssimulatorn</button>
-      </div>` : `
-      <div class="split">
-        <div>
-          <h2 style="font-size:20px; margin:0 0 4px">Tentor att analysera</h2>
-          <p class="s" style="margin:0 0 14px">Bocka av de tentor som ska ingå. Ordningen är nyast först —
-          nyare tentor väger tyngre i prediktionen.</p>
-          <div class="goals">
-            ${rankad.map(r => `
-              <div class="goal${r.t.inbyggd ? "" : " medradera"}" data-klar="${valda.has(r.t.id) ? 1 : 0}">
-                <button class="check" data-pred="${esc(r.t.id)}" aria-pressed="${valda.has(r.t.id)}"
-                        aria-label="${valda.has(r.t.id) ? "Ta bort" : "Lägg till"} ${esc(r.t.titel)}">${TICK}</button>
-                <span class="open" style="cursor:default">
-                  <span class="idx">${r.etikett || "?"}</span>
-                  <span>
-                    <span class="t">${esc(r.t.titel)}</span>
-                    <span class="s">${(r.t.fragor || []).length} frågor${
-                      r.ord === null ? " · termin okänd, viktas i mitten" : ""}${
-                      r.t.inbyggd ? " · inbyggd" : ""}</span>
-                  </span>
-                </span>
-                ${r.t.inbyggd ? "" : `<button class="predradera" data-radera="${esc(r.t.id)}"
-                  title="Ta bort tentan" aria-label="Ta bort ${esc(r.t.titel)}">Ta bort</button>`}
-              </div>`).join("")}
-          </div>
-          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:20px; align-items:center">
-            <button class="btn primary" id="predkor">Analysera</button>
-            <button class="btn" data-go="/prediktor/ny">Läs in en tenta till</button>
-            <button class="lank" id="predalla">${valda.size === rankad.length ? "Avmarkera alla" : "Markera alla"}</button>
-          </div>
-          ${sen && sen.length >= 2 ? `<p class="s" style="margin-top:14px">
-            Urvalet nollställdes efter förra körningen.
-            <button class="lank" id="predsen">Visa den analysen igen</button> ·
-            <button class="lank" id="predsenom">Kör om med samma ${sen.length} tentor</button></p>` : ""}
-          <p class="s" id="predvarning" style="margin-top:12px"></p>
-        </div>
-
-        <aside class="aside">
-          <div class="panel">
-            <h4>Så räknas chansen</h4>
-            <p class="s" style="margin:0">Två faktorer avgör:<br>
-            <b>Relativ frekvens</b> — i hur stor andel av tentorna ämnet finns. Två av två väger tungt,
-            två av tio betydligt lättare.<br>
-            <b>Aktualitet</b> — ämnen i de senaste tentorna väger tyngre än sådant som bara fanns i
-            gamla.</p>
-            <div style="margin-top:14px; display:flex; flex-direction:column; gap:10px">
-              ${predMatare(85)}${predMatare(50)}${predMatare(20)}
-            </div>
-          </div>
-          <div class="panel">
-            <h4>Dubbletter blockeras</h4>
-            <p class="s" style="margin:0">Laddar du upp en tenta som redan finns inläst stoppas den, så
-            att samma termin inte räknas två gånger och drar upp siffrorna.</p>
-          </div>
-        </aside>
-      </div>`}`;
-
-  view.querySelectorAll("[data-radera]").forEach(b => b.addEventListener("click", async e => {
-    e.stopPropagation();
-    const t = tentor.find(x => x.id === b.dataset.radera);
-    if (!await bekrafta(`Ta bort ${t ? "”" + t.titel + "”" : "tentan"}? Den försvinner även ur Tentamenssimulatorn. Tidigare försök finns kvar.`, "Ta bort")) return;
-    predTaBort(b.dataset.radera);
-    viewPrediktor();
-  }));
-  const alla = document.getElementById("predalla");
-  if (alla) alla.addEventListener("click", () => {
-    predstore.valda = valda.size === rankad.length ? [] : rankad.map(r => r.t.id);
-    predsave(); viewPrediktor();
-  });
-  const vs = document.getElementById("predsen");
-  if (vs) vs.addEventListener("click", () => go("#/prediktor/analys"));
-  const vo = document.getElementById("predsenom");
-  if (vo) vo.addEventListener("click", () => {
-    predstore.valda = predstore.senaste.ids.slice(); predsave(); viewPrediktor();
-  });
-  view.querySelectorAll("[data-pred]").forEach(b => b.addEventListener("click", () => {
-    const id = b.dataset.pred;
-    if (valda.has(id)) valda.delete(id); else valda.add(id);
-    predstore.valda = [...valda]; predsave();
-    viewPrediktor();
-  }));
-  const kor = document.getElementById("predkor");
-  if (kor) kor.addEventListener("click", () => {
-    if (valda.size < 2) {
-      document.getElementById("predvarning").innerHTML =
-        `<b style="color:var(--warn)">Välj minst två tentor.</b> Mönster mellan tentor kräver
-         minst två att jämföra.`;
-      return;
-    }
-    predstore.valda = [...valda]; predsave();
-    go("#/prediktor/analys");
-  });
-}
-
-/* ---------- resultatet ---------- */
-function viewPrediktorAnalys() {
-  const alla = allaTentor();
-  /* Körningen utgår från urvalet, och om det redan nollställts — vid en
-     omladdning av sidan — från den senaste körningens tentor. */
-  let valda = (predstore.valda || []).filter(id => alla.some(t => t.id === id));
-  if (valda.length < 2 && predstore.senaste)
-    valda = predstore.senaste.ids.filter(id => alla.some(t => t.id === id));
-  if (valda.length < 2) return go("#/prediktor");
-  predNollstall(valda);
-
-  const res = predAnalys(valda);
-  _predRes = res;
-  const niv = { ordagrann: [], omformulering: [], område: [] };
-  res.rader.forEach(r => niv[r.niva].push(r));
-  const fordelning = { stor: 0, medel: 0, lag: 0 };
-  res.rader.forEach(r => fordelning[r.chans.niva]++);
-
-  view.innerHTML = `
-    ${crumbs([{ t: "Översikt", href: "/" }, { t: "Tentaprediktor", href: "/prediktor" }, { t: "Analys" }])}
-    <p class="eyebrow">Tentaprediktor · ${res.antalTentor} tentor · ${res.fragor.length} frågor</p>
-    <h1>${res.rader.length} återkommande ${res.rader.length === 1 ? "ämne" : "ämnen"}</h1>
-    <p class="lede">Tväranalys av ${res.tentor.map(t => esc(t.t.titel)).join(", ")}.
-    Bara det som förekommer minst två gånger redovisas; allt som bara testades en gång är bortfiltrerat.</p>
-    <div class="rule"></div>
-
-    <div class="split">
-      <div>
-        ${predRadgivning(res, niv)}
-        <div id="predlista"></div>
-        ${res.rader.length ? "" : `
-          <div class="empty">
-            <b>Inga mönster över tröskeln</b>
-            Ingen fråga och inget ämnesområde återkom i två eller fler av de valda tentorna. Prova att
-            lägga till fler tentor — mönster syns sällan i två tentor om de täcker olika delar av kursen.
-          </div>`}
-      </div>
-
-      <aside class="aside">
-        <div class="panel">
-          <h4>Fördelning</h4>
-          <p class="s" style="margin:0 0 4px">Stor chans: <b>${fordelning.stor}</b> ·
-          Medel: <b>${fordelning.medel}</b> · Låg: <b>${fordelning.lag}</b></p>
-        </div>
-        <div class="panel">
-          <h4>Nivåerna</h4>
-          <p class="s" style="margin:0">
-            Ordagrant: <b>${niv.ordagrann.length}</b><br>
-            Omformuleringar: <b>${niv.omformulering.length}</b><br>
-            Områden: <b>${res.omraden.length}</b></p>
-        </div>
-        <div class="panel">
-          <h4>Tentorna i analysen</h4>
-          <p class="s" style="margin:0">${res.tentor.map(t =>
-            `${t.etikett ? `<b>${t.etikett}</b> ` : ""}${esc(t.t.titel)}`).join("<br>")}</p>
-        </div>
-        <button class="btn wide" data-go="/prediktor">Ändra urval</button>
-        <button class="btn wide" data-go="/prediktor/ny">Läs in en tenta till</button>
-      </aside>
-    </div>`;
-
-  const lista = document.getElementById("predlista");
-  let nr = 0;
-  ["ordagrann", "omformulering", "område"].forEach(n => {
-    const rader = niv[n];
-    if (!rader.length) return;
-    const h = PREDNIVAER[n];
-    const rub = document.createElement("div");
-    rub.className = "prednivarubrik";
-    rub.innerHTML = `<h2>${h.rubrik}</h2><p class="s">${h.ingress}</p>`;
-    lista.appendChild(rub);
-    rader.forEach(r => lista.appendChild(predKort(r, ++nr, res)));
-  });
-
-  if (res.omraden.length) {
-    const rub = document.createElement("div");
-    rub.className = "prednivarubrik";
-    rub.innerHTML = `<h2>${PREDNIVAER["område"].rubrik === "Områden som testas om och om igen"
-      ? "Ämneskategoriernas frekvens" : "Ämneskategorier"}</h2>
-      <p class="s">Hur tentornas frågor fördelar sig över kursens submoduler. Det här är inte enskilda
-      frågor utan var tyngdpunkten ligger — plugga brett i de områden som ligger högst.</p>`;
-    lista.appendChild(rub);
-    res.omraden.forEach(o => {
-      const d = document.createElement("div");
-      d.className = "predomrade";
-      d.innerHTML = `
-        <div class="predomrade-topp">
-          <b>${o.modul.nr}.${o.sub.nr} ${esc(o.sub.titel)}</b>
-          <span class="s">${o.fragor.length} frågor · ${o.antalMal} lärandemål ·
-          ${o.tentor.length} av ${res.antalTentor} tentor</span>
-        </div>
-        ${predMatare(o.procent)}`;
-      lista.appendChild(d);
-    });
-  }
-
-  kopplaPredKort(lista, res);
-}
-
-let _predRes = null;
-
-function predKort(r, i, res) {
-  const kort = document.createElement("div");
-  kort.className = "predkort";
-  kort.dataset.amne = r.amne.titel;
-  const tentor = r.chans.tentor;
-  const ovaText = `Generera 3 typiska övningsfrågor för ${r.amne.titel} på samma svårighetsgrad som tentorna.`;
-  kort.innerHTML = `
-    <div class="predhuvud">
-      ${predMatare(r.chans.procent)}
-      <span class="s">${i} av ${res.rader.length}</span>
-    </div>
-    <h3 class="predtitel">${esc(r.amne.titel)}</h3>
-    ${r.amne.ref ? `<p class="s" style="margin:0 0 12px">Lärandemål ${esc(r.amne.malId)} ·
-      modul ${r.amne.ref.modul.nr}.${r.amne.ref.sub.nr} ${esc(r.amne.ref.sub.titel)}</p>` : ""}
-
-    <p class="predrad"><b>Förekomst &amp; källor:</b> ${r.medlemmar.length} gånger,
-    ${PREDGRUND[r.grund]}, i ${tentor.length === 1 ? "tentan" : `${tentor.length} tentor`} —
-    ${tentor.map(t => `<b>${esc(t)}</b>`).join(" och ")}.</p>
-
-    <p class="predrad"><b>Prediktion:</b> ${PREDNAMN[r.chans.niva]}, ${r.chans.procent} %.
-    ${predMotiv(r, res.antalTentor)}</p>
-
-    <p class="predrad"><b>Fokus/råd:</b> ${predRad(r)}</p>
-
-    <details class="predkallor">
-      <summary>Visa de ${r.medlemmar.length} frågorna och var de stod</summary>
-      <div>
-        ${r.medlemmar.slice().sort((a, b) => a.plats - b.plats).map(f => `
-          <div class="predfraga">
-            <span class="predkalla">${f.etikett ? f.etikett + " · " : ""}${esc(f.tentaTitel)}, fråga ${f.nr}</span>
-            <span>${esc(f.q)}</span>
-          </div>`).join("")}
-      </div>
-    </details>
-
-    <div class="predova">
-      <button class="btn primary" data-generera="${esc(r.amne.titel)}">Generera övningsfrågor</button>
-      <button class="btn" data-ova="${esc(ovaText)}">Fråga i chatten</button>
-      <button class="btn" data-kopiera="${esc(ovaText)}">Kopiera uppmaningen</button>
-      ${r.amne.ref && r.amne.ref.mal.quiz && r.amne.ref.mal.quiz.length
-        ? `<button class="btn" data-go="${malLank(r.amne.ref)}">Öppna genomgången</button>` : ""}
-    </div>
-    <div class="predovning" hidden></div>`;
-  return kort;
-}
-
-/* Konkreta råd om nästa tenta, byggda på det analysen faktiskt visar. */
-function predRadgivning(res, niv) {
-  if (!res.rader.length && !res.omraden.length) return "";
-  const toppar = res.rader.filter(r => r.chans.niva === "stor").slice(0, 3);
-  const bitar = [];
-  if (niv.ordagrann.length) bitar.push(`<li><b>Börja med de ${niv.ordagrann.length} ordagrant
-    återanvända ${niv.ordagrann.length === 1 ? "frågan" : "frågorna"}.</b> De ger poäng för minsta
-    möjliga insats — kan du svaret sitter det.</li>`);
-  if (niv.omformulering.length) bitar.push(`<li><b>Lär konceptet bakom de ${niv.omformulering.length}
-    omformulerade ${niv.omformulering.length === 1 ? "frågan" : "frågorna"}.</b> Ordalydelsen byter de
-    mellan terminerna, så att plugga in formuleringen hjälper inte.</li>`);
-  if (res.omraden.length) bitar.push(`<li><b>Lägg tyngdpunkten på
-    ${esc(res.omraden[0].sub.titel)}${res.omraden[1] ? ` och ${esc(res.omraden[1].sub.titel)}` : ""}.</b>
-    ${res.omraden[0].fragor.length} av tentornas frågor kom därifrån.</li>`);
-  if (toppar.length) bitar.push(`<li><b>Ta ${toppar.map(t => esc(t.amne.titel)).join(", ")} först
-    bland ämnena.</b> ${toppar.length === 1 ? "Det ligger" : "De ligger"} högst i prediktionen.</li>`);
-  return `<div class="note predrad-tips">
-    <b>Vad du bör göra före nästa tenta</b>
-    <ul style="margin:10px 0 0; padding-left:20px; line-height:1.6">${bitar.join("")}</ul></div>`;
-}
-
-function kopplaPredKort(lista, res) {
-  lista.querySelectorAll("[data-ova]").forEach(b => b.addEventListener("click", () => {
-    if (typeof oppna === "function") oppna(b.dataset.ova);
-  }));
-  lista.querySelectorAll("[data-kopiera]").forEach(b => b.addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(b.dataset.kopiera); } catch (e) {}
-    const gammalt = b.textContent;
-    b.textContent = "Kopierad";
-    setTimeout(() => { b.textContent = gammalt; }, 1600);
-  }));
-  lista.querySelectorAll("[data-generera]").forEach(b => b.addEventListener("click", () =>
-    predGenerera(b, res)));
-}
-
-/* ---------- autogenererade övningsfrågor ----------
-   Frågorna genereras med användarens egen API-nyckel och grundas på de
-   verkliga tentafrågorna i klustret, så svårighetsgraden blir densamma.
-   Utan nyckel plockas i stället riktiga frågor ur bibliotekets egen bank
-   för samma lärandemål. */
-async function predGenerera(knapp, res) {
-  const kort = knapp.closest(".predkort");
-  const ut = kort.querySelector(".predovning");
-  const amne = knapp.dataset.generera;
-  const rad = res.rader.find(r => r.amne.titel === amne);
-  if (!rad) return;
-  ut.hidden = false;
-
-  if (!aiAktiv()) {
-    const ref = rad.amne.ref;
-    const bank = ref && ref.mal.quiz ? ref.mal.quiz : [];
-    if (!bank.length) {
-      ut.innerHTML = `<div class="note"><b>Generering kräver en API-nyckel.</b>
-        Lägg in din nyckel på sidan <a href="#/ai">AI-rättning</a>, så skrivs nya frågor på det här ämnet. Utan nyckel kan
-        jag bara visa frågor som redan finns i biblioteket, och det här ämnet har inga.</div>`;
-      return;
-    }
-    const valda = shuffle(bank).slice(0, 3);
-    ut.innerHTML = `<div class="note" style="margin-bottom:12px"><b>Ur bibliotekets egen bank.</b>
-      Utan API-nyckel genereras inga nya frågor — här är tre befintliga på samma lärandemål.</div>` +
-      valda.map((f, i) => predOvningKort(i + 1, f.q,
-        shuffle(f.options.map((t, oi) => ({ t, ratt: oi === f.svar }))), f.forklaring)).join("");
-    return;
-  }
-
-  knapp.disabled = true;
-  ut.innerHTML = `<div class="note"><b>Skriver tre övningsfrågor om ${esc(amne)}…</b></div>`;
-  const exempel = rad.medlemmar.slice(0, 4).map(f => "- " + f.q).join("\n");
-  const prompt =
-`Du skriver övningsfrågor till en svensk läkarstudent inför tentamen.
-
-ÄMNE: ${amne}
-
-Så här har ämnet faktiskt testats på tidigare tentor:
-${exempel}
-
-Skriv tre nya flervalsfrågor på exakt samma svårighetsgrad och i samma stil som exemplen ovan, på svenska.
-Varje fråga ska ha fem svarsalternativ där precis ett är rätt.
-
-Svara med ENBART giltig JSON, ingen annan text, i formen:
-[{"q":"frågan","options":["rätt svar","fel 1","fel 2","fel 3","fel 4"],"forklaring":"varför det rätta svaret är rätt"}]
-
-Första alternativet ska alltid vara det rätta. Distraktorerna ska vara entydigt fel men trovärdiga, ur
-samma ämnesområde, och ungefär lika långa som det rätta svaret.`;
-
-  try {
-    const { text } = await aiKo(() => fragaAI([{ role: "user", content: prompt }], {}),
-      `Genererar övningsfrågor om ${amne}…`);
-    const json = (String(text || "").match(/\[[\s\S]*\]/) || [])[0];
-    const fragor = JSON.parse(json);
-    if (!Array.isArray(fragor) || !fragor.length) throw new Error("tomt svar");
-    ut.innerHTML = fragor.slice(0, 3).map((f, i) => predOvningKort(i + 1, f.q,
-      shuffle((f.options || []).map((t, oi) => ({ t, ratt: oi === 0 }))), f.forklaring)).join("");
-  } catch (e) {
-    ut.innerHTML = `<div class="note" style="background:color-mix(in srgb, var(--warn) 12%, transparent)">
-      <b>Frågorna kunde inte genereras.</b> ${esc(String(e && e.message || e)).slice(0, 140)}</div>`;
-  }
-  knapp.disabled = false;
-  predKopplaOvning(ut);
-}
-
-function predOvningKort(nr, q, opts, forklaring) {
-  return `<div class="qcard predovkort">
-    <div class="qnum">Övningsfråga ${nr}</div>
-    <div class="qtext">${esc(q)}</div>
-    <div class="opts">
-      ${opts.map((o, i) => `<button class="opt" data-ratt="${o.ratt ? 1 : 0}">
-        <span class="lt">${String.fromCharCode(65 + i)}</span><span>${esc(o.t)}</span></button>`).join("")}
-    </div>
-    <div class="expl" hidden>${esc(forklaring || "")}</div>
-  </div>`;
-}
-
-function predKopplaOvning(rot) {
-  rot.querySelectorAll(".predovkort").forEach(k => {
-    k.querySelectorAll(".opt").forEach(b => b.addEventListener("click", () => {
-      if (k.dataset.svarat) return;
-      k.dataset.svarat = "1";
-      k.querySelectorAll(".opt").forEach(x => {
-        if (x.dataset.ratt === "1") x.classList.add("correct");
-        else if (x === b) x.classList.add("wrong");
-        x.disabled = true;
-      });
-      const e = k.querySelector(".expl");
-      if (e && e.textContent.trim()) e.hidden = false;
-    }));
-  });
-}
-
-/* Motiveringen ska säga varför nivån blev som den blev, utifrån de två
-   faktorerna — inte bara upprepa nivån. */
-function predMotiv(r, antalTentor) {
-  const n = r.chans.tentor.length;
-  const senaste = Math.max(...r.medlemmar.map(f => f.vikt));
-  const frekvens = `Förekommer i ${n} av ${antalTentor} tentor`;
-  const tid = senaste >= 0.85
-    ? ", och finns med i den senaste tentan"
-    : senaste >= 0.6
-      ? ", och i en av de nyare tentorna"
-      : ", men bara i äldre tentor";
-  const slut = r.chans.niva === "stor"
-    ? " — hög andel och färskt, alltså det här ska du kunna."
-    : r.chans.niva === "medel"
-      ? " — återkommande, men inte i varje tenta."
-      : " — mönstret finns, men tunt eller gammalt.";
-  return frekvens + tid + slut;
-}
-
-/* Rådet följer lärandemålets djupnivå när frågorna kopplats till ett mål,
-   och annars matchningsgrunden. */
-function predRad(r) {
-  const delmal = r.amne.ref ? (r.amne.ref.mal.delmal || []).join(" ").toLowerCase() : "";
-  if (/i detalj/.test(delmal)) return "Målet kräver detaljkunskap. Plugga mekanismen steg för steg — ytlig översikt räcker inte här.";
-  if (/förklara/.test(delmal)) return "Målet kräver att du kan förklara hur och varför. Öva på att säga mekanismen högt utan att titta.";
-  if (/resonera/.test(delmal)) return "Målet kräver resonemang. Träna på att väga faktorer mot varandra och koppla orsak till följd.";
-  if (/identifiera/.test(delmal)) return "Målet handlar om igenkänning. Gå igenom bilderna och de visuella kännetecknen tills de sitter.";
-  if (/definiera/.test(delmal)) return "Målet kräver exakta definitioner. Lär dig den precisa innebörden, inte bara ungefär vad det handlar om.";
-  if (/känna till/.test(delmal)) return "Målet ligger på känna till-nivå. Det räcker att veta att det finns och de enkla fakta kring det.";
-  if (r.grund === "ordagrann") return "Samma fråga har återanvänts rakt av. Läs den ordagrant och se till att du kan svaret utan att tveka.";
-  if (r.grund === "alternativ") return "Svarsalternativen återkommer. Lär dig skilja alternativen åt — det är där poängen avgörs.";
-  if (r.grund === "snarlik") return "Frågan omformuleras mellan terminer. Lär dig konceptet, inte frågans ordalydelse.";
-  return "Området testas om och om igen med olika frågor. Se till att du täcker hela området, inte bara en aspekt.";
-}
 
 /* =====================================================================
    HOST-BASERAD RÄTTNING AV SKRIVFRÅGOR I DUELL
@@ -27523,9 +27117,6 @@ function render() {
   else if (r.name === "tentatest") viewTentaTest();
   else if (r.name === "ai") viewAI();
   else if (r.name === "tentaanalys") viewTentaanalys(r.p);
-  else if (r.name === "prediktor") viewPrediktor();
-  else if (r.name === "prediktoranalys") viewPrediktorAnalys();
-  else if (r.name === "prediktorny") { _tentaRetur = "#/prediktor"; viewTentaNy(); }
   else if (r.name === "duell") viewDuellHub();
   else if (r.name === "duellny") viewDuellNy();
   else if (r.name === "duelltopp") viewDuellTopp();
@@ -33876,7 +33467,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261105-1600";
+const BYGGID = "20261105-2100";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
