@@ -1105,6 +1105,7 @@ body.insp-pa #fragaknapp{display:none !important}
 .insp-opt.vald, .insp-opt.vald:hover{background:var(--i-val)}
 .insp-opt:focus-visible{outline:2px solid var(--i-bla); outline-offset:-2px}
 .insp-opttext{flex:1; min-width:0}
+.altbild{display:block; max-width:100%; max-height:220px; margin:2px 0; background:#fff; border-radius:4px}
 .insp-radio{flex:none; width:20px; height:20px; border-radius:50%; border:1.5px solid #9b9b9b; background:#fff; display:inline-flex; align-items:center; justify-content:center}
 .insp-opt.vald .insp-radio{border-color:#a8a8a8; background:#fff}
 .insp-opt.vald .insp-radio::after{content:""; width:10px; height:10px; border-radius:50%; background:#b5b5b5}
@@ -16013,7 +16014,9 @@ async function pdfSidData(sida) {
   /* Operatorlistan ger både fontberoenden, vektorgrafik och bilder.
      Transformationsmatrisen måste följas för att grafiken ska hamna rätt. */
   const ol = await sida.getOperatorList();
-  const markeringar = [], bilder = [], overstrykningar = [];
+  const markeringar = [], bilder = [], overstrykningar = [], smaBilder = [], vektorer = [], lagaBilder = [];
+  let smaVagar = 0;
+  const smaVagLista = [];
   let ctm = [1, 0, 0, 1, 0, 0];
   const stack = [];
   let fyll = null, strek = null;
@@ -16031,8 +16034,22 @@ async function pdfSidData(sida) {
       const xs = h.map(q => q[0]), ys = h.map(q => q[1]);
       const ruta = { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
       if (ruta.x1 - ruta.x0 > 40 && ruta.y1 - ruta.y0 > 40) bilder.push(ruta);
+      /* låga bilder: formler, tabellrader */
+      else if (ruta.x1 - ruta.x0 > 24 && ruta.y1 - ruta.y0 > 10 && (ruta.x1 - ruta.x0) * (ruta.y1 - ruta.y0) > 500) lagaBilder.push(ruta);
+      /* radioknappar ritade som små bilder */
+      else if (ruta.x1 - ruta.x0 >= 5.5 && ruta.x1 - ruta.x0 <= 14 && ruta.y1 - ruta.y0 >= 5.5 && ruta.y1 - ruta.y0 <= 14 &&
+        Math.abs((ruta.x1 - ruta.x0) - (ruta.y1 - ruta.y0)) < 3) smaBilder.push(ruta);
     }
     else if (fn === OPS.constructPath) {
+      /* Vektorgrafikens ruta (tabeller, kurvor) ur banans gränser. */
+      if (a[2] && a[2].length === 4 && isFinite(a[2][0]) && isFinite(a[2][1])) {
+        const c = [matPunkt(ctm, a[2][0], a[2][2]), matPunkt(ctm, a[2][1], a[2][3]), matPunkt(ctm, a[2][0], a[2][3]), matPunkt(ctm, a[2][1], a[2][2])];
+        const vx = c.map(q => q[0]), vy = c.map(q => q[1]);
+        const vb = { x0: Math.min(...vx), y0: Math.min(...vy), x1: Math.max(...vx), y1: Math.max(...vy) };
+        const bb = vb.x1 - vb.x0, bh = vb.y1 - vb.y0;
+        if (Math.max(bb, bh) <= 14 && Math.min(bb, bh) >= 2.5) { smaVagar++; if (smaVagLista.length < 4000) smaVagLista.push(vb); }
+        else if (Math.max(bb, bh) >= 8) vektorer.push(vb);
+      }
       /* En rektangel lagras som x, y, bredd, höjd – inte som punkter – och
          gränserna står då i a[2] som [minX, maxX, minY, maxY]. Utan det här
          syntes aldrig en överstrykning som Word ritat som rektangel. */
@@ -16074,6 +16091,7 @@ async function pdfSidData(sida) {
         x0, y0, x1, y1,
         yc: (y0 + y1) / 2, xc: (x0 + x1) / 2,
         fargad: (mx - mn) > 28 && mx > 40,       // tydligt kulört, inte grå eller svart
+        farg: [f[0], f[1], f[2]],
         ljus: mn > 235                            // vit bakgrundsplatta — ignoreras
       });
     }
@@ -16092,7 +16110,7 @@ async function pdfSidData(sida) {
   const tc = await sida.getTextContent();
   const bitar = tc.items
     .filter(i => i.str && i.transform)
-    .map(i => ({ s: String(i.str).replace(/\u0000/g, "\u207A"), x: i.transform[4], y: i.transform[5], h: Math.abs(i.height) || 10, w: i.width || 0, fet: arFet(i.fontName) }))
+    .map(i => ({ s: String(i.str), x: i.transform[4], y: i.transform[5], h: Math.abs(i.height) || 10, w: i.width || 0, fet: arFet(i.fontName) }))
     .sort((a, b) => (b.y - a.y) || (a.x - b.x));
 
   const grupper = [];
@@ -16107,20 +16125,31 @@ async function pdfSidData(sida) {
   });
 
   const rader = grupper.map(r => {
-    const bs = r.bitar.slice().sort((a, b) => a.x - b.x);
+    const bs = sattIndexIRad(r.bitar.slice().sort((a, b) => a.x - b.x), r.hMax);
     let txt = "";
     bs.forEach((b, i) => {
       const fore = bs[i - 1];
+      if (b.fast && i) { txt = txt.replace(/\s+$/, "") + b.s.trim(); return; }
       const foreSlut = fore && fore.w ? fore.x + fore.w : fore ? fore.x + fore.s.length * fore.h * 0.5 : 0;
       const grans = fore && fore.w ? fore.h * 0.18 : fore ? fore.h * 0.4 : 0;
       if (i && b.x - foreSlut > grans && !/\s$/.test(txt) && !/^\s/.test(b.s)) txt += " ";
       txt += b.s;
     });
     txt = txt.replace(/\s+/g, " ").trim();
+    /* Ett tecken utan glyf (\u0000) är laddningen i en jon: minus efter anjoner, annars plus. */
+    if (txt.indexOf("\u0000") >= 0) txt = txt
+      .replace(/(HCO|HPO|SO|NO|CO|PO)([3-4₃₄]?)\s?\u0000/g, (m, a, b) => a + b + "\u207B")
+      .replace(/(Cl|OH|Br|I|F)\s?\u0000/g, "$1\u207B").replace(/\u0000/g, "\u207A");
+    /* inget mellanrum mellan index och skiljetecken: "(C₀ )" → "(C₀)" */
+    txt = txt.replace(/([\u2080-\u208E\u2090-\u209C\u1D62-\u1D65\u2070-\u207F\u00B2\u00B3\u00B9]) ([.,:;)\]])/g, "$1$2");
     const langa = bs.filter(b => b.s.trim().length > 2);
+    /* ett tecken ritat som bana i en lucka i texten (γ, β utan teckensnitt) */
+    const glyfLucka = smaVagLista.length > 0 && smaVagLista.length < 600 && bs.some(b => !b.s.trim() && b.w > b.h * 0.3 &&
+      smaVagLista.some(v => { const cx = (v.x0 + v.x1) / 2, cy = (v.y0 + v.y1) / 2;
+        return cx > b.x && cx < b.x + b.w && cy > b.y - b.h * 0.35 && cy < b.y + b.h; }));
     return {
       text: txt, y: r.y, x0: bs[0].x, x1: bs[bs.length - 1].x, h: bs[0].h,
-      xe: Math.max(...bs.map(b => b.x + (b.w || 0))),
+      xe: Math.max(...bs.map(b => b.x + (b.w || 0))), glyfLucka,
       fet: langa.length > 0 && langa.every(b => b.fet)
     };
   }).filter(r => r.text);
@@ -16139,7 +16168,9 @@ async function pdfSidData(sida) {
       o.x1 > r.x0 + 2 && o.x0 < (r.xe || r.x1) + 2);
   });
 
-  return { rader, markeringar: markeringar.filter(m => !m.ljus), bilder, overstrykningar };
+  return { rader, markeringar: markeringar.filter(m => !m.ljus), bilder, overstrykningar, smaBilder, vektorer, smaVagar, smaVagLista, lagaBilder,
+    textTecken: rader.reduce((n, r) => n + r.text.length, 0),
+    bredd: sida.getViewport({ scale: 1 }).width };
 }
 
 /* Radioknappar och kryssrutor upprepas en gång per alternativ och är alltså
@@ -16178,26 +16209,24 @@ async function pdfLasTenta(bytes, onProgress, opt) {
   }
 
   const teckenTotalt = sidor.reduce((n, s) => n + s.rader.reduce((m, r) => m + r.text.length, 0), 0);
-  if (teckenTotalt < 120 || (opt && opt.ocr)) {
-    if (!(opt && opt.ocr)) {
-      try { doc.destroy(); } catch (e) {}
-      return { fragor: [], diagnos: { sidor: doc.numPages, rader: 0, skannad: true } };
-    }
-    /* Inskannad: textigenkänning sida för sida. Sidan är en enda stor bild,
-       så figurer klipps inte ut här – det gör AI-tolkningen. */
-    const w = await ocrWorker(onProgress);
-    for (let s = 1; s <= doc.numPages; s++) {
-      if (onProgress) onProgress(s, doc.numPages, "ocr");
-      await andas();
-      const sida = await doc.getPage(s);
-      const d = await ocrSidData(sida, w);
-      sidor[s - 1] = { nr: s, ...d, hojd: sidor[s - 1].hojd };
-      try { sida.cleanup(); } catch (e) {}
-    }
+  /* Ett textlager med egna teckenkoder utan Unicode-tabell ger "ord" som inte
+     är ord. Det går inte att läsa, så sidorna läses med textigenkänning. */
+  const allaOrd = [];
+  sidor.forEach(s => s.rader.forEach(r => r.text.split(/\s+/).forEach(w => { if (w.length >= 3) allaOrd.push(w); })));
+  const riktiga = allaOrd.filter(w => /^[("„”]?[A-Za-zÅÄÖåäöÉéÜü][A-Za-zÅÄÖåäöÉéÜü\-–]*[.,:;?!)”"]*$/.test(w) && /[aeiouyåäöé]/i.test(w)).length;
+  const trasigt = allaOrd.length >= 150 && riktiga / allaOrd.length < 0.35;
+  const ocr = !!(opt && opt.ocr) || (!(opt && opt.ingenOcr) && (teckenTotalt < 120 || trasigt));
+  if (ocr) {
+    /* Inskannad eller trasig: textigenkänning. Knappar, bockar och bilder
+       tas ändå ur sidornas grafik, som finns kvar även när texten saknas. */
+    await ocrAllaSidor(doc, sidor, onProgress);
     if (sidor.reduce((n, sd) => n + sd.rader.length, 0) < 5) {
       try { doc.destroy(); } catch (e) {}
       return { fragor: [], diagnos: { sidor: doc.numPages, rader: 0, skannad: true, ocr: true } };
     }
+  } else if (teckenTotalt < 120) {
+    try { doc.destroy(); } catch (e) {}
+    return { fragor: [], diagnos: { sidor: doc.numPages, rader: 0, skannad: true } };
   }
 
   /* ---- sidhuvud och sidfot bort: text som upprepas på många sidor ---- */
@@ -16214,6 +16243,9 @@ async function pdfLasTenta(bytes, onProgress, opt) {
   sidor.forEach(s => {
     s.rader = s.rader.filter(r => {
       if (RE_SIDNUMMER.test(r.text)) return false;
+      /* textigenkänningens sidhuvud och sidfot: webbadress, datum, sidnummer */
+      if (ocr && iMarginal(r, s.hojd) && (/https?:|inspera|www\./i.test(r.text) ||
+        /^\d{4}-\d{2}-\d{2}\b/.test(r.text) || /^\d{1,3}\s*[\/|l]\s*\d{1,3}$/.test(r.text))) return false;
       /* bara text i sidhuvud eller sidfot får rensas bort som upprepning */
       if (iMarginal(r, s.hojd) && forekomst[r.text] >= gransUpprepning && r.text.length < 200) return false;
       return true;
@@ -16227,6 +16259,34 @@ async function pdfLasTenta(bytes, onProgress, opt) {
   /* Trasiga ligaturer ("at" för "att", "pa�ent") lagas mot en ordlista. */
   if (rader.reduce((n, r) => n + (r.text.split("\uFFFD").length - 1), 0) >= 3) {
     try { await lagaLigaturer(rader); } catch (e) {}
+  }
+
+  /* ---- Inspera: egen läsare som går på knappar, bockar och figurer ---- */
+  if (arInsperaTenta(sidor)) {
+    const sidorInsp = sidor.map(s => s.geo
+      ? { ...s.geo, nr: s.nr, rader: s.rader, hojd: s.hojd, bredd: s.bredd,
+          markeringar: (s.geo.markeringar || []).concat((s.markeringar || []).filter(m => m.fargad)) }
+      : s);
+    const antalTp = rader.filter(r => arTotalpoang(r.text)).length;
+    let insp = null;
+    try { insp = parsaInspera(sidorInsp, { ocr }); } catch (e) { insp = null; }
+    if (insp && insp.fragor.length >= Math.max(3, antalTp * 0.8)) {
+      insp.fragor.forEach((f, i) => { f.plats = i + 1; f.id = "f" + (i + 1); });
+      await fangaInsperaFigurer(doc, insp.fragor, onProgress);
+      try { doc.destroy(); } catch (e) {}
+      const F = insp.fragor;
+      return {
+        fragor: F,
+        diagnos: {
+          sidor: doc.numPages, rader: rader.length, skannad: false, lage: "inspera",
+          utanFacit: F.filter(f => f.typ !== "text" && (f.svar === null || (Array.isArray(f.svar) && !f.svar.length))).length,
+          oense: 0, flersvar: F.filter(f => f.typ === "flerval").length, matchning: 0,
+          medBild: F.filter(f => fragansBilder(f).length).length,
+          metoder: F.reduce((o, f) => { if (f.hur) o[f.hur] = (o[f.hur] || 0) + 1; return o; }, {}),
+          ocr
+        }
+      };
+    }
   }
 
   const antalValj = rader.filter(r => RE_VALJ.test(r.text)).length;
@@ -16314,9 +16374,801 @@ async function pdfLasTenta(bytes, onProgress, opt) {
       matchning: ut.filter(f => f.typ === "matchning").length,
       medBild: ut.filter(f => fragansBilder(f).length).length,
       metoder: ut.reduce((o, f) => { if (f.hur) o[f.hur] = (o[f.hur] || 0) + 1; return o; }, {}),
-      ocr: !!(opt && opt.ocr)
+      ocr
     }
   };
+}
+
+
+/* =====================================================================
+   INSPERA-LÄSAREN
+   Inspera skriver ut varje fråga på samma sätt:
+
+     72  Modul 4 - Respiration            ← nummer + rubrik (fet)
+         Frågetext, ev. figurer, tabeller  ← stammen
+         Välj ett alternativ:
+           ○ Alternativ                    ← radioknapp till vänster
+           ○ Alternativ som går            ✔ ← grön bock = rätt svar
+             över flera rader
+                                Totalpoäng: 1
+
+   Läsaren går på geometrin i stället för på textmönster: radioknapparna
+   talar om exakt hur många alternativ det finns och var vart och ett
+   börjar, bocken pekar ut rätt svar, och figurer och tabeller klipps ut ur
+   sidan och läggs där de står i stammen. Samma läsare tar text från
+   textlagret och från textigenkänningen (inskannade tentor).
+   ===================================================================== */
+
+/* Små siffror och tecken (CO₂, Ca²⁺, HCO₃⁻) står som egna textbitar i PDF:en. */
+const INDEX_NED = { "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄", "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉",
+  "+": "₊", "-": "₋", "−": "₋", "–": "₋", "=": "₌", "(": "₍", ")": "₎", "a": "ₐ", "e": "ₑ", "o": "ₒ", "x": "ₓ",
+  "h": "ₕ", "k": "ₖ", "l": "ₗ", "m": "ₘ", "n": "ₙ", "p": "ₚ", "s": "ₛ", "t": "ₜ", "i": "ᵢ", "r": "ᵣ", "u": "ᵤ", "v": "ᵥ" };
+const INDEX_UPP = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹",
+  "+": "⁺", "-": "⁻", "−": "⁻", "–": "⁻", "=": "⁼", "(": "⁽", ")": "⁾", "n": "ⁿ", "i": "ⁱ", "⁺": "⁺" };
+function tillIndex(s, upp) {
+  const t = String(s || "").trim();
+  if (!t || t.length > 4) return null;
+  const M = upp ? INDEX_UPP : INDEX_NED;
+  let ut = "";
+  for (const c of t) { if (!M[c]) return null; ut += M[c]; }
+  return ut;
+}
+
+/* Bredden på en textbit mätt med ett liknande typsnitt, för att hitta var i
+   en lång textbit en liten indexbit hör hemma. */
+let _matDuk = null;
+function textBredd(s, h) {
+  if (!_matDuk) { try { _matDuk = document.createElement("canvas").getContext("2d"); } catch (e) { _matDuk = null; } }
+  if (!_matDuk) return s.length * h * 0.5;
+  _matDuk.font = `${Math.max(4, h)}px Helvetica, Arial, sans-serif`;
+  return _matDuk.measureText(s).width;
+}
+
+/* Lägger in index och exponenter i raden. bs är radens textbitar sorterade
+   på x. Returnerar nya bitar där de små bitarna har flyttats in i värdbiten
+   eller fästs utan mellanslag vid biten före. */
+function sattIndexIRad(bs, hMax) {
+  const sma = [], stora = [];
+  bs.forEach(b => {
+    const t = b.s.trim();
+    const liten = t && t.length <= 4 && b.h < hMax * 0.86 && /^[0-9a-z+\-−–=()⁺]+$/i.test(t);
+    (liten ? sma : stora).push(b);
+  });
+  if (!sma.length || !stora.length) return bs;
+  const insatt = new Map();           // värdbit → [{ j, text }]
+  const kvar = [];
+  sma.forEach(b => {
+    const t = b.s.trim();
+    /* värden: den största biten som täcker x-läget */
+    const vard = stora.filter(v => v.w > 0 && v.s.trim() && b.x >= v.x - 0.5 && b.x <= v.x + v.w + 1.5)
+      .sort((a, c) => c.h - a.h)[0];
+    const ref = vard || stora.filter(v => v.x <= b.x).sort((a, c) => c.x - a.x)[0];
+    /* en liten bit först på raden (frågenummer, punkt) är inget index */
+    if (!ref) { kvar.push(b); return; }
+    const dy = b.y - ref.y;
+    const upp = dy > ref.h * 0.12;
+    const tecken = tillIndex(t, upp) || t;
+    if (!vard) { kvar.push({ ...b, s: tecken, h: ref.h, y: ref.y, fast: true }); return; }
+    /* var i värdens text står biten? mät prefixen */
+    const skala = vard.w / Math.max(1, textBredd(vard.s, vard.h));
+    const mal = (b.x - vard.x) / skala;
+    let basta = vard.s.length, bastaAvst = Infinity;
+    for (let j = 0; j <= vard.s.length; j++) {
+      const d = Math.abs(textBredd(vard.s.slice(0, j), vard.h) - mal);
+      if (d < bastaAvst) { bastaAvst = d; basta = j; }
+    }
+    /* en platshållare (mellanslag) där biten står ersätts – det mellanslag
+       vars början ligger närmast biten */
+    let j = basta, ers = false, jd = Infinity;
+    for (let k = Math.max(0, basta - 3); k <= Math.min(vard.s.length - 1, basta + 3); k++) {
+      if (vard.s[k] !== " ") continue;
+      const d = Math.abs(textBredd(vard.s.slice(0, k), vard.h) - mal);
+      if (d < jd) { jd = d; j = k; ers = true; }
+    }
+    if (ers && jd > vard.h * 0.7) { ers = false; j = basta; }
+    /* Mellanslaget är bara en platshållare om det som följer är skiljetecken
+       ("CO₂.", "O₂-innehåll"). Följer ett ord är det ett riktigt mellanslag
+       ("Kf x", "CO₂ och"), och indexet läggs före det. */
+    if (ers && !/^[.,:;)\]\-–—!?\/”"'’]/.test(vard.s[j + 1] || "")) ers = false;
+    if (!insatt.has(vard)) insatt.set(vard, []);
+    insatt.get(vard).push({ j, ers, text: tecken, slut: b.x + (b.w || 0) });
+  });
+  const ut = [];
+  stora.forEach(v => {
+    const lista = insatt.get(v);
+    if (!lista) { ut.push(v); return; }
+    let s = v.s;
+    lista.sort((a, c) => c.j - a.j).forEach(({ j, ers, text }) => {
+      s = s.slice(0, j) + text + s.slice(ers ? j + 1 : j);
+    });
+    /* biten slutar nu där det sista indexet slutar */
+    const w = Math.max(v.w, ...lista.map(x => x.slut - v.x));
+    ut.push({ ...v, s, w });
+  });
+  kvar.forEach(b => ut.push(b));
+  return ut.sort((a, c) => a.x - c.x);
+}
+
+/* ---------- känna igen raderna ---------- */
+function normRad(t) { return String(t || "").toLowerCase().replace(/[^a-zåäöé0-9]/g, ""); }
+function redAvst(a, b) {
+  const m = a.length, n = b.length;
+  if (Math.abs(m - n) > 3) return 9;
+  let f = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const g = [i];
+    for (let j = 1; j <= n; j++) g[j] = Math.min(f[j] + 1, g[j - 1] + 1, f[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    f = g;
+  }
+  return f[n];
+}
+function arTotalpoang(t) {
+  const m = String(t || "").trim().match(/^([A-Za-zÅÄÖåäö0|]{8,13})\s*[:;.,]?\s*([\d.,]+)?\s*$/);
+  if (!m) return false;
+  return redAvst(normRad(m[1]).replace(/0/g, "o").replace(/[1|]/g, "l"), "totalpoäng") <= 2;
+}
+function poangUr(t) {
+  const m = String(t || "").match(/([\d]+(?:[.,]\d+)?)\s*$/);
+  return m ? Number(m[1].replace(",", ".")) : 1;
+}
+function arValjRad(t) {
+  const s = String(t || "").trim();
+  if (RE_VALJ.test(s)) return true;
+  if (s.length > 48) return false;
+  const n = normRad(s);
+  return /^v[aä]lj/.test(n) && /alternativ/.test(n);
+}
+function arFleraRad(t) { return RE_FLERA.test(t) || /eller\s*flera/i.test(t); }
+
+/* ---------- är det en Inspera-tenta? ---------- */
+function arInsperaTenta(sidor) {
+  let tp = 0, valj = 0;
+  sidor.forEach(s => s.rader.forEach(r => {
+    if (arTotalpoang(r.text)) tp++;
+    else if (arValjRad(r.text)) valj++;
+  }));
+  /* "Välj ett alternativ" saknas i vissa utskrifter – Totalpoäng räcker */
+  return tp >= 3;
+}
+
+/* ---------- figurer på en sida ---------- */
+function rutaUnion(a, b) {
+  return { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) };
+}
+function rutorMots(a, b, m) {
+  return a.x0 - m <= b.x1 && b.x0 - m <= a.x1 && a.y0 - m <= b.y1 && b.y0 - m <= a.y1;
+}
+function radRuta(r) {
+  return { x0: r.x0, x1: Math.max(r.xe || r.x1 || r.x0, r.x0 + 4), y0: r.y - r.h * 0.25, y1: r.y + r.h * 0.8 };
+}
+
+/* Vektorgrafik (tabeller, kurvor, scheman) slås ihop till rutor. Raka
+   avskiljarlinjer och sidans ram räknas inte. På sidor där texten själv är
+   ritad som banor (inga teckensnitt) räknas bara större delar. */
+function vektorFigurer(sida) {
+  const W = sida.bredd || 595, H = sida.hojd || 842;
+  /* sida där texten är ritad som banor (ingen text i textlagret) */
+  const glyfSida = (sida.smaVagar || 0) > 250 && (sida.textTecken === undefined ? 0 : sida.textTecken) < 200;
+  const minDel = glyfSida ? 15 : 8;
+  const tunn = v => Math.min(v.x1 - v.x0, v.y1 - v.y0) < 2.5;
+  const strykn = sida.overstrykningar || [];
+  let delar = (sida.vektorer || []).filter(v => {
+    /* färgade överstrykningar (gul markering av rätt svar) är ingen figur */
+    if (strykn.some(o => Math.abs(o.x0 - v.x0) < 1.5 && Math.abs(o.x1 - v.x1) < 1.5 && Math.abs(o.y0 - v.y0) < 1.5 && Math.abs(o.y1 - v.y1) < 1.5)) return false;
+    const b = v.x1 - v.x0, h = v.y1 - v.y0;
+    if (b > W * 0.85 || h > H * 0.85) return false;              // ram, bakgrund
+    if (tunn(v)) return Math.max(b, h) >= minDel;
+    return Math.max(b, h) > 14;
+  });
+  /* en ensam vågrät linje är en avskiljare, inte en tabell */
+  delar = delar.filter(v => {
+    const b = v.x1 - v.x0, h = v.y1 - v.y0;
+    if (!(h < 2.5 && b > 60)) return true;
+    return delar.some(o => o !== v && !(o.y1 - o.y0 < 2.5) && rutorMots(o, v, 2));
+  });
+  /* samma ruta ritas ofta flera gånger (fyllning + kant) */
+  const unika = [];
+  delar.forEach(d => { if (!unika.some(u => Math.abs(u.x0 - d.x0) < 1.5 && Math.abs(u.y0 - d.y0) < 1.5 && Math.abs(u.x1 - d.x1) < 1.5 && Math.abs(u.y1 - d.y1) < 1.5)) unika.push(d); });
+  let kluster = unika.map(d => ({ x0: d.x0, y0: d.y0, x1: d.x1, y1: d.y1, n: Math.max(d.x1 - d.x0, d.y1 - d.y0) > 20 ? 1 : 0 }));
+  let andrat = true;
+  while (andrat) {
+    andrat = false;
+    for (let i = 0; i < kluster.length && !andrat; i++) for (let j = i + 1; j < kluster.length; j++) {
+      if (rutorMots(kluster[i], kluster[j], 4)) {
+        kluster[i] = { ...rutaUnion(kluster[i], kluster[j]), n: kluster[i].n + kluster[j].n };
+        kluster.splice(j, 1); andrat = true; break;
+      }
+    }
+  }
+  /* en ensam ram runt en textrad (markerat alternativ, inforuta) är ingen figur */
+  const ut = kluster.filter(k => (k.x1 - k.x0) > 30 && (k.y1 - k.y0) > 18 && k.n >= 3)
+    .map(k => ({ x0: k.x0, y0: k.y0, x1: k.x1, y1: k.y1, typ: "vektor" }));
+
+  /* Formler ritade som banor (MathML-formler, symboler utan teckensnitt):
+     många små former tätt ihop, på en sida som i övrigt har vanlig text. */
+  const tecken = (sida.rader || []).reduce((n, r) => n + r.text.length, 0);
+  if (!glyfSida && tecken >= 80 && (sida.smaVagLista || []).length >= 5) {
+    const tunnaKorta = (sida.vektorer || []).filter(v => tunn(v) && Math.max(v.x1 - v.x0, v.y1 - v.y0) < 150);
+    let fk = sida.smaVagLista.concat(tunnaKorta).map(d => ({ x0: d.x0, y0: d.y0, x1: d.x1, y1: d.y1, n: 1 }));
+    let andr = true;
+    while (andr) {
+      andr = false;
+      for (let i = 0; i < fk.length && !andr; i++) for (let j = i + 1; j < fk.length; j++) {
+        const a = fk[i], b = fk[j];
+        const xGap = Math.max(a.x0, b.x0) - Math.min(a.x1, b.x1), yGap = Math.max(a.y0, b.y0) - Math.min(a.y1, b.y1);
+        if ((xGap < 7 && yGap < 1) || (xGap < 2 && yGap < 3)) {
+          fk[i] = { ...rutaUnion(fk[i], fk[j]), n: fk[i].n + fk[j].n };
+          fk.splice(j, 1); andr = true; break;
+        }
+      }
+    }
+    fk.filter(k => k.n >= 6 && (k.x1 - k.x0) > 14)
+      .forEach(k => { if (!ut.some(u => rutorMots(u, k, 0))) ut.push({ x0: k.x0, y0: k.y0, x1: k.x1, y1: k.y1, typ: "vektor", formel: true }); });
+  }
+  return ut;
+}
+
+/* ---------- huvudfunktionen ---------- */
+function parsaInspera(sidor, opt) {
+  const ocr = !!(opt && opt.ocr);
+  const allaRader = [];
+  sidor.forEach(s => s.rader.forEach(r => allaRader.push({ ...r, sida: s.nr })));
+  if (!allaRader.length) return { fragor: [] };
+
+  /* Typisk brödtexthöjd, för att skilja rubriker och figurtext från stammen */
+  const hojder = allaRader.map(r => r.h).sort((a, b) => a - b);
+  const brodH = hojder[Math.floor(hojder.length / 2)] || 10;
+
+  /* ---- radioknappar: små ofärgade ringar (eller bilder av ringar) i samma
+     kolumn, med en textrad strax till höger ---- */
+  const kandidater = {};
+  sidor.forEach(s => {
+    const k = [];
+    (s.markeringar || []).forEach(m => {
+      const b = m.x1 - m.x0, h = m.y1 - m.y0;
+      if (!m.fargad && b >= 5.5 && b <= 14 && h >= 5.5 && h <= 14 && Math.abs(b - h) < 3) k.push({ xc: m.xc, yc: m.yc, d: b });
+    });
+    (s.smaBilder || []).forEach(m => k.push({ xc: (m.x0 + m.x1) / 2, yc: (m.y0 + m.y1) / 2, d: m.x1 - m.x0 }));
+    /* en ring ritas ofta två gånger (kant + fyllning) */
+    const unika = [];
+    k.sort((a, b) => b.yc - a.yc || a.xc - b.xc).forEach(c => {
+      if (!unika.some(u => Math.abs(u.xc - c.xc) < 2.5 && Math.abs(u.yc - c.yc) < 2.5)) unika.push(c);
+    });
+    kandidater[s.nr] = unika;
+  });
+  const radioVidRad = (sidnr, r) => (kandidater[sidnr] || []).filter(c => {
+    const dx = r.x0 - c.xc;
+    const mitt = r.y + r.h * 0.3;
+    return dx >= 3 && dx <= 26 && Math.abs(c.yc - mitt) <= Math.max(7, r.h * 0.9);
+  });
+  /* Knappkolumnen per sida: x-läget där knapparna med text intill står.
+     Med den hittas också knappar vars alternativ saknar text (formler, bilder). */
+  const knappKolumn = {};
+  const allaKol = [];
+  sidor.forEach(s => {
+    const xs = [];
+    s.rader.forEach(r => radioVidRad(s.nr, r).forEach(c => xs.push(Math.round(c.xc))));
+    if (!xs.length) return;
+    const typ = xs.sort((a, b) => xs.filter(x => Math.abs(x - b) < 2.5).length - xs.filter(x => Math.abs(x - a) < 2.5).length)[0];
+    knappKolumn[s.nr] = typ; allaKol.push(typ);
+  });
+  const docKol = allaKol.length ? allaKol.sort((a, b) => allaKol.filter(x => x === b).length - allaKol.filter(x => x === a).length)[0] : null;
+  const knapparPaSida = sidnr => {
+    const kol = knappKolumn[sidnr] !== undefined ? knappKolumn[sidnr] : docKol;
+    if (kol === null || kol === undefined) return [];
+    return (kandidater[sidnr] || []).filter(c => Math.abs(c.xc - kol) < 3);
+  };
+
+  /* ---- bockar: färgade små former ---- */
+  const bockar = {};
+  sidor.forEach(s => {
+    /* grön (eller okänd färg från textigenkänningen), inte ett streck */
+    const gron = m => !m.farg || (m.farg[1] > m.farg[0] + 30 && m.farg[1] > m.farg[2] + 15);
+    bockar[s.nr] = (s.markeringar || []).filter(m => m.fargad && gron(m) &&
+      (m.x1 - m.x0) <= 20 && (m.y1 - m.y0) <= 20 && (m.x1 - m.x0) >= 3.5 && (m.y1 - m.y0) >= 3.5)
+      .map(m => ({ xc: m.xc, yc: m.yc }));
+  });
+
+  /* ---- figurer per sida: rasterbilder + vektorgrafik ---- */
+  const figurer = {};
+  sidor.forEach(s => {
+    const lista = [];
+    (s.bilder || []).concat(s.lagaBilder || []).forEach(b => lista.push({ ...b, typ: "bild" }));
+    vektorFigurer(s).forEach(v => lista.push(v));
+    /* rutor som överlappar slås ihop (bild + pilar ovanpå) */
+    let andrat = true;
+    while (andrat) {
+      andrat = false;
+      for (let i = 0; i < lista.length && !andrat; i++) for (let j = i + 1; j < lista.length; j++) {
+        if (rutorMots(lista[i], lista[j], 2)) {
+          lista[i] = { ...rutaUnion(lista[i], lista[j]), typ: lista[i].typ === "bild" || lista[j].typ === "bild" ? "bild" : "vektor" };
+          lista.splice(j, 1); andrat = true; break;
+        }
+      }
+    }
+    figurer[s.nr] = lista;
+  });
+
+  /* ---- segment: en fråga slutar med "Totalpoäng" ---- */
+  const slut = [];
+  allaRader.forEach((r, i) => { if (arTotalpoang(r.text)) slut.push(i); });
+  if (!slut.length) return { fragor: [] };
+
+  /* rubrikkolumnen: där frågenumren står (längst till vänster) */
+  const RE_RUBRIK = /^\s*(\d{1,3})(?:\s+(\S.*))?$/;
+  const rubrikX = (() => {
+    const xs = [];
+    slut.forEach(e => {
+      const r = allaRader[e + 1];
+      if (r && RE_RUBRIK.test(r.text)) xs.push(r.x0);
+    });
+    xs.sort((a, b) => a - b);
+    return xs.length ? xs[Math.floor(xs.length / 2)] : null;
+  })();
+  const arRubrik = r => {
+    const m = r.text.match(RE_RUBRIK);
+    if (!m) return null;
+    if (rubrikX !== null && r.x0 > rubrikX + 8) return null;
+    if (/^\d{1,3}\s*[.)]/.test(r.text)) return null;
+    return m;
+  };
+
+  const fragor = [];
+  let start = 0;
+  /* första frågan: hoppa över försättsbladet */
+  {
+    const forstaValj = allaRader.findIndex(r => arValjRad(r.text));
+    const grans = forstaValj >= 0 && forstaValj < slut[0] ? forstaValj : slut[0];
+    let hit = -1;
+    for (let i = grans - 1; i >= 0; i--) {
+      if (arRubrik(allaRader[i])) { hit = i; break; }
+      if (allaRader[i].sida < allaRader[grans].sida - 1) break;
+    }
+    start = hit >= 0 ? hit : 0;
+  }
+
+  for (let k = 0; k < slut.length; k++) {
+    const seg = allaRader.slice(start, slut[k]);
+    const tp = allaRader[slut[k]];
+    const nastaStart = slut[k] + 1;
+    const f = byggInsperaFraga(seg, tp, k, { arRubrik, radioVidRad, knapparPaSida, bockar, figurer, brodH, ocr, sidor,
+      nastaRad: allaRader[nastaStart] || null, forraSlut: k ? allaRader[slut[k - 1]] : null });
+    if (f) {
+      /* numren går i följd – ett feltolkat nummer (OCR) rättas av ordningen */
+      const forra = fragor.length ? fragor[fragor.length - 1].nr : 0;
+      /* en struken fråga (utan alternativ) faller bort, så ett hopp på något
+         enstaka nummer är rimligt – annat är ett feltolkat nummer */
+      if (fragor.length && !(f.nr > forra && f.nr <= forra + 2)) f.nr = forra + 1;
+      fragor.push(f);
+    }
+    start = nastaStart;
+  }
+  return { fragor };
+}
+
+function byggInsperaFraga(seg, tpRad, k, C) {
+  if (!seg.length) return null;
+  /* ---- rubriken ---- */
+  let i0 = 0, nr = k + 1, rubrik = "";
+  for (let i = 0; i < Math.min(3, seg.length); i++) {
+    const m = C.arRubrik(seg[i]);
+    if (m) {
+      i0 = i + 1;
+      nr = +m[1] || nr;
+      const resten = (m[2] || "").trim();
+      if (resten) {
+        const titel = seg[i].fet || /^(modul|del|tema|avsnitt|block|fråga|uppgift)\b/i.test(resten) ||
+          (C.ocr && seg[i].h > C.brodH * 1.12);
+        if (titel) rubrik = resten;
+        else { i0 = i; seg[i] = { ...seg[i], text: resten, x0: seg[i].x0 + 10 }; }
+      }
+      break;
+    }
+  }
+  /* Textigenkänningen läser ibland numret som skräp ("& Modul 1", "17. Modul 1"):
+     en rubrik känns då igen på sitt innehåll. */
+  if (!rubrik && C.ocr && i0 < seg.length) {
+    const m2 = seg[i0].text.match(/^[^A-Za-zÅÄÖåäö]{0,5}((?:modul|del|tema|avsnitt|block)\b.*)$/i);
+    if (m2 && !arValjRad(seg[i0].text)) { rubrik = m2[1].trim(); i0++; }
+  }
+  /* rubriken kan gå över två rader */
+  if (rubrik) {
+    while (i0 < seg.length && (seg[i0].fet || (C.ocr && seg[i0].h > C.brodH * 1.12)) &&
+        !arValjRad(seg[i0].text) && seg[i0].text.length < 120) {
+      rubrik += " " + seg[i0].text; i0++;
+    }
+  } else if (i0 < seg.length && seg[i0].fet && /^(modul|del|tema|avsnitt)\b/i.test(seg[i0].text) && !arValjRad(seg[i0].text)) {
+    rubrik = seg[i0].text; i0++;
+  }
+  const kropp = seg.slice(i0);
+  if (!kropp.length && !rubrik) return null;
+
+  /* ---- frågans utbredning på sidorna, för att veta vilka figurer som är dess ---- */
+  const forsta = seg[0], sista = seg[seg.length - 1];
+  const topp = { sida: forsta.sida, y: forsta.y + forsta.h + 2 };
+  const botten = tpRad ? { sida: tpRad.sida, y: tpRad.y - 2 } : { sida: sista.sida, y: sista.y - sista.h };
+  const sidorna = [];
+  for (let s = topp.sida; s <= botten.sida; s++) sidorna.push(s);
+  const inom = (sida, ruta) => {
+    if (sida < topp.sida || sida > botten.sida) return false;
+    const mitt = (ruta.y0 + ruta.y1) / 2;
+    if (sida === topp.sida && mitt > topp.y) return false;
+    if (sida === botten.sida && mitt < botten.y) return false;
+    return true;
+  };
+  const figs = [];
+  sidorna.forEach(s => (C.figurer[s] || []).forEach(r => { if (inom(s, r)) figs.push({ sida: s, ruta: { ...r } }); }));
+
+  /* ---- var börjar alternativen? ---- */
+  let v = kropp.findIndex(r => arValjRad(r.text));
+  const flersvar = v >= 0 && arFleraRad(kropp[v].text);
+  if (v < 0) v = kropp.findIndex(r => C.radioVidRad(r.sida, r).length);
+  const stamRader = v >= 0 ? kropp.slice(0, v) : kropp.slice();
+  const altRader = v >= 0 ? kropp.slice(arValjRad((kropp[v] || {}).text) ? v + 1 : v) : [];
+  const valjRad = v >= 0 && arValjRad(kropp[v].text) ? kropp[v] : (altRader[0] || null);
+
+  /* Etikett: liten text alldeles intill en vektorfigur, i stammen. Alternativ
+     (rader med en radioknapp) är aldrig etiketter. */
+  const stamMangd = new Set(stamRader);
+  const etikettVid = (r, fg) => {
+    const R = fg.ruta;
+    if (R.typ !== "vektor" || !stamMangd.has(r) || r.h >= C.brodH * 0.9) return false;
+    const rr = radRuta(r);
+    return rr.x0 < R.x1 && rr.x1 > R.x0 && (Math.abs(rr.y1 - R.y0) < 12 || Math.abs(rr.y0 - R.y1) < 12);
+  };
+  /* text som står inuti en figur (tabellceller, axeltexter) hör till figuren */
+  const iFigur = r => figs.some(fg => {
+    if (fg.sida !== r.sida || fg.avvisad) return false;
+    const rr = radRuta(r), R = fg.ruta;
+    const mx = (rr.x0 + rr.x1) / 2, my = (rr.y0 + rr.y1) / 2;
+    if (mx >= R.x0 - 2 && mx <= R.x1 + 2 && my >= R.y0 - 2 && my <= R.y1 + 2) return true;
+    /* små etiketter alldeles intill en vektorfigur (axlar, förklaringar) */
+    if (etikettVid(r, fg)) return true;
+    return false;
+  });
+  /* figurens ruta växer så att etiketterna kommer med */
+  stamRader.forEach(r => {
+    figs.forEach(fg => {
+      if (fg.sida !== r.sida) return;
+      const rr = radRuta(r), R = fg.ruta;
+      const mx = (rr.x0 + rr.x1) / 2, my = (rr.y0 + rr.y1) / 2;
+      const inne = mx >= R.x0 - 2 && mx <= R.x1 + 2 && my >= R.y0 - 2 && my <= R.y1 + 2;
+      if (inne || etikettVid(r, fg)) fg.ruta = { ...rutaUnion(R, rr), typ: R.typ };
+    });
+  });
+
+  /* ---- stammen: text och figurer i läsordning ---- */
+  const valjPos = valjRad ? { sida: valjRad.sida, y: valjRad.y } : botten;
+  /* En figur i stammen slutar ovanför "Välj ett alternativ" (och första
+     knappen). Ramar runt alternativ som råkar ligga intill en tabell klipps bort. */
+  const forstaKnapp = altRader.map(r => ({ r, k: C.radioVidRad(r.sida, r)[0] })).find(x => x.k);
+  figs.forEach(fg => {
+    const mitt = (fg.ruta.y0 + fg.ruta.y1) / 2;
+    if (valjRad && fg.sida === valjRad.sida && mitt > valjRad.y && fg.ruta.y0 < valjRad.y + valjRad.h)
+      fg.ruta = { ...fg.ruta, y0: valjRad.y + valjRad.h * 0.9 };
+    else if (!valjRad && forstaKnapp && fg.sida === forstaKnapp.r.sida && mitt > forstaKnapp.k.yc && fg.ruta.y0 < forstaKnapp.k.yc + 9)
+      fg.ruta = { ...fg.ruta, y0: forstaKnapp.k.yc + 9 };
+  });
+  const fore = (a, b) => a.sida !== b.sida ? a.sida < b.sida : a.y > b.y;   // a står före b
+  const stamFig = figs.filter(fg => fore({ sida: fg.sida, y: (fg.ruta.y0 + fg.ruta.y1) / 2 }, valjPos));
+  /* figuren får inte ta med kanter av textraderna runt omkring */
+  const textOmkring = kropp.filter(r => !iFigur(r));
+  figs.forEach(fg => {
+    const R = fg.ruta, mitt = (R.y0 + R.y1) / 2;
+    textOmkring.forEach(r => {
+      if (r.sida !== fg.sida) return;
+      const rr = radRuta(r);
+      if (rr.x1 < R.x0 || rr.x0 > R.x1) return;
+      if (r.y > mitt && r.y - r.h * 0.3 < R.y1) R.y1 = Math.max(R.y0 + 4, r.y - r.h * 0.3);
+      if (r.y < mitt && r.y + r.h * 0.85 > R.y0) R.y0 = Math.min(R.y1 - 4, r.y + r.h * 0.85);
+    });
+  });
+  /* bland alternativen är en vektorruta med läsbar text bara en ram runt
+     alternativet (markering, fokus) – texten läses som text */
+  const altFig = figs.filter(fg => !stamFig.includes(fg)).filter(fg => {
+    if (fg.ruta.typ !== "vektor") return true;
+    const R = fg.ruta;
+    const inne = altRader.filter(r => r.sida === fg.sida && r.y > R.y0 - 2 && r.y < R.y1 + 2 && r.x0 >= R.x0 - 4 && r.x0 <= R.x1);
+    const behall = (inne.map(r => r.text).join("").match(/[\p{L}]/gu) || []).length < 6;
+    if (!behall) fg.avvisad = true;
+    return behall;
+  });
+  const element = [];
+  stamRader.filter(r => !iFigur(r)).forEach(r => element.push({ typ: "rad", sida: r.sida, y: r.y, r }));
+  stamFig.forEach(fg => element.push({ typ: "fig", sida: fg.sida, y: fg.ruta.y1, fg }));
+  element.sort((a, b) => a.sida - b.sida || b.y - a.y);
+
+  let q = "", forra = null;
+  const platser = [];
+  const RE_LISTA = /^\s*(?:\d{1,2}\s*[.)]|[a-hA-H]\s*[.)]|[•▪◦‣·–\-*])\s+/;
+  element.forEach(e => {
+    if (e.typ === "fig") {
+      q = q.replace(/[ \t]+$/, "");
+      platser.push({ pos: q.length, fg: e.fg });
+      forra = { bryt: true };
+      return;
+    }
+    const r = e.r, t = r.text.trim();
+    if (!t) return;
+    if (!q) { q = t; forra = r; return; }
+    let ny = false;
+    if (forra.bryt) ny = true;
+    else {
+      const gap = forra.sida === r.sida ? forra.y - r.y : 0;
+      const h = Math.max(forra.h, r.h);
+      if (gap > h * 1.62) ny = true;
+      if (RE_LISTA.test(t)) ny = true;
+      if (/[:]$/.test(forra.text.trim()) && gap > h * 1.25) ny = true;
+    }
+    q += (ny ? "\n" : " ") + t;
+    forra = r;
+  });
+  q = q.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+
+  /* ---- alternativen ---- */
+  const radios = [];
+  altRader.forEach(r => C.radioVidRad(r.sida, r).forEach(c => {
+    if (!radios.some(x => x.sida === r.sida && Math.abs(x.yc - c.yc) < 3)) radios.push({ sida: r.sida, xc: c.xc, yc: c.yc });
+  }));
+  /* knappar i alternativdelen som saknar text intill (formel- och bildalternativ) */
+  if (valjRad || radios.length) {
+    const fran = valjRad ? { sida: valjRad.sida, y: valjRad.y + 1 } : { sida: radios[0].sida, y: radios[0].yc + 6 };
+    sidorna.forEach(sn => C.knapparPaSida(sn).forEach(c => {
+      if (sn < fran.sida || (sn === fran.sida && c.yc > fran.y)) return;
+      if (!inom(sn, { y0: c.yc, y1: c.yc })) return;
+      if (!radios.some(x => x.sida === sn && Math.abs(x.yc - c.yc) < 3)) radios.push({ sida: sn, xc: c.xc, yc: c.yc });
+    }));
+  }
+  /* alla radioknappar i en fråga står i samma kolumn */
+  if (radios.length) {
+    const xs = radios.map(x => Math.round(x.xc));
+    const typX = xs.sort((a, b) => xs.filter(x => Math.abs(x - b) < 3).length - xs.filter(x => Math.abs(x - a) < 3).length)[0];
+    for (let i = radios.length - 1; i >= 0; i--) if (Math.abs(radios[i].xc - typX) > 3) radios.splice(i, 1);
+  }
+  radios.sort((a, b) => a.sida - b.sida || b.yc - a.yc);
+
+  const altText = radios.map(() => []);
+  const textRader = altRader.filter(r => !iFigur(r));
+  let alternativ = [];
+  if (radios.length >= 2) {
+    textRader.forEach(r => {
+      const mitt = r.y + r.h * 0.3;
+      let bast = -1, d = Infinity;
+      radios.forEach((x, j) => {
+        if (x.sida !== r.sida) return;
+        const dd = Math.abs(x.yc - mitt);
+        if (dd < d) { d = dd; bast = j; }
+      });
+      if (bast < 0) {
+        /* raden står på en sida utan knappar: fortsättning på det sista alternativet före */
+        const fore2 = radios.map((x, j) => ({ x, j })).filter(o => o.x.sida < r.sida).pop();
+        bast = fore2 ? fore2.j : 0;
+      }
+      if (d > 60 && radios[bast].sida === r.sida) return;   // långt ifrån alla knappar: inte ett alternativ
+      altText[bast].push(r);
+    });
+    alternativ = altText.map(lista => lista.sort((a, b) => a.sida - b.sida || b.y - a.y).map(r => r.text.trim()).join(" ").replace(/\s+/g, " ").trim());
+  } else {
+    /* inga knappar (t.ex. en inskannad bild): radavstånden avgör */
+    let nu = null, forraR = null;
+    textRader.forEach(r => {
+      const gap = forraR && forraR.sida === r.sida ? forraR.y - r.y : 99;
+      if (!nu || gap > Math.max(r.h, forraR.h) * 1.7) { nu = []; alternativ.push(nu); }
+      nu.push(r.text.trim()); forraR = r;
+    });
+    alternativ = alternativ.map(l => l.join(" ").replace(/\s+/g, " ").trim());
+  }
+
+  /* Alternativ utan läsbar text men med grafik (formler ritade som banor):
+     hela alternativets rad klipps ut som bild. */
+  const altErsatt = radios.map(() => false);
+  if (radios.length >= 2) {
+    radios.forEach((x, j) => {
+      const txt = alternativ[j] || "";
+      /* ett tecken som bara finns som ritad form gör att raden visas som bild */
+      const lucka = (altText[j] || []).some(r => r.glyfLucka);
+      /* Kort text ("LH", "25 %") är text. Bara ett alternativ helt utan läsbar
+         text, eller med en kort textrest bredvid många ritade former (formel),
+         blir en bild. I textigenkända tentor är all text ritad, så där räcker
+         inte formerna som belägg. */
+      const antal = (txt.match(/[\p{L}\p{N}]/gu) || []).length;
+      if (!lucka && antal > 0) {
+        if (C.ocr || antal >= 3) return;
+        const sd0 = (C.sidor || []).find(q => q.nr === x.sida);
+        const former = ((sd0 && sd0.smaVagLista) || []).filter(v => Math.abs((v.y0 + v.y1) / 2 - x.yc) < 14 && v.x0 > x.xc + 6).length;
+        if (former < 6) return;
+      }
+      const sd = (C.sidor || []).find(q => q.nr === x.sida);
+      if (!sd) return;
+      const grannar = radios.filter(o => o.sida === x.sida && o !== x).map(o => Math.abs(o.yc - x.yc));
+      const halv = Math.min(18, grannar.length ? Math.min(...grannar) / 2 : 18);
+      const band = { x0: x.xc + 6, x1: (sd.bredd || 595) - 40, y0: x.yc - halv, y1: x.yc + halv };
+      const bockX = Math.min(...(C.bockar[x.sida] || []).filter(b => Math.abs(b.yc - x.yc) < halv).map(b => b.xc), Infinity);
+      const delar = (sd.smaVagLista || []).concat((sd.vektorer || []).filter(v => Math.min(v.x1 - v.x0, v.y1 - v.y0) < 2.5 && v.x1 - v.x0 < 200))
+        .concat(textRader.filter(r => r.sida === x.sida).map(radRuta))
+        .filter(d => d.x0 >= band.x0 && d.x1 <= band.x1 && d.x1 < bockX - 6 && (d.y0 + d.y1) / 2 > band.y0 && (d.y0 + d.y1) / 2 < band.y1);
+      if (delar.length < 3 && !(C.ocr && antal === 0)) return;
+      /* textigenkänningen fick inget ur raden: hela raden blir bild */
+      const R = delar.length >= 3 ? delar.reduce((a, b) => rutaUnion(a, b))
+        : { x0: x.xc + 7, x1: Math.min(bockX - 8, x.xc + 330), y0: x.yc - Math.min(9, halv), y1: x.yc + Math.min(9, halv) };
+      for (let i = altFig.length - 1; i >= 0; i--) {
+        const m = (altFig[i].ruta.y0 + altFig[i].ruta.y1) / 2;
+        if (altFig[i].sida === x.sida && m > band.y0 && m < band.y1) altFig.splice(i, 1);
+      }
+      altFig.push({ sida: x.sida, ruta: { ...R, typ: "vektor" } });
+      if (lucka) altErsatt[j] = true;
+      else alternativ[j] = "";
+    });
+  }
+
+  /* figurer bland alternativen hör till närmaste alternativ */
+  const altBild = altFig.map(fg => {
+    let bast = -1, d = Infinity;
+    const mitt = (fg.ruta.y0 + fg.ruta.y1) / 2;
+    radios.forEach((x, j) => { if (x.sida === fg.sida && Math.abs(x.yc - mitt) < d) { d = Math.abs(x.yc - mitt); bast = j; } });
+    return { fg, alt: bast };
+  });
+  altBild.forEach(ab => { if (ab.alt >= 0 && !alternativ[ab.alt]) alternativ[ab.alt] = ""; });
+  const altLista = alternativ.map((a, j) => a || (altBild.some(ab => ab.alt === j) ? `Alternativ ${String.fromCharCode(65 + j)}` : ""));
+
+  /* ---- rätt svar: grön bock på samma höjd som ett alternativ ---- */
+  const valda = [];
+  if (radios.length >= 2) {
+    sidorna.forEach(s => (C.bockar[s] || []).forEach(b => {
+      if (!inom(s, { y0: b.yc, y1: b.yc })) return;
+      if (b.xc < radios[0].xc + 60) return;
+      let bast = -1, d = Infinity;
+      radios.forEach((x, j) => { if (x.sida === s && Math.abs(x.yc - b.yc) < d) { d = Math.abs(x.yc - b.yc); bast = j; } });
+      if (bast >= 0 && d <= 16 && !valda.includes(bast)) valda.push(bast);
+    }));
+  } else {
+    /* utan knappar: bocken pekar på textraden */
+    sidorna.forEach(s => (C.bockar[s] || []).forEach(b => {
+      if (!inom(s, { y0: b.yc, y1: b.yc })) return;
+      let bast = -1, d = Infinity;
+      let j = -1, forraR = null;
+      textRader.forEach(r => {
+        const gap = forraR && forraR.sida === r.sida ? forraR.y - r.y : 99;
+        if (j < 0 || gap > Math.max(r.h, forraR.h) * 1.7) j++;
+        forraR = r;
+        if (r.sida === s && Math.abs(r.y + r.h * 0.3 - b.yc) < d) { d = Math.abs(r.y + r.h * 0.3 - b.yc); bast = j; }
+      });
+      if (bast >= 0 && d <= 14 && !valda.includes(bast)) valda.push(bast);
+    }));
+  }
+  valda.sort((a, b) => a - b);
+  /* textigenkänningen läser ibland bocken som "Vv" sist på raden */
+  if (C.ocr) valda.forEach(j => { if (altLista[j]) altLista[j] = altLista[j].replace(/\s+[VvYy«/]{1,3}$/, ""); });
+  /* Bokstavsalternativ (A–E, svaret står i en tabell): ett feltolkat "C" rättas av ordningen */
+  if (C.ocr && altLista.length >= 3) {
+    const bokst = altLista.filter((a, j) => a.trim().replace(/[.)]$/, "") === String.fromCharCode(65 + j)).length;
+    if (bokst >= altLista.length - 1) altLista.forEach((a, j) => { if (a.trim().length <= 4) altLista[j] = String.fromCharCode(65 + j); });
+  }
+  /* rester av radioknappen först på raden, och joner som lästs fel ("Nat" = Na⁺) */
+  /* procentalternativ: "%" läses ofta som "N", "No" eller "96" */
+  if (C.ocr) {
+    const RE_PROC = /^(\d+(?:[.,]\d+)?)\s?(?:%|N|No|Yo|96|9o|°o)$/;
+    if (altLista.filter(a => RE_PROC.test(a.trim())).length >= 2)
+      altLista.forEach((a, j) => { const m = a.trim().match(RE_PROC) || a.trim().match(/^(\d+(?:[.,]\d+)?)$/); if (m) altLista[j] = m[1] + " %"; });
+  }
+  const JONER = { Nat: "Na⁺", Kt: "K⁺", "K+": "K⁺", "Na+": "Na⁺", "Cl-": "Cl⁻", Clt: "Cl⁻", Ht: "H⁺" };
+  if (C.ocr) altLista.forEach((a, j) => {
+    a = a.replace(/^['‘’"«»©®°•·|]+\s*/, "");
+    altLista[j] = JONER[a.trim()] || a;
+  });
+  const arFlerval = flersvar || valda.length >= 2;
+
+  const ut = {
+    id: "f" + (k + 1), nr, q,
+    /* "Fråga 12" som rubrik säger inget mer än numret */
+    avsnitt: /^(fråga|uppgift|question)\s*\d+\s*$/i.test(rubrik.trim()) ? "" : rubrik.replace(/\s+/g, " ").trim(),
+    options: altLista,
+    typ: altLista.length >= 2 ? (arFlerval ? "flerval" : "sba") : "text",
+    svar: altLista.length >= 2 ? (arFlerval ? valda : (valda.length ? valda[0] : null)) : null,
+    hur: valda.length ? "bock" : null,
+    oense: false,
+    poang: tpRad ? poangUr(tpRad.text) : 1,
+    sida: forsta.sida, y: forsta.y, flersvar: arFlerval,
+    mal: null, konf: null, facit: "",
+    altErsatt: altErsatt.some(Boolean) ? altErsatt : undefined,
+    _figurer: platser.map(p => ({ pos: p.pos, sida: p.fg.sida, ruta: p.fg.ruta }))
+      .concat(altBild.map(ab => ({ pos: null, alt: ab.alt, sida: ab.fg.sida, ruta: ab.fg.ruta })))
+  };
+  if (ut.typ === "text" && !ut.q && !ut._figurer.length) return null;
+  return ut;
+}
+
+/* Klipper ut figurerna ur sidorna och lägger dem i mediebiblioteket. */
+async function fangaInsperaFigurer(doc, fragor, onProgress) {
+  const jobb = [];
+  fragor.forEach(f => (f._figurer || []).forEach(fg => jobb.push({ f, fg })));
+  const perSida = {};
+  jobb.forEach(j => { (perSida[j.fg.sida] = perSida[j.fg.sida] || []).push(j); });
+  const sidnr = Object.keys(perSida).map(Number).sort((a, b) => a - b);
+  let klara = 0;
+  for (const sn of sidnr) {
+    let sida;
+    try { sida = await doc.getPage(sn); } catch (e) { continue; }
+    const SK = 2.4;
+    const vp = sida.getViewport({ scale: SK });
+    const hojd = sida.getViewport({ scale: 1 }).height;
+    const duk = document.createElement("canvas");
+    duk.width = Math.ceil(vp.width); duk.height = Math.ceil(vp.height);
+    const ctx = duk.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, duk.width, duk.height);
+    try { await sida.render({ canvasContext: ctx, viewport: vp }).promise; } catch (e) { continue; }
+    for (const { f, fg } of perSida[sn]) {
+      klara++;
+      if (onProgress) onProgress(klara, jobb.length, "figurer");
+      const R = fg.ruta, marg = 1.5;
+      const cx = Math.max(0, (R.x0 - marg) * SK), cy = Math.max(0, (hojd - R.y1 - marg) * SK);
+      const cb = Math.min(duk.width - cx, (R.x1 - R.x0 + marg * 2) * SK);
+      const ch = Math.min(duk.height - cy, (R.y1 - R.y0 + marg * 2) * SK);
+      if (cb < 20 || ch < 20) continue;
+      let ut = document.createElement("canvas");
+      /* högst 1400 px bred – skarpt nog för tabeller, lagom stort */
+      const ned = Math.min(1, 1400 / cb);
+      ut.width = Math.round(cb * ned); ut.height = Math.round(ch * ned);
+      const kt = ut.getContext("2d");
+      kt.fillStyle = "#fff"; kt.fillRect(0, 0, ut.width, ut.height);
+      kt.drawImage(duk, cx, cy, cb, ch, 0, 0, ut.width, ut.height);
+      try { ut = trimmaKanter(ut); } catch (e) {}
+      const url = fg.ruta.typ === "vektor" ? ut.toDataURL("image/png") : ut.toDataURL("image/jpeg", 0.85);
+      const id = "m" + frohash(url).toString(36) + "-" + sn;
+      try {
+        await mediaSpara({ id, kalla: "", dokument: "", sida: sn, data: url, bredd: ut.width, hojd: ut.height });
+      } catch (e) { continue; }
+      if (typeof fg.alt === "number" && fg.alt >= 0) {
+        f.altBilder = f.altBilder || f.options.map(() => "");
+        f.altBilder[fg.alt] = id;
+        continue;
+      }
+      f.bilder = f.bilder || [];
+      if (f.bilder.indexOf(id) === -1) f.bilder.push(id);
+      if (fg.pos !== null && fg.pos !== undefined) {
+        f.bildPlats = f.bildPlats || [];
+        f.bildPlats.push({ id, pos: fg.pos });
+      }
+    }
+    try { sida.cleanup(); } catch (e) {}
+    await new Promise(r => setTimeout(r, 0));
+  }
+  fragor.forEach(f => { delete f._figurer; });
+}
+
+/* Frågetexten med figurerna på sina platser. Figurer utan plats läggs efter. */
+function stamMedBilder(f, klass, stil, alt) {
+  const bilder = fragansBilder(f);
+  const platser = (Array.isArray(f.bildPlats) ? f.bildPlats : [])
+    .filter(p => p && bilder.includes(p.id) && typeof p.pos === "number")
+    .sort((a, b) => a.pos - b.pos);
+  const q = String(f.q || "");
+  const img = (b, i) => `<img class="fragebild" data-media="${esc(b)}"
+    alt="${esc(alt || "Figur till frågan")}${bilder.length > 1 ? " (" + (i + 1) + " av " + bilder.length + ")" : ""}"
+    ${arDataUrl(b) ? `src="${b}"` : ""}>`;
+  if (!platser.length) return `<div class="${klass}"${stil ? ` style="${stil}"` : ""}>${esc(q)}</div>${bildplatser(f, alt)}`;
+  let html = "", fran = 0;
+  const anvanda = new Set();
+  platser.forEach(p => {
+    const del = q.slice(fran, Math.min(q.length, p.pos)).replace(/^\n+|\n+$/g, "");
+    if (del.trim()) html += `<div class="${klass}"${stil ? ` style="${stil}"` : ""}>${esc(del)}</div>`;
+    html += img(p.id, bilder.indexOf(p.id));
+    anvanda.add(p.id);
+    fran = Math.max(fran, p.pos);
+  });
+  const rest = q.slice(fran).replace(/^\n+/, "");
+  if (rest.trim()) html += `<div class="${klass}"${stil ? ` style="${stil}"` : ""}>${esc(rest)}</div>`;
+  bilder.forEach((b, i) => { if (!anvanda.has(b)) html += img(b, i); });
+  return html;
+}
+
+/* Ett alternativs innehåll: text, och bild om alternativet har en. En
+   automatisk etikett ("Alternativ A") visas inte bredvid bilden. */
+function altHtml(f, oi, o) {
+  const b = Array.isArray(f.altBilder) ? f.altBilder[oi] : "";
+  if (!b) return esc(o);
+  const auto = /^Alternativ [A-H]$/.test(String(o || "").trim()) || !!(Array.isArray(f.altErsatt) && f.altErsatt[oi]);
+  return `${auto ? "" : esc(o) + " "}<img class="altbild" data-media="${esc(b)}" alt="${esc(o || "Bild")}"${arDataUrl(b) ? ` src="${b}"` : ""}>`;
 }
 
 
@@ -16630,16 +17482,14 @@ async function lagaLigaturer(rader) {
 
 /* =====================================================================
    KONVERTERING AV ALLA SLAGS TENTOR
-   Läsarna ovan klarar de vanliga uppställningarna. För resten finns två
-   reserver som gör om tentan till simulatorns format:
+   Läsarna ovan klarar de vanliga uppställningarna. För inskannade tentor
+   finns en reserv som gör om tentan till simulatorns format:
      1. Textigenkänning (OCR) för inskannade tentor – körs lokalt i
         webbläsaren med Tesseract, ingen nyckel behövs. Sidan ritas, texten
         läses av, gröna bockar och gul överstrykning hittas på pixlarna, och
         resultatet går sedan genom samma läsare som en vanlig PDF.
-     2. AI-tolkning – sidorna skickas som bilder (och text) till den AI som
-        är inkopplad under AI-rättning, och frågorna kommer tillbaka i
-        simulatorns format. Fungerar för alla layouter och alla sätt att
-        markera facit.
+     Inspera-utskrifter läses av en egen läsare som går på knappar, bockar
+     och figurer (parsaInspera), och den används också efter textigenkänningen.
    ===================================================================== */
 
 const OCR_KALLA = {
@@ -16648,10 +17498,10 @@ const OCR_KALLA = {
   core: "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1",
   sprak: "https://cdn.jsdelivr.net/npm/@tesseract.js-data/swe/4.0.0"
 };
-const OCR_SKALA = 2.2;
+let OCR_SKALA = 2.0;
 
 /* Rader, färgade markeringar och gul överstrykning ur en inskannad sida. */
-async function ocrSidData(sida, worker) {
+async function ocrSidData(sida, worker, mask) {
   const vp = sida.getViewport({ scale: OCR_SKALA });
   const duk = document.createElement("canvas");
   duk.width = Math.ceil(vp.width); duk.height = Math.ceil(vp.height);
@@ -16660,6 +17510,12 @@ async function ocrSidData(sida, worker) {
   await sida.render({ canvasContext: ctx, viewport: vp }).promise;
   const hojd = sida.getViewport({ scale: 1 }).height;
   const px = ctx.getImageData(0, 0, duk.width, duk.height).data;
+  /* figurerna läses inte som text */
+  if (mask && mask.length) {
+    ctx.fillStyle = "#fff";
+    mask.forEach(m => ctx.fillRect(m.x0 * OCR_SKALA - 2, (hojd - m.y1) * OCR_SKALA - 2,
+      (m.x1 - m.x0) * OCR_SKALA + 4, (m.y1 - m.y0) * OCR_SKALA + 4));
+  }
   const W = duk.width, H = duk.height;
 
   /* ---- gröna bockar: kluster av gröna pixlar ---- */
@@ -16693,7 +17549,7 @@ async function ocrSidData(sida, worker) {
   }
 
   /* ---- texten ---- */
-  const res = await worker.recognize(duk, {}, { blocks: true, text: false });
+  const res = await worker.recognize(duk, {}, { blocks: true, text: false, hocr: false, tsv: false });
   const rader = [];
   (res.data.blocks || []).forEach(bl => (bl.paragraphs || []).forEach(pa => (pa.lines || []).forEach(li => {
     /* Bocken i högermarginalen läses ibland som ett ord ("Vv"). Ord långt
@@ -16704,7 +17560,7 @@ async function ocrSidData(sida, worker) {
       if (sista.bbox.x0 - fore.bbox.x1 > 45 * OCR_SKALA && String(sista.text).trim().length <= 3) ord = ord.slice(0, -1);
       else break;
     }
-    const t = (ord.length ? ord.map(w => w.text).join(" ") : String(li.text || "")).replace(/\s+/g, " ").trim();
+    const t = ocrRatta((ord.length ? ord.map(w => w.text).join(" ") : String(li.text || "")).replace(/\s+/g, " ").trim());
     if (!t || (li.confidence !== undefined && li.confidence < 35 && t.length < 4)) return;
     const b = ord.length ? { x0: Math.min(...ord.map(w => w.bbox.x0)), x1: Math.max(...ord.map(w => w.bbox.x1)),
       y0: li.bbox.y0, y1: li.bbox.y1 } : li.bbox;
@@ -16726,207 +17582,84 @@ async function ocrSidData(sida, worker) {
   return { rader, markeringar, bilder: [], overstrykningar: [] };
 }
 
-let _ocrWorker = null;
-async function ocrWorker(onProgress) {
-  if (_ocrWorker) return _ocrWorker;
+/* ---------- textigenkänning: flera arbetare parallellt ----------
+   Varje arbetare är en egen Tesseract-process. Sidorna ritas i turordning
+   och skickas till den arbetare som är ledig, så att ritning och igenkänning
+   överlappar. Språkpaketet hämtas en gång och sparas sedan i webbläsaren. */
+let _ocrArbetare = null, _ocrAntal = 0;
+function ocrAntalArbetare() {
+  const k = Number(navigator.hardwareConcurrency) || 2;
+  const mobil = /iPhone|iPad|Android|Mobile/i.test(navigator.userAgent || "");
+  /* rendering sker i huvudtråden, igenkänningen i arbetarna – två arbetare
+     lönar sig redan på en tvåkärnig dator */
+  return Math.max(2, Math.min(mobil ? 2 : 4, k - 1));
+}
+async function ocrArbetare(onProgress) {
+  const n = ocrAntalArbetare();
+  if (_ocrArbetare && _ocrAntal >= n) return _ocrArbetare;
   if (onProgress) onProgress(0, 1, "ocrladdar");
   await laddaSkript(OCR_KALLA.skript);
   if (!globalThis.Tesseract) throw new Error("textigenkänningen kunde inte laddas (kräver internet första gången)");
-  _ocrWorker = await globalThis.Tesseract.createWorker("swe", 1, {
+  const skapa = () => globalThis.Tesseract.createWorker("swe", 1, {
     workerPath: OCR_KALLA.worker, corePath: OCR_KALLA.core, langPath: OCR_KALLA.sprak
   });
-  return _ocrWorker;
-}
-
-/* ---------- AI-tolkning ---------- */
-function aiKanLasaTentor() { return !!motor && aistore.pa !== false; }
-
-const AI_TENTA_REGLER = `Du gör om en tenta (bilder av sidorna, plus den text som gick att plocka ut) till JSON för en tentamenssimulator.
-
-Ta med VARJE fråga som BÖRJAR på sidorna du ombeds tolka. En fråga som fortsätter på nästa sida tar du med i sin helhet (nästa sida ingår som sammanhang). Hoppa över försättsblad, regler, rubriker och sidhuvuden.
-
-Svara med ENBART en JSON-lista, ett objekt per fråga:
-{"nr": frågans nummer i tentan (heltal),
- "sida": sidan där frågan börjar,
- "typ": "sba" (ett rätt alternativ) | "flerval" (flera rätta) | "text" (skrivfråga/kortsvar/essä) | "matchning" (para ihop rader med kolumner),
- "fraga": frågetexten ordagrant, utan nummer och rubrik,
- "alternativ": ["alternativ 1", ...] i originalordning, utan bokstav/siffra framför (tom lista för skrivfrågor),
- "ratt": [index (från 0) för det/de rätta alternativen],
- "facit": facit- eller svarstext för skrivfrågor ("" om inget står),
- "poang": frågans poäng (1 om inget anges),
- "matchrader": [radetiketter] och "matchsvar": [kolumnindex per rad] (endast matchning),
- "figur": {"sida": n, "ruta": [x0, y0, x1, y1]} om frågan har en bild, graf, tabell eller figur – rutan i promille (0–1000) av sidbildens bredd och höjd, räknat från övre vänstra hörnet; annars null}
-
-Så känner du igen rätt svar: grön bock, ifylld ruta eller ring, gul eller annan överstrykning, fetstil, "Rätt svar: C", en facitlista, ett "Svar:"-block. Finns ingen markering: sätt "ratt": [] – gissa ALDRIG.
-Skriv texten exakt som i tentan, med svenska tecken, index (O₂, Ca²⁺) och pilar. Ingen förklaring utanför JSON.`;
-
-async function aiMedBilder(sys, delar, opt) {
-  const m = motor;
-  if (!m) throw { code: "ingen_motor", message: "ingen AI konfigurerad" };
-  if (m.typ !== "nyckel") {
-    /* Utan egen nyckel går bara text – bilderna hoppas över. */
-    const text = delar.filter(d => d.typ === "text").map(d => d.text).join("\n\n");
-    return (await fragaAI([{ role: "system", content: sys }, { role: "user", content: text }], opt || {})).text;
+  /* den första laddar ned språkpaketet; de övriga tar det ur cachen */
+  const forsta = _ocrArbetare && _ocrArbetare[0] ? _ocrArbetare[0] : await skapa();
+  const ovriga = await Promise.all(Array.from({ length: n - 1 }, () => skapa().catch(() => null)));
+  _ocrArbetare = [forsta, ...ovriga.filter(Boolean)];
+  _ocrAntal = n;
+  for (const w of _ocrArbetare) {
+    try { await w.setParameters({ preserve_interword_spaces: "1" }); } catch (e) {}
   }
-  let url, huvuden, kropp, plocka;
-  if (m.lev === "google") {
-    url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m.modell)}:generateContent`;
-    huvuden = { "Content-Type": "application/json", "x-goog-api-key": m.nyckel };
-    kropp = { systemInstruction: { parts: [{ text: sys }] },
-      contents: [{ role: "user", parts: delar.map(d => d.typ === "bild"
-        ? { inline_data: { mime_type: "image/jpeg", data: d.data } } : { text: d.text }) }],
-      generationConfig: { maxOutputTokens: 16384, responseMimeType: "application/json" } };
-    plocka = j => (j.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("");
-  } else if (m.lev === "openai") {
-    url = "https://api.openai.com/v1/chat/completions";
-    huvuden = { "Content-Type": "application/json", Authorization: "Bearer " + m.nyckel };
-    kropp = { model: m.modell, max_completion_tokens: 16384,
-      messages: [{ role: "system", content: sys }, { role: "user", content: delar.map(d => d.typ === "bild"
-        ? { type: "image_url", image_url: { url: "data:image/jpeg;base64," + d.data, detail: "high" } }
-        : { type: "text", text: d.text }) }] };
-    plocka = j => j.choices?.[0]?.message?.content || "";
-  } else {
-    url = "https://api.anthropic.com/v1/messages";
-    huvuden = { "Content-Type": "application/json", "x-api-key": m.nyckel,
-      "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" };
-    kropp = { model: m.modell, max_tokens: 16000, system: sys,
-      messages: [{ role: "user", content: delar.map(d => d.typ === "bild"
-        ? { type: "image", source: { type: "base64", media_type: "image/jpeg", data: d.data } }
-        : { type: "text", text: d.text }) }] };
-    plocka = j => (j.content || []).map(c => c.text || "").join("");
-  }
-  const res = await fetch(url, { method: "POST", headers: huvuden, body: JSON.stringify(kropp), signal: opt && opt.signal });
-  if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    let msg = t; try { msg = JSON.parse(t).error?.message || t; } catch (e) {}
-    throw { code: res.status === 401 || res.status === 403 ? "nyckel_fel" : res.status === 429 ? "rate_limited" : "upstream_error",
-      message: String(msg).slice(0, 240) };
-  }
-  return plocka(await res.json());
+  return _ocrArbetare;
 }
+/* bakåtkompatibelt: en enda arbetare */
+async function ocrWorker(onProgress) { return (await ocrArbetare(onProgress))[0]; }
 
-async function sidaSomJpeg(sida, maxBredd) {
-  const vp1 = sida.getViewport({ scale: 1 });
-  const skala = Math.min(2.4, maxBredd / vp1.width);
-  const vp = sida.getViewport({ scale: skala });
-  const duk = document.createElement("canvas");
-  duk.width = Math.ceil(vp.width); duk.height = Math.ceil(vp.height);
-  const ctx = duk.getContext("2d");
-  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, duk.width, duk.height);
-  await sida.render({ canvasContext: ctx, viewport: vp }).promise;
-  return duk;
-}
-
-/* Hela tentan via AI. Två sidor tolkas per anrop, med nästa sida som sammanhang. */
-async function aiKonverteraTenta(bytes, onProgress, opt) {
-  if (!aiKanLasaTentor()) throw new Error("Ingen AI är inkopplad. Lägg in en nyckel på sidan AI-rättning först.");
-  const L = globalThis.pdfjsLib;
-  const doc = await L.getDocument({ data: bytes.slice ? bytes.slice(0) : bytes, isEvalSupported: false, useSystemFonts: false }).promise;
-  const n = doc.numPages;
-  const bilder = {}, texter = {};
-  const hamta = async s => {
-    if (bilder[s]) return;
-    const sida = await doc.getPage(s);
-    const duk = await sidaSomJpeg(sida, 1150);
-    bilder[s] = duk;
-    try { texter[s] = (await sida.getTextContent()).items.map(i => i.str).join(" ").replace(/\s+/g, " ").slice(0, 6000); }
-    catch (e) { texter[s] = ""; }
+/* Kör textigenkänning på alla sidor. sidor[i].geo får behålla sidans
+   geometri (knappar, bockar, bilder) från operatorlistan. */
+async function ocrAllaSidor(doc, sidor, onProgress) {
+  const arbetare = await ocrArbetare(onProgress);
+  const N = doc.numPages;
+  let nasta = 1, klara = 0;
+  const kor = async w => {
+    while (nasta <= N) {
+      const s = nasta++;
+      const sida = await doc.getPage(s);
+      const gammal = sidor[s - 1];
+      /* Bilder (figurer), radioknappar och bockar målas vita innan
+         igenkänningen: figurerna klipps ut separat, och knappar och bockar
+         läses annars som bokstäver ("O", "Vv"). */
+      const glyfSida = (gammal.smaVagar || 0) > 250;
+      const mask = (gammal.bilder || []).concat(gammal.lagaBilder || []).concat(gammal.smaBilder || [])
+        .concat((gammal.markeringar || []).filter(m => m.fargad ||
+          (!glyfSida && (m.x1 - m.x0) >= 5.5 && (m.x1 - m.x0) <= 14 && Math.abs((m.x1 - m.x0) - (m.y1 - m.y0)) < 3)));
+      const d = await ocrSidData(sida, w, mask);
+      sidor[s - 1] = { nr: s, ...d, hojd: gammal.hojd, bredd: gammal.bredd, geo: gammal };
+      try { sida.cleanup(); } catch (e) {}
+      klara++;
+      if (onProgress) onProgress(klara, N, "ocr");
+    }
   };
-  const allt = [];
-  const STEG = 2;
-  for (let s = 1; s <= n; s += STEG) {
-    if (onProgress) onProgress(Math.min(n, s + STEG - 1), n, "ai");
-    const tolka = [], kontext = [];
-    for (let k = s; k < s + STEG && k <= n; k++) tolka.push(k);
-    if (s + STEG <= n) kontext.push(s + STEG);
-    for (const k of tolka.concat(kontext)) await hamta(k);
-    const delar = [];
-    tolka.concat(kontext).forEach(k => {
-      delar.push({ typ: "text", text: `SIDA ${k}${kontext.includes(k) ? " (endast sammanhang – ta inte med frågor som börjar här)" : ""}. Utplockad text: ${texter[k] || "(ingen – inskannad sida)"}` });
-      delar.push({ typ: "bild", data: bilder[k].toDataURL("image/jpeg", 0.8).split(",")[1] });
-    });
-    delar.push({ typ: "text", text: `Tolka frågorna som BÖRJAR på sida ${tolka.join(" och ")} av ${n}. Svara med JSON-listan.` });
-    let svar = [];
-    for (let forsok = 0; forsok < 2; forsok++) {
-      try {
-        const txt = await aiMedBilder(AI_TENTA_REGLER, delar, opt);
-        const j = plockaJSON(txt);
-        svar = Array.isArray(j) ? j : (Array.isArray(j.fragor) ? j.fragor : []);
-        break;
-      } catch (e) {
-        if (e && (e.code === "nyckel_fel" || e.code === "ingen_motor")) throw new Error(e.message || "AI-nyckeln fungerar inte");
-        if (forsok === 1) svar = [];
-        else await new Promise(r => setTimeout(r, e && e.code === "rate_limited" ? 8000 : 1500));
-      }
-    }
-    svar.forEach(q => { if (q && (q.fraga || q.q)) allt.push(q); });
-  }
-
-  /* ---- till simulatorns format ---- */
-  const sett = new Set();
-  const fragor = [];
-  for (const q of allt) {
-    const fraga = String(q.fraga || q.q || "").trim();
-    const nyckel = (q.nr || "") + "|" + fraga.slice(0, 60).toLowerCase();
-    if (!fraga || sett.has(nyckel)) continue;
-    sett.add(nyckel);
-    const alt = Array.isArray(q.alternativ) ? q.alternativ.map(x => String(x).trim()).filter(Boolean) : [];
-    let typ = ["sba", "flerval", "text", "matchning"].includes(q.typ) ? q.typ : (alt.length >= 2 ? "sba" : "text");
-    const ratt = (Array.isArray(q.ratt) ? q.ratt : (q.ratt === null || q.ratt === undefined ? [] : [q.ratt]))
-      .map(Number).filter(i => i >= 0 && i < alt.length);
-    if (typ !== "text" && typ !== "matchning" && alt.length < 2) typ = "text";
-    if (typ === "sba" && ratt.length > 1) typ = "flerval";
-    const f = {
-      id: "f" + (fragor.length + 1), nr: Number(q.nr) || fragor.length + 1,
-      q: fraga, typ, sort: typ === "text" ? "kortsvar" : "SBA",
-      options: typ === "text" ? [] : alt,
-      svar: typ === "text" ? null : typ === "flerval" ? ratt : typ === "matchning"
-        ? (Array.isArray(q.matchsvar) ? q.matchsvar.map(x => x === null ? null : Number(x)) : [])
-        : (ratt.length ? ratt[0] : null),
-      matchrader: typ === "matchning" && Array.isArray(q.matchrader) ? q.matchrader.map(String) : undefined,
-      facit: String(q.facit || "").trim(), facitrubrik: q.facit ? "Facit" : "",
-      poang: Number(q.poang) > 0 ? Number(q.poang) : 1,
-      sida: Number(q.sida) || 1, y: null, hur: "ai", oense: false, flersvar: typ === "flerval",
-      mal: null, konf: null, bilder: []
-    };
-    /* ---- figuren klipps ur sidbilden ---- */
-    const fg = q.figur;
-    if (fg && Array.isArray(fg.ruta) && fg.ruta.length === 4 && bilder[Number(fg.sida) || f.sida]) {
-      try {
-        const duk = bilder[Number(fg.sida) || f.sida];
-        let [x0, y0, x1, y1] = fg.ruta.map(Number);
-        if (Math.max(x0, y0, x1, y1) <= 1.001) { x0 *= 1000; y0 *= 1000; x1 *= 1000; y1 *= 1000; }
-        const pad = 12;
-        const cx = Math.max(0, x0 / 1000 * duk.width - pad), cy = Math.max(0, y0 / 1000 * duk.height - pad);
-        const cb = Math.min(duk.width - cx, (x1 - x0) / 1000 * duk.width + pad * 2);
-        const chh = Math.min(duk.height - cy, (y1 - y0) / 1000 * duk.height + pad * 2);
-        if (cb > 40 && chh > 30) {
-          let ut = document.createElement("canvas");
-          ut.width = Math.round(cb); ut.height = Math.round(chh);
-          const k = ut.getContext("2d");
-          k.fillStyle = "#fff"; k.fillRect(0, 0, ut.width, ut.height);
-          k.drawImage(duk, cx, cy, cb, chh, 0, 0, ut.width, ut.height);
-          ut = trimmaKanter(ut);
-          const data = ut.toDataURL("image/jpeg", 0.75);
-          const id = "m" + frohash(data).toString(36) + "-" + (fg.sida || f.sida);
-          await mediaSpara({ id, kalla: "", dokument: "", sida: Number(fg.sida) || f.sida, data, bredd: ut.width, hojd: ut.height });
-          f.bilder.push(id);
-        }
-      } catch (e) {}
-    }
-    fragor.push(f);
-  }
-  fragor.sort((a, b) => (a.sida - b.sida) || (a.nr - b.nr));
-  fragor.forEach((f, i) => { f.plats = i + 1; f.id = "f" + (i + 1); });
-  try { doc.destroy(); } catch (e) {}
-  const metoder = { ai: fragor.length };
-  return { fragor, diagnos: { sidor: n, rader: 0, skannad: false, lage: "ai", metoder,
-    utanFacit: fragor.filter(f => f.typ === "text" ? !f.facit : (f.svar === null || (Array.isArray(f.svar) && !f.svar.length))).length,
-    oense: 0, flersvar: fragor.filter(f => f.typ === "flerval").length, matchning: fragor.filter(f => f.typ === "matchning").length,
-    medBild: fragor.filter(f => f.bilder.length).length } };
+  await Promise.all(arbetare.map(w => kor(w)));
 }
 
-/* Är läsarens resultat så tunt att det lönar sig att låta AI:n försöka? */
+/* Vanliga feltolkningar i textigenkänningen av tentor. Bara mönster som inte
+   kan betyda något annat rättas. */
+function ocrRatta(t) {
+  return String(t || "")
+    .replace(/(\d)\s?(?:Yo|9o|°o|0\/0)(?=\s|$|[.,)])/g, "$1 %")
+    .replace(/\b(Pa|P|p|pa|a)?(CO|O)[>»](?=[\s\-)–,.:;]|$)/g, (m, a, b) => (a || "") + b + "₂")
+    .replace(/\b(Pa|P|p|pa)(CO|O)[,;:z2](?=\s*[\d<>=≈]|\s*-|\))/g, "$1$2₂")
+    .replace(/\b(Ca|Mg|Zn|Cu)\s?[?²2]\s?["”'’+*]+/g, "$1²⁺")
+    .replace(/\b(Na|K|H)\s?[+*]["”']?(?=[\s\-/,)]|$)/g, "$1⁺");
+}
+
+/* AI-tolkning av tentor finns inte längre: allt läses av den inbyggda
+   läsaren eller av textigenkänningen. */
+function aiKanLasaTentor() { return false; }
+
+/* Är läsarens resultat så tunt att något troligen gått fel? */
 function tunnLasning(res) {
   if (!res || !res.fragor) return true;
   const F = res.fragor;
@@ -16941,7 +17674,6 @@ function stegText(s, n, steg) {
   return steg === "figurer" ? `figur ${s} av ${n}`
     : steg === "ocr" ? `textigenkänning, sida ${s} av ${n}`
     : steg === "ocrladdar" ? "hämtar textigenkänningen (första gången tar det en stund)"
-    : steg === "ai" ? `AI:n tolkar sida ${s} av ${n}`
     : `sida ${s} av ${n}`;
 }
 
@@ -18083,6 +18815,12 @@ function normaliseraTenta(t) {
       sida: Number(f.sida) || 0,
       bilder: Array.isArray(f.bilder) ? f.bilder.filter(Boolean)
         : (f.bild ? [f.bild] : []),
+      /* var i frågetexten varje figur står (teckenposition) */
+      /* bild som hör till ett alternativ (formel, figur), en plats per alternativ */
+      altBilder: Array.isArray(f.altBilder) ? f.altBilder.map(x => x ? String(x) : "") : [],
+      altErsatt: Array.isArray(f.altErsatt) ? f.altErsatt.map(Boolean) : [],
+      bildPlats: Array.isArray(f.bildPlats) ? f.bildPlats.filter(p => p && p.id && typeof p.pos === "number")
+        .map(p => ({ id: String(p.id), pos: Math.max(0, Math.round(p.pos)) })) : [],
       options: (f.options || []).map(o => String(o).trim()).filter(Boolean),
       /* Flerkryssfrågor bär en lista av index; envalsfrågor ett enda tal. */
       svar: f.typ === "matchning"
@@ -19046,8 +19784,8 @@ function viewTentaNy() {
           <tr><td><b>Fetstilt alternativ</b></td><td>Ja — om exakt ett alternativ är fett</td></tr>
           <tr><td><b>Facitlista sist</b> (”1 C  2 A  3 B”)</td><td>Ja — används för frågor utan egen markering</td></tr>
           <tr><td><b>Gul överstrykning</b> (Word-tentor)</td><td>Ja</td></tr>
-          <tr><td><b>Inskannad tenta</b> (bild utan textlager)</td><td>Ja — med textigenkänning i webbläsaren, eller AI-tolkning</td></tr>
-          <tr><td><b>Annan uppställning</b> som läsaren inte känner igen</td><td>Ja — via AI-tolkning, om en AI är inkopplad under AI-rättning</td></tr>
+          <tr><td><b>Inspera-utskrift</b> (”Välj ett alternativ”, grön bock)</td><td>Ja — knappar, bock, figurer och tabeller läses exakt</td></tr>
+          <tr><td><b>Inskannad tenta</b> eller trasigt textlager</td><td>Ja — automatiskt med textigenkänning i webbläsaren</td></tr>
         </tbody></table>
       </div>
       <p style="font-size:13px; color:var(--ink-2); margin:10px 0 0">
@@ -19061,25 +19799,19 @@ function viewTentaNy() {
   /* Originalfilen sparas så att den kan läsas om med OCR eller AI. */
   let sistaBuf = null, sistaNamn = "";
   function reservPanel(varfor, res) {
-    const ai = aiKanLasaTentor();
     const text = varfor === "skannad"
-      ? "Sidorna är bilder utan textlager. Den kan ändå göras om till simulatorns format:"
-      : `PDF:en har text (${res.diagnos.rader} rader på ${res.diagnos.sidor} sidor), men ingen av läsarens uppställningar passade. Den kan ändå göras om till simulatorns format:`;
-    status.innerHTML = `<div class="note" style="margin-top:20px"><b>${varfor === "skannad" ? "Tentan är inskannad." : "Uppställningen känns inte igen."}</b> ${text}
+      ? "Sidorna är bilder utan läsbar text, och textigenkänningen hittade inget att läsa."
+      : `PDF:en har text (${res.diagnos.rader} rader på ${res.diagnos.sidor} sidor), men ingen av läsarens uppställningar passade.`;
+    status.innerHTML = `<div class="note" style="margin-top:20px"><b>${varfor === "skannad" ? "Tentan gick inte att läsa." : "Uppställningen känns inte igen."}</b> ${text}
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
-        ${ai ? `<button class="btn primary" id="lasAI">Tolka med AI</button>` : ""}
-        <button class="btn${ai ? "" : " primary"}" id="lasOCR">Läs med textigenkänning</button>
-        ${ai ? "" : `<button class="btn" data-go="/ai">Koppla in en AI</button>`}
+        <button class="btn primary" id="lasOCR">Läs med textigenkänning</button>
       </div>
-      <p style="font-size:13px; color:var(--ink-2); margin:10px 0 0">${ai
-        ? "AI-tolkningen ser sidorna som bilder och hittar frågor, alternativ, facit och figurer oavsett uppställning. Den använder nyckeln du lagt in under AI-rättning."
-        : "Textigenkänningen körs i webbläsaren och hämtar ett svenskt språkpaket (cirka 10 MB) första gången. Med en AI inkopplad under AI-rättning blir tolkningen säkrare och figurerna följer med."}</p></div>`;
-    const a = document.getElementById("lasAI"); if (a) a.addEventListener("click", () => korOm("ai"));
+      <p style="font-size:13px; color:var(--ink-2); margin:10px 0 0">Textigenkänningen körs i webbläsaren och hämtar ett svenskt språkpaket (cirka 10 MB) första gången.</p></div>`;
     const o = document.getElementById("lasOCR"); if (o) o.addEventListener("click", () => korOm("ocr"));
   }
   async function korOm(satt) {
     if (!sistaBuf) return;
-    status.innerHTML = `<div class="note" style="margin-top:20px" id="progress"><b>${satt === "ai" ? "AI:n tolkar" : "Textigenkänning av"} ${esc(sistaNamn)}…</b></div>`;
+    status.innerHTML = `<div class="note" style="margin-top:20px" id="progress"><b>Textigenkänning av ${esc(sistaNamn)}…</b></div>`;
     const prog = document.getElementById("progress");
     const pf = (s, n, steg) => {
       prog.innerHTML = `<b>${esc(sistaNamn)}</b> — ${stegText(s, n, steg)}…
@@ -19087,16 +19819,13 @@ function viewTentaNy() {
     };
     let res;
     try {
-      res = satt === "ai" ? await aiKonverteraTenta(sistaBuf.slice(), pf) : await pdfLasTenta(sistaBuf.slice(), pf, { ocr: true });
+      res = await pdfLasTenta(sistaBuf.slice(), pf, { ocr: true });
     } catch (e) {
-      fel(satt === "ai" ? "AI-tolkningen misslyckades" : "Textigenkänningen misslyckades",
-        `${esc(String(e && e.message || e))}${satt === "ocr" && aiKanLasaTentor() ? " Prova att tolka med AI i stället." : ""}`);
+      fel("Textigenkänningen misslyckades", esc(String(e && e.message || e)));
       return;
     }
     if (!res.fragor.length) {
-      fel("Inga frågor hittades", satt === "ai"
-        ? "AI:n hittade inga frågor i filen. Är det verkligen en tenta?"
-        : "Texten gick att läsa, men inga frågor kändes igen. Koppla in en AI under AI-rättning och tolka om filen.");
+      fel("Inga frågor hittades", "Texten gick att läsa, men inga frågor kändes igen. Är det verkligen en tenta med svarsalternativ?");
       return;
     }
     visaGranskning(sistaNamn, res);
@@ -19170,7 +19899,7 @@ function viewTentaNy() {
     const d = res.diagnos;
     const HUR = { textrad: "rätt svar-rad", kryss: "kryss", markering: "markering",
       fetstil: "fetstil", facitlista: "facitlista", bock: "bock i facit", manuell: "valt av dig",
-      svarblock: "Svar-block i filen", ai: "AI-tolkning", "överstrykning": "gul överstrykning", facittext: "facittext" };
+      svarblock: "Svar-block i filen", "överstrykning": "gul överstrykning", facittext: "facittext" };
 
     /* En fråga saknar facit om det inte finns något att rätta mot: för en
        kryssfråga inget markerat alternativ, för en skrivfråga ingen facittext. */
@@ -19195,14 +19924,9 @@ function viewTentaNy() {
             ${Object.entries(d.metoder).map(([k, v]) => `${v} ${HUR[k] || k}`).join(" · ")}.</span>` : ""}
           <br><span style="font-size:13px; color:var(--ink-2)">Granska nedan och rätta det som blivit fel —
           klicka på det alternativ som ska vara rätt svar.</span>
-          ${d.lage === "ai"
-            ? `<br><span style="font-size:13px; color:var(--warn)">Tolkad av AI – granska facit extra noga innan du sparar.</span>`
-            : aiKanLasaTentor()
-              ? `<br><button class="lank" id="lasOmAI" style="margin-top:6px">${tunnLasning(res)
-                  ? "Läsningen ser ofullständig ut – låt AI:n tolka om tentan" : "Blev något fel? Låt AI:n tolka om tentan"}</button>`
-              : tunnLasning(res)
-                ? `<br><span style="font-size:13px; color:var(--warn)">Läsningen ser ofullständig ut. Koppla in en AI under AI-rättning, så kan tentan tolkas om.</span>`
-                : ""}
+          ${d.ocr ? `<br><span style="font-size:13px; color:var(--ink-2)">Läst med textigenkänning – titta extra på stavningen.</span>` : ""}
+          ${!d.ocr && tunnLasning(res)
+            ? `<br><button class="lank" id="lasOmOCR" style="margin-top:6px">Läsningen ser ofullständig ut – läs om med textigenkänning</button>` : ""}
         </div>
 
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin:20px 0 6px">
@@ -19229,8 +19953,8 @@ function viewTentaNy() {
          Anropet låg tidigare efter en return och kördes därför aldrig — det
          var därför granskningen visade tomma bildplatser. */
       fyllBilder(status);
-      const omAI = document.getElementById("lasOmAI");
-      if (omAI) omAI.addEventListener("click", () => korOm("ai"));
+      const omOCR = document.getElementById("lasOmOCR");
+      if (omOCR) omOCR.addEventListener("click", () => korOm("ocr"));
 
       status.querySelectorAll("[data-match]").forEach(b => b.addEventListener("click", () => {
         const kort = b.closest("[data-fraga]");
@@ -19355,8 +20079,7 @@ function viewTentaNy() {
             Array.isArray(f.svar) && f.svar.length ? ` · ${f.svar.length} rätta` : ""}</span>` : ""}
           ${f.oense ? `<span class="chip accent" style="margin-left:6px">motstridiga markeringar</span>` : ""}
         </div>
-        <div class="qtext" style="font-size:15.5px">${esc(f.q)}</div>
-        ${bildplatser(f, "Figur till fråga " + f.nr)}
+        ${stamMedBilder(f, "qtext", "font-size:15.5px; white-space:pre-line", "Figur till fråga " + f.nr)}
         ${text ? `
           <div style="margin-top:10px">
             <span style="font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); font-family:var(--mono)">${esc(f.facitrubrik || "Facit")}</span>
@@ -19372,7 +20095,7 @@ function viewTentaNy() {
             const vald = f.typ === "flerval" ? (Array.isArray(f.svar) && f.svar.includes(oi)) : f.svar === oi;
             return `<button class="opt${vald ? " correct" : ""}" data-svar="${i}:${oi}" aria-pressed="${vald}">
               <span class="lt${f.typ === "flerval" ? " ruta" : ""}">${
-                f.typ === "flerval" ? (vald ? TICK : "") : String.fromCharCode(65 + oi)}</span><span>${esc(o)}</span>
+                f.typ === "flerval" ? (vald ? TICK : "") : String.fromCharCode(65 + oi)}</span><span>${altHtml(f, oi, o)}</span>
             </button>`; }).join("")}
         </div>
         <p style="margin:10px 0 0">
@@ -19806,19 +20529,18 @@ function viewTentaKor() {
       <div class="insp-alt" id="topts" role="group" aria-label="Svarsalternativ, flera kan vara rätt">${f.options.map((o, oi) => {
         const i = Array.isArray(valt) && valt.includes(oi);
         return `<button class="opt insp-opt${i ? " vald" : ""}" data-o="${oi}" role="checkbox" aria-checked="${i}">
-          <span class="insp-ruta">${i ? INSP_IKON.bock : ""}</span><span class="insp-opttext">${esc(o)}</span></button>`;
+          <span class="insp-ruta">${i ? INSP_IKON.bock : ""}</span><span class="insp-opttext">${altHtml(f, oi, o)}</span></button>`;
       }).join("")}</div>`;
   } else {
     svar = `<div class="insp-alt" id="topts" role="radiogroup" aria-label="Svarsalternativ">${f.options.map((o, oi) => `
         <button class="opt insp-opt${valt === oi ? " vald" : ""}" data-o="${oi}" role="radio" aria-checked="${valt === oi}">
-          <span class="insp-radio"></span><span class="insp-opttext">${esc(o)}</span></button>`).join("")}</div>`;
+          <span class="insp-radio"></span><span class="insp-opttext">${altHtml(f, oi, o)}</span></button>`).join("")}</div>`;
   }
 
   const kropp = `
     <h2 class="insp-rubrik">Fråga ${pos + 1}</h2>
     ${f.sort || f.avsnitt ? `<p class="insp-under">${esc([f.sort, f.avsnitt].filter(Boolean).join(" · "))}</p>` : ""}
-    <div class="insp-stam">${esc(f.q)}</div>
-    ${bildplatser(f, "Figur till frågan")}
+    ${stamMedBilder(f, "insp-stam", "", "Figur till frågan")}
     ${svar}
     <div class="insp-linje"></div>
     ${f.poang > 1 ? `<p class="insp-totalpoang">Totalpoäng: ${fmtPoang(f.poang)}</p>` : ""}`;
@@ -20015,7 +20737,7 @@ function viewTentaGranska(fid, posArg) {
       const mitt = mina.includes(oi), ratt = rad.bedombar && facit.includes(oi);
       return `<div class="insp-opt${mitt ? " vald" : ""}">
         <span class="${fler ? "insp-ruta" : "insp-radio"}">${fler && mitt ? INSP_IKON.bock : ""}</span>
-        <span class="insp-opttext">${esc(o)}</span>
+        <span class="insp-opttext">${altHtml(f, oi, o)}</span>
         <span class="insp-markor">${mitt && !ratt ? INSP_IKON.fel : ratt ? INSP_IKON.ratt : ""}</span></div>`;
     }).join("")}</div>
     ${!rad.harSvar ? `<p class="insp-instr">Du svarade inte på frågan.</p>` : ""}`;
@@ -20023,8 +20745,7 @@ function viewTentaGranska(fid, posArg) {
 
   const kropp = `
     <h2 class="insp-rubrik">Fråga ${pos + 1}</h2>
-    <div class="insp-stam">${esc(f.q)}</div>
-    ${bildplatser(f, "Figur till frågan")}
+    ${stamMedBilder(f, "insp-stam", "", "Figur till frågan")}
     ${svar}
     <div class="insp-linje"></div>
     <p class="insp-totalpoang">${rad.bedomd ? `Din poäng: ${fmtPoang(rad.poangFatt)} &nbsp;·&nbsp; ` : ""}Totalpoäng: ${fmtPoang(rad.poangMax)}</p>
@@ -20168,8 +20889,7 @@ function viewTentaResultat(fid) {
           ${rad.flaggad ? `<span class="chip accent" style="margin-left:6px">flaggad</span>` : ""}
           <button class="lankmal" style="margin-left:8px" data-go="/tenta/granska/${encodeURIComponent(f.id)}/${rad.plats - 1}">Visa i tentavyn</button>
         </div>
-        <div class="qtext" style="font-size:16px">${esc(f2.q)}</div>
-        ${bildplatser(f2, "Figur till frågan")}
+        ${stamMedBilder(f2, "qtext", "font-size:16px; white-space:pre-line", "Figur till frågan")}
         ${rad.text ? skrivsvarKort(rad, f.id)
           : match ? `${matchningsRutnat(f2, rad.svarat, "resultat")}
             <p class="s" style="margin:10px 0 0">${rad.bedomd
@@ -22914,24 +23634,12 @@ async function lasPdfTenta(fil, onProgress) {
   }
   const kopia = buf.slice();
   let res = await pdfLasTenta(buf, onProgress);
-  /* Reserver: inskannad tenta eller ett tunt resultat – AI-tolkning om en AI
-     är inkopplad, annars textigenkänning. */
-  if (res.diagnos.skannad) {
-    if (aiKanLasaTentor()) {
-      try { res = await aiKonverteraTenta(kopia.slice(), onProgress); } catch (e) { res = null; }
-    } else res = null;
-    if (!res || !res.fragor.length) res = await pdfLasTenta(kopia.slice(), onProgress, { ocr: true });
-    if (res.diagnos.skannad) {
-      throw new Error("PDF:en är inskannad och texten gick inte att känna igen. Koppla in en AI under AI-rättning, så kan den läsas som bild.");
-    }
-  } else if (tunnLasning(res) && aiKanLasaTentor()) {
-    try {
-      const ai = await aiKonverteraTenta(kopia.slice(), onProgress);
-      if (ai.fragor.length >= res.fragor.length) res = ai;
-    } catch (e) {}
-  } else if (!res.fragor.length) {
-    /* Text som inte går att läsa (trasigt textlager): prova textigenkänning. */
+  /* Reserv: text som inte gick att tolka – prova textigenkänning. */
+  if (!res.fragor.length && !res.diagnos.ocr) {
     try { res = await pdfLasTenta(kopia.slice(), onProgress, { ocr: true }); } catch (e) {}
+  }
+  if (res.diagnos.skannad) {
+    throw new Error("PDF:en är inskannad och texten gick inte att känna igen.");
   }
   if (!res.fragor.length) {
     throw new Error("Inga frågor kunde tolkas ur PDF:en. Öppna den i tentasimulatorn så får du veta mer om varför.");
@@ -23469,8 +24177,7 @@ function liveFacitLista(u, id) {
             : svarade ? `<span class="chip" style="margin-left:8px; background:color-mix(in srgb, var(--err) 12%, transparent); color:var(--err); border-color:transparent">Du hade fel</span>`
             : `<span class="chip" style="margin-left:8px">Obesvarad</span>`}
         </div>
-        <div class="qtext" style="font-size:16px">${esc(f.q)}</div>
-        ${bildplatser(f, "Figur till fråga " + (i + 1))}
+        ${stamMedBilder(f, "qtext", "font-size:16px; white-space:pre-line", "Figur till fråga " + (i + 1))}
         ${f.typ === "matchning" ? matchningsRutnat(f, mitt, "resultat") : ""}
         <div class="opts${f.typ === "flerval" ? " flerval" : ""}"${f.typ === "matchning" ? " hidden" : ""}>
           ${f.options.map((o, oi) => {
@@ -23481,7 +24188,7 @@ function liveFacitLista(u, id) {
               style="cursor:default${mittVal && !arRatt ? "; border-color:var(--err)" : ""}">
               <span class="lt${flerval ? " ruta" : ""}">${flerval
                 ? (mittVal ? TICK : "") : String.fromCharCode(65 + oi)}</span>
-              <span>${esc(o)}
+              <span>${altHtml(f, oi, o)}
                 ${arRatt ? `<b style="color:var(--ok)"> · rätt svar</b>` : ""}
                 ${mittVal && !arRatt ? `<b style="color:var(--err)"> · ditt kryss</b>` : ""}
                 ${flerval && arRatt && !mittVal ? `<b style="color:var(--warn)"> · missat</b>` : ""}</span>
@@ -33169,7 +33876,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261101-2300";
+const BYGGID = "20261105-1600";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
