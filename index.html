@@ -23206,7 +23206,8 @@ function tentaBank(id) {
 async function synkPubliceraTenta(t, grupp) {
   const g = grupp || SYNK.grupp;
   if (SYNK.lage !== "pa" || !SYNK.db || !SYNK.uid || !g) return false;
-  const fragor = tentaSomBank(t);
+  /* JSON-varvet tar bort undefined (som Firestore vägrar) och gör NaN till null. */
+  const fragor = JSON.parse(JSON.stringify(tentaSomBank(t)));
   if (!fragor.length) return false;
   const bitar = [];
   for (let i = 0; i < fragor.length; i += TENTABIT) bitar.push(fragor.slice(i, i + TENTABIT));
@@ -23241,6 +23242,7 @@ async function synkPubliceraTenta(t, grupp) {
     return true;
   } catch (e) {
     SYNK.skrivfel = (e && (e.code || e.message)) ? String(e.code || e.message) : String(e);
+    try { console.warn("Tentan kunde inte delas:", e && e.message || e); } catch (e2) {}
     return false;
   }
 }
@@ -34999,7 +35001,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261107-0300";
+const BYGGID = "20261107-0330";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
