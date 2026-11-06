@@ -4111,6 +4111,10 @@ async function taAnkiExport(vad, knapp) {
     const modell = ankiModell(mid);
     modell[mid].name = "BV5 Tentaanalys";
     modell[mid].css += "\n.bildtips{margin-top:10px; font-size:13px; color:#8b7f8c; font-style:italic}";
+    /* mörkt läge i Anki (dator, AnkiMobile, AnkiDroid) */
+    modell[mid].css += "\n.card.nightMode,.nightMode .card,.card.night_mode,.night_mode .card{color:#eee8f0; background:#1c1a1f}" +
+      "\n.nightMode .kalla,.night_mode .kalla,.nightMode .bildtips,.night_mode .bildtips{color:#aba1ad}" +
+      "\n.nightMode hr,.night_mode hr{border-color:#47414c}\n.nightMode a,.night_mode a{color:#f3a9d6}";
     /* en kortlek per modul, under en gemensam förälder */
     const decks = ankiDeck(1700000000100, "BV5 Tentaanalys");
     const deckId = {};
@@ -21740,6 +21744,67 @@ function gxBildfil(dataUrl, nyckel, media, filer, sedda) {
   return fil;
 }
 
+
+/* Kortens stil. Färgerna är variabler så att Ankis mörka läge (nightMode/night_mode,
+   på dator, AnkiMobile och AnkiDroid) får egna, tydliga färger. */
+const GX_ANKI_CSS = `
+.card{--fg:#231c25;--mut:#6b616d;--bg:#ffffff;--panel:#f6f3ee;--line:#d9d1c8;--badge:#ebe5dd;
+--gron:#17692f;--gronbg:#e2f2e6;--gronkant:#6fbf88;--rod:#a8231b;--rodbg:#fbe5e2;--rodkant:#e3938b;
+--rakbg:#edf1f7;--rakkant:#aebbd0;--obsbg:#fff4d6;--obskant:#e5c15c;--lank:#8a1c5c;
+font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:19px;line-height:1.45;
+text-align:left;color:var(--fg);background:var(--bg);padding:14px 16px 22px;max-width:760px;margin:0 auto}
+.card.nightMode,.nightMode .card,.card.night_mode,.night_mode .card{--fg:#eee8f0;--mut:#aba1ad;--bg:#1c1a1f;--panel:#28252c;--line:#47414c;--badge:#3a3540;
+--gron:#86e0a3;--gronbg:#173523;--gronkant:#3a8f57;--rod:#ffa39a;--rodbg:#3f1e1c;--rodkant:#9a4038;
+--rakbg:#212a37;--rakkant:#4a5d7a;--obsbg:#3a321b;--obskant:#9c8236;--lank:#f3a9d6}
+.q{font-weight:600;font-size:20px}
+.fig{margin:10px 0}
+img{max-width:100%;height:auto;border-radius:8px;background:#fff}
+.lucka,.valj{margin-top:8px;color:var(--mut)}
+.alts{margin:12px 0 4px}
+.alt{display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;margin:7px 0;background:var(--bg)}
+.alt .bok{flex:none;width:26px;height:26px;border-radius:50%;background:var(--badge);color:var(--fg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;margin-top:1px}
+.alt .at{flex:1}
+.alt.ratt{border-color:var(--gronkant);background:var(--gronbg)}
+.alt.ratt .bok{background:var(--gron);color:var(--bg)}
+.alt.du{border-color:var(--rodkant);background:var(--rodbg)}
+.alt.du .bok{background:var(--rod);color:var(--bg)}
+.alt.tyst{opacity:.72}
+.tagg{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1px 7px;border-radius:999px;margin-left:6px;vertical-align:2px}
+.tagg.r{color:var(--gron);border:1px solid var(--gronkant)}
+.tagg.d{color:var(--rod);border:1px solid var(--rodkant)}
+.svarssida .alts{display:none}
+hr#answer{border:none;border-top:1px solid var(--line);margin:16px 0}
+.dom{font-weight:700;font-size:19px;margin:2px 0 8px}
+.dom.fel{color:var(--rod)}
+.dom.obes{color:var(--mut)}
+.forkl{margin-top:14px;padding:14px 16px;background:var(--panel);border:1px solid var(--line);border-radius:12px;font-size:17px}
+.forkl-rub{font-weight:700;font-size:15px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin-bottom:8px}
+.forkl-rub .etikett{font-weight:400;text-transform:none;letter-spacing:0;font-size:13px;margin-left:6px}
+.kort-svar{font-size:18px;font-weight:600;margin:4px 0 12px}
+.rub{font-weight:700;margin:14px 0 6px}
+.rakna{background:var(--rakbg);border:1px solid var(--rakkant);border-radius:10px;padding:8px 14px 8px;margin:10px 0}
+.rakna .rub{margin:2px 0 4px}
+.rakna ol{margin:0;padding-left:1.4em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:15px}
+.rakna li{margin:4px 0}
+.felrad{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:9px;margin:4px 0}
+.felrad .bok{flex:none;width:24px;height:24px;border-radius:50%;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:var(--mut);margin-top:1px}
+.felrad .ot{font-style:italic;color:var(--mut);margin-bottom:2px}
+.felrad .skal{color:var(--fg)}
+.felrad.du{background:var(--rodbg);border:1px solid var(--rodkant)}
+.felrad.du .bok{border-color:var(--rod);color:var(--rod)}
+.punkter ul{margin:4px 0 0;padding-left:1.3em}
+.punkter li{margin:3px 0}
+.obs{background:var(--obsbg);border:1px solid var(--obskant);border-radius:9px;padding:8px 12px;margin:0 0 10px}
+.lasmer{margin-top:12px;font-size:14px;border-top:1px solid var(--line);padding-top:8px}
+.lasmer a{display:block;margin:4px 0;color:var(--lank);text-decoration:none}
+table.m{border-collapse:collapse;font-size:16px;margin-top:6px}
+table.m th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);text-align:left;padding:4px 8px}
+table.m td{border:1px solid var(--line);padding:5px 9px}
+table.m td.r{color:var(--gron);font-weight:600}
+table.m td.d{color:var(--rod);font-weight:600}
+.kalla{margin-top:16px;font-size:12px;color:var(--mut);font-family:ui-monospace,Menlo,monospace}
+`;
+
 let _gxAnkiPagar = false;
 async function gxFelTillAnki(fid, vad, knapp) {
   if (_gxAnkiPagar) return;
@@ -21766,9 +21831,9 @@ async function gxFelTillAnki(fid, vad, knapp) {
     const mid = 1700000000617;
     const modell = ankiModell(mid);
     modell[mid].name = "BV5 Tentafel";
-    modell[mid].css += "\n.fel{color:#b3261e}\n.ratt{color:#2e7d32}\nol.alt{padding-left:1.4em; margin:10px 0 0; font-weight:400}\nol.alt li{margin:4px 0}" +
-      "\n.forkl{margin-top:12px; padding:10px 12px; background:#f4f1ea; border-radius:8px; font-size:17px}" +
-      "\n.lasmer{margin-top:10px; font-size:14px}\n.lasmer a{display:block; margin:3px 0}\ntable.m{border-collapse:collapse; font-size:16px; font-weight:400}\ntable.m td{border:1px solid #ccc; padding:4px 8px}";
+    modell[mid].css = GX_ANKI_CSS;
+    modell[mid].tmpls[0].qfmt = '<div class="fram">{{Fram}}</div>';
+    modell[mid].tmpls[0].afmt = '<div class="fram svarssida">{{Fram}}</div><hr id=answer><div class="bak">{{Baksida}}</div>{{#Källa}}<div class="kalla">{{Källa}}</div>{{/Källa}}';
     const titel = String(fo.titel || t.titel || "Tenta").replace(/::/g, ":").replace(/"/g, "'").trim();
     const rotNamn = "BV5 Tentafel::" + titel;
     const did = namn => 1700000000000 + ((frohash(namn) >>> 0) % 900000000);
@@ -21808,42 +21873,54 @@ async function gxFelTillAnki(fid, vad, knapp) {
         return `${auto && altFil[i] ? "" : txt(o)}${altFil[i] ? `<br><img src="${altFil[i]}">` : ""}`;
       };
       const bokstav = i => String.fromCharCode(65 + i);
-      let fram = `<div>${txt(f.q)}</div>${figurer.map(fl => `<br><img src="${fl}">`).join("")}`;
+      let fram = `<div class="q">${txt(f.q)}</div>${figurer.map(fl => `<div class="fig"><img src="${fl}"></div>`).join("")}`;
       let bak = "";
+      let svarRad = "";
       if (f.typ === "text") {
-        bak = `<div><b>Facit</b><br>${txt(f.facit || "–")}</div>` +
-          (x.harSvar ? `<div class="fel" style="margin-top:8px"><b>Ditt svar</b><br>${txt(x.svarat)}</div>` : `<div class="fel" style="margin-top:8px">Du svarade inte.</div>`);
+        bak = `<div class="dom ${x.harSvar ? "fel" : "obes"}">${x.harSvar ? "Fel" : "Obesvarad"}</div>` +
+          `<div class="alts"><div class="alt ratt"><span class="bok">✓</span><div class="at"><span class="tagg r">Facit</span><br>${txt(f.facit || "–")}</div></div>` +
+          (x.harSvar ? `<div class="alt du"><span class="bok">✗</span><div class="at"><span class="tagg d">Ditt svar</span><br>${txt(x.svarat)}</div></div>` : "") + `</div>`;
       } else if (f.typ === "matchning") {
         const kol = f.options;
         const facit = Array.isArray(f.svar) ? f.svar : [];
         const mitt = Array.isArray(x.svarat) ? x.svarat : [];
-        fram += f.visning === "lucka" && f.lucktext ? `<div style="margin-top:8px; font-weight:400">${txt(f.lucktext)}</div>` : "";
-        fram += `<div style="margin-top:8px; font-weight:400">Välj bland: ${kol.map(txt).join(" · ")}</div>`;
-        bak = `<table class="m">${f.matchrader.map((rad, i) => {
+        fram += f.visning === "lucka" && f.lucktext ? `<div class="lucka">${txt(f.lucktext)}</div>` : "";
+        fram += `<div class="valj">Välj bland: ${kol.map(txt).join(" · ")}</div>`;
+        bak = `<div class="dom ${x.harSvar ? "fel" : "obes"}">${x.harSvar ? "Fel" : "Obesvarad"}</div><table class="m"><tr><th></th><th>Rätt</th><th>Ditt svar</th></tr>${f.matchrader.map((rad, i) => {
           const rt = facit[i], du = mitt[i];
-          return `<tr><td>${txt(rad || "Lucka " + (i + 1))}</td><td class="ratt">${rt === null || rt === undefined ? "–" : txt(kol[rt])}</td>${
-            du !== rt ? `<td class="fel">${du === null || du === undefined ? "obesvarad" : "du: " + txt(kol[du])}</td>` : "<td></td>"}</tr>`;
+          return `<tr><td>${txt(rad || "Lucka " + (i + 1))}</td><td class="r">${rt === null || rt === undefined ? "–" : txt(kol[rt])}</td>${
+            du !== rt ? `<td class="d">${du === null || du === undefined ? "obesvarad" : txt(kol[du])}</td>` : `<td class="r">✓</td>`}</tr>`;
         }).join("")}</table>`;
       } else {
-        fram += `<ol class="alt" type="A">${f.options.map((o, i) => `<li>${altText(i)}</li>`).join("")}</ol>`;
         const facit = Array.isArray(f.svar) ? f.svar : [f.svar];
         const mina = Array.isArray(x.svarat) ? x.svarat : (x.svarat === null || x.svarat === undefined ? [] : [x.svarat]);
-        bak = `<div class="ratt"><b>Rätt svar:</b> ${facit.map(i => `${bokstav(i)}. ${altText(i)}`).join("<br>")}</div>` +
-          `<div class="fel" style="margin-top:6px"><b>Ditt svar:</b> ${mina.length ? mina.map(i => `${bokstav(i)}. ${altText(i)}`).join("<br>") : "obesvarad"}</div>`;
+        const altRad = (i, klass, tagg) => `<div class="alt${klass ? " " + klass : ""}"><span class="bok">${bokstav(i)}</span><div class="at">${altText(i)}${tagg || ""}</div></div>`;
+        fram += `<div class="alts">${f.options.map((o, i) => altRad(i)).join("")}</div>`;
+        /* på baksidan: samma alternativ, med rätt svar grönt och ditt svar rött – som i simulatorn */
+        bak = `<div class="alts">${f.options.map((o, i) => facit.includes(i) ? altRad(i, "ratt", ` <span class="tagg r">Rätt svar</span>`)
+          : mina.includes(i) ? altRad(i, "du", ` <span class="tagg d">Ditt svar</span>`) : altRad(i, "tyst")).join("")}</div>`;
+        const rattTxt = facit.map(i => `${bokstav(i)}${(() => { const o = String(f.options[i] || "").trim(); return o && !/^Alternativ [A-H]$/.test(o) ? " – " + txt(o) : ""; })()}`).join(" och ");
+        svarRad = `<div class="dom ${mina.length ? "fel" : "obes"}">${mina.length ? "Fel" : "Obesvarad"}. Rätt svar: ${rattTxt}</div>`;
+        bak = svarRad + bak;
       }
       const fk = gxForklaring(x, t, hor);
       if (fk) {
         const st = fk.struktur;
+        const punkter = fk.punkter && fk.punkter.length ? `<div class="punkter"><div class="rub">Det här ska du kunna</div><ul>${fk.punkter.map(p2 => `<li>${txt(p2)}</li>`).join("")}</ul></div>` : "";
+        const obs = fk.obs ? `<div class="obs"><b>Obs!</b> ${txt(fk.obs)}</div>` : "";
         const inne = fk.kalla === "ta" && st
-          ? `${fk.obs ? `<p>${txt("Obs! " + fk.obs)}</p>` : ""}<p><b>Rätt svar: ${st.ratt.map(r2 => r2.b).join(" och ")}.</b> ${txt(st.s)}</p>${
-              st.k.length ? `<p><b>Så räknar du</b></p><ol>${st.k.map(k2 => `<li>${txt(k2)}</li>`).join("")}</ol>` : ""}${
-              st.fel.length ? `<p><b>Därför är de andra fel</b></p><ul>${st.fel.map(r2 => `<li${r2.du ? ' class="fel"' : ""}><b>${r2.b}</b>: ${txt(r2.skal)}</li>`).join("")}</ul>` : ""}${
-              fk.punkter.length ? `<ul>${fk.punkter.map(p2 => `<li>${txt(p2)}</li>`).join("")}</ul>` : ""}`
+          ? `${obs}<div class="kort-svar">${txt(st.s)}</div>${
+              st.k.length ? `<div class="rakna"><div class="rub">Så räknar du</div><ol>${st.k.map(k2 => `<li>${txt(k2)}</li>`).join("")}</ol></div>` : ""}${
+              st.fel.length ? `<div class="rub">Därför är de andra alternativen fel</div><div class="felrader">${st.fel.map(r2 => {
+                const ix = r2.i !== undefined ? r2.i : r2.b.charCodeAt(0) - 65;
+                const ot = altText(ix);
+                return `<div class="felrad${r2.du ? " du" : ""}"><span class="bok">${r2.b}</span><div>${ot ? `<div class="ot">${ot}${r2.du ? ` <span class="tagg d">Ditt svar</span>` : ""}</div>` : (r2.du ? `<span class="tagg d">Ditt svar</span>` : "")}<div class="skal">${txt(r2.skal)}</div></div></div>`;
+              }).join("")}</div>` : ""}${punkter}`
           : fk.kalla === "ta"
-          ? `${fk.obs ? `<p><b>Obs!</b> ${txt(fk.obs)}</p>` : ""}<p>${txt(fk.text)}</p>${fk.punkter.length ? `<ul>${fk.punkter.map(p => `<li>${txt(p)}</li>`).join("")}</ul>` : ""}`
+          ? `${obs}<div class="kort-svar">${txt(fk.text)}</div>${punkter}`
           : fk.block.map(b => `<p>${b.html}</p>`).join("");
-        bak += `<div class="forkl"><b>Förklaring</b> <span style="font-size:13px; color:#8b7f8c">(${txt(fk.etikett)})</span>${inne}
-          ${fk.lankar.length ? `<div class="lasmer">${fk.lankar.map(l => `<a href="${ankiText(sajt + "#" + l.go)}">${txt(l.t)}</a>`).join("")}</div>` : ""}</div>`;
+        bak += `<div class="forkl"><div class="forkl-rub">Förklaring <span class="etikett">${txt(fk.etikett)}</span></div>${inne}
+          ${fk.lankar.length ? `<div class="lasmer">${fk.lankar.map(l => `<a href="${ankiText(sajt + "#" + l.go)}">${txt(l.t)} →</a>`).join("")}</div>` : ""}</div>`;
       }
       /* En tenta utanför kursen sorteras på sina egna avsnitt, inte på kursens moduler. */
       const modulNr = hor ? (x.modulNr || null) : null;
@@ -34244,7 +34321,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261106-2115";
+const BYGGID = "20261106-2230";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
