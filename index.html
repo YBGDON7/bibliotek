@@ -23600,6 +23600,13 @@ function viewDuellHub() {
       <span class="snabb-lagen" role="radiogroup" aria-label="Läge">
         ${["1v1", "ranked"].map(l => `<button type="button" class="snabb-lage${snabbLage() === l ? " vald" : ""}" data-snabblage="${l}"
           role="radio" aria-checked="${snabbLage() === l}">${SNABB_LAGEN[l].namn}</button>`).join("")}</span>
+      <span class="snabb-lagen" role="radiogroup" aria-label="Längd">
+        ${["kort", "hel"].map(f => `<button type="button" class="snabb-lage${snabbFormat() === f ? " vald" : ""}" data-snabbformat="${f}"
+          role="radio" aria-checked="${snabbFormat() === f}">${SNABB_FORMAT[f].namn}</button>`).join("")}</span>
+      <select id="dsoktenta" aria-label="Vilken tenta" style="${INPSTIL}; width:auto; min-width:190px"${snabbFormat() === "hel" ? "" : " hidden"}>
+        <option value="">Slumpad tenta</option>
+        ${snabbTentor().map(t => `<option value="${esc(t)}"${snabbValdTenta() === t ? " selected" : ""}>${esc(t)} (${taBank("ta:t:" + t).fragor.length} frågor)</option>`).join("")}
+      </select>
       <button class="btn primary" id="dsok">Starta livematch</button>
       ${bankTom ? "" : `<button class="btn" id="dklistra">Klistra in en kod</button>`}
       <button class="btn" data-go="/duell/topp">Topplista</button>
@@ -23611,7 +23618,7 @@ function viewDuellHub() {
         : `<b>Utmaning</b> är asynkron: du skickar en kod och var och en kör när den hinner.`}
       <b>Livematch</b> samlar er i en lobby, startar samtidigt och håller resultatet dolt
       tills alla lämnat in. Du paras ihop med andra som är uppkopplade just nu, oavsett grupp, och ni får
-      ${SNABB_ANTAL} frågor ur BV5-tentorna på ${SNABB_MIN} minuter.
+      ${SNABB_ANTAL} frågor ur BV5-tentorna på ${SNABB_MIN} minuter — eller en <b>hel tenta</b> på riktig tentatid.
       <b>1v1</b> är du mot en motståndare. <b>Ranked</b> samlar upp till ${SNABB_LAGEN.ranked.max} spelare i
       samma lobby och räknas mot din ELO.</p>
     <div id="dsoksvar"></div>
@@ -23788,6 +23795,16 @@ function viewDuellHub() {
       x.classList.toggle("vald", x === k); x.setAttribute("aria-checked", String(x === k));
     });
   }));
+  view.querySelectorAll("[data-snabbformat]").forEach(k => k.addEventListener("click", () => {
+    dstore.snabbFormat = k.dataset.snabbformat; dsave();
+    view.querySelectorAll("[data-snabbformat]").forEach(x => {
+      x.classList.toggle("vald", x === k); x.setAttribute("aria-checked", String(x === k));
+    });
+    const val = document.getElementById("dsoktenta");
+    if (val) val.hidden = dstore.snabbFormat !== "hel";
+  }));
+  const tval = document.getElementById("dsoktenta");
+  if (tval) tval.addEventListener("change", () => { dstore.snabbTenta = tval.value; dsave(); });
   const sok = document.getElementById("dsok");
   if (sok) sok.addEventListener("click", async () => {
     const svar = document.getElementById("dsoksvar");
@@ -25897,28 +25914,69 @@ function snabbMax(m) { return SNABB_LAGEN[snabbLage(m)].max; }
 
 /* BV5-tentorna som frågebank i samma form som en delad tenta. Ordningen är
    fast (tenta för tenta, fråga för fråga) – annars skulle samma frö ge olika
-   frågor på olika telefoner. Bara envalsfrågor utan figur och med facit. */
-let _taBank = null;
+   frågor på olika telefoner.
+   ta:bv5        – envalsfrågor utan figur ur alla tentor (10-frågorsmatchen)
+   ta:t:<tenta>  – en hel tenta, med figurer och flervalsfrågor, i originalordning */
+const _taBanker = {};
 function taBank(id) {
-  if (_taBank) return _taBank;
+  id = String(id || TA_BANK_ID);
+  if (_taBanker[id]) return _taBanker[id];
   let D = null;
   try { D = taData(); } catch (e) { D = null; }
   if (!D || !D.fragor) return { titel: TA_BANK_TITEL, fragor: [] };
   const tix = t => { const i = D.tentor.indexOf(t); return i < 0 ? 999 : i; };
+  const nrOrd = (a, b) => tix(D.fragor[a].t) - tix(D.fragor[b].t) || Number(D.fragor[a].nr) - Number(D.fragor[b].nr) || (a < b ? -1 : 1);
+  if (id.indexOf("ta:t:") === 0) {
+    const namn = id.slice(5);
+    const ids = Object.keys(D.fragor).filter(k => {
+      const f = D.fragor[k];
+      return f && f.t === namn && !f.s && Array.isArray(f.fx) && f.fx.length >= 1 && Array.isArray(f.alt) && f.alt.length >= 2;
+    }).sort(nrOrd);
+    const fig = [];
+    const fragor = ids.map((k, i) => {
+      const f = D.fragor[k];
+      const b = [];
+      if (f.fig) { const bid = "ta-" + k.replace(/[^A-Za-z0-9]+/g, "-"); b.push(bid); fig.push({ bid, data: f.fig }); }
+      const fler = f.fx.length > 1;
+      return { q: f.q, o: f.alt.map(a => a || "(se bilden)"), s: fler ? f.fx.slice() : f.fx[0], ty: fler ? "flerval" : "",
+        m: f.mal || "", po: 1, n: Number(f.nr) || i + 1, p: i + 1, b };
+    });
+    /* Figurerna finns i varje kopia av biblioteket. De läggs i det lokala
+       mediebiblioteket så att frågorna visar dem precis som i simulatorn. */
+    fig.forEach(x => { try { mediaSpara({ id: x.bid, kalla: "Tentaanalys", dokument: namn, sida: 0, data: x.data, bredd: 0, hojd: 0 }); } catch (e) {} });
+    return (_taBanker[id] = { titel: namn, fragor });
+  }
   const ids = Object.keys(D.fragor).filter(k => {
     const f = D.fragor[k];
     return f && !f.s && !f.fig && Array.isArray(f.fx) && f.fx.length === 1 &&
       Array.isArray(f.alt) && f.alt.length >= 2 && f.alt.every(a => a && String(a).trim());
-  }).sort((a, b) => tix(D.fragor[a].t) - tix(D.fragor[b].t) || Number(D.fragor[a].nr) - Number(D.fragor[b].nr) || (a < b ? -1 : 1));
-  _taBank = {
+  }).sort(nrOrd);
+  return (_taBanker[id] = {
     titel: TA_BANK_TITEL,
     fragor: ids.map((k, i) => {
       const f = D.fragor[k];
       return { q: f.q, o: f.alt.slice(), s: f.fx[0], m: f.mal || "", ty: "", po: 1, n: i + 1, p: i + 1, b: [] };
     })
-  };
-  return _taBank;
+  });
 }
+
+/* Hel tenta eller tio frågor. */
+const SNABB_FORMAT = { kort: { namn: "10 frågor" }, hel: { namn: "Hel tenta" } };
+function snabbFormat(m) {
+  const f = m ? (m.snabbFormat || "kort") : (dstore.snabbFormat || "kort");
+  return f === "hel" ? "hel" : "kort";
+}
+/* Vald tenta för hel tenta, "" = slumpas. */
+function snabbValdTenta() {
+  const v = dstore.snabbTenta || "";
+  return v && snabbTentor().includes(v) ? v : "";
+}
+function snabbTentor() {
+  let D = null;
+  try { D = taData(); } catch (e) { return []; }
+  return (D && D.tentor || []).filter(t => taBank("ta:t:" + t).fragor.length >= 20);
+}
+function snabbTid(antal) { return antal > 140 ? 240 : antal > 60 ? 225 : Math.max(10, Math.round(antal * 1.5)); }
 
 function snabbRot() {
   return SYNK.db ? SYNK.db.collection("grupper").doc(OPPEN_GRUPP).collection("live") : null;
@@ -25926,11 +25984,12 @@ function snabbRot() {
 
 /* Öppna lobbyer med samma läge och plats kvar, äldst först. Egna övergivna
    lobbyer städas bort på vägen. */
-async function snabbOppna(lage) {
+async function snabbOppna(lage, format, tenta) {
+  format = format || "kort";
   const rot = snabbRot();
   if (!rot) return [];
   const snap = await rot.where("lage", "==", "lobby").get();
-  const nu = Date.now(), n = taBank(TA_BANK_ID).fragor.length;
+  const nu = Date.now();
   const ut = [];
   for (const d of snap.docs) {
     const m = { id: d.id, ...(d.data() || {}) };
@@ -25943,34 +26002,50 @@ async function snabbOppna(lage) {
     if (!farsk) continue;
     if (snabbLage(m) !== lage) continue;
     if ((Number(m.antalSpelare) || 1) >= snabbMax(m)) continue;
-    if (m.bankAntal && m.bankAntal !== n) continue;     // en annan version av biblioteket – frågorna skulle inte stämma
+    if (snabbFormat(m) !== format) continue;
+    if (format === "hel" && tenta && m.tentaNamn !== tenta) continue;
+    /* en annan version av biblioteket – frågorna skulle inte stämma */
+    if (m.bankAntal && m.bankAntal !== taBank(m.tenta || TA_BANK_ID).fragor.length) continue;
     ut.push(m);
   }
   return ut.sort((a, b) => (a.klient || 0) - (b.klient || 0) || (a.id < b.id ? -1 : 1));
 }
 
-async function snabbSkapa(lage) {
+async function snabbSkapa(lage, format, tenta) {
   const rot = snabbRot();
   if (!rot) throw new Error("Du är inte uppkopplad mot databasen.");
   const L = SNABB_LAGEN[lage];
   const jag = jagId();
   const id = "snabb-" + nyttFro();
   const nu = Date.now();
+  const hel = format === "hel";
+  let namn = "";
+  if (hel) {
+    const alla = snabbTentor();
+    if (!alla.length) throw new Error("Det finns inga hela tentor i den här versionen.");
+    namn = tenta && alla.includes(tenta) ? tenta : alla[Math.floor(Math.random() * alla.length)];
+  }
+  const bankId = hel ? "ta:t:" + namn : TA_BANK_ID;
+  const bank = taBank(bankId);
+  const antal = hel ? bank.fragor.length : SNABB_ANTAL;
   await rot.doc(id).set({
     uid: SYNK.uid, pid: jag.id, namn: jag.namn || "Okänd",
-    seed: id, typ: "s", antal: SNABB_ANTAL, minuter: SNABB_MIN, moduler: [],
-    tenta: TA_BANK_ID, tentaTitel: L.titel, bank: bankAvtryck(),
-    elo: L.elo, snabb: true, snabbLage: lage, antalSpelare: 1, nedrakningTill: 0,
-    bankAntal: taBank(TA_BANK_ID).fragor.length, puls: nu,
+    seed: id, typ: "s", antal, minuter: hel ? snabbTid(antal) : SNABB_MIN, moduler: [],
+    tenta: bankId, tentaTitel: hel ? `${L.namn} · ${namn}` : L.titel, bank: bankAvtryck(),
+    elo: L.elo, snabb: true, snabbLage: lage, snabbFormat: hel ? "hel" : "kort",
+    tentaNamn: namn, tentaVal: hel ? (tenta || "") : "", antalSpelare: 1, nedrakningTill: 0,
+    bankAntal: bank.fragor.length, puls: nu,
     lage: "lobby", startar: 0, slutar: 0, slappt: false, klient: nu
   });
   return id;
 }
 
 /* Knappen Starta livematch. */
-async function snabbSok(knapp, lage) {
+async function snabbSok(knapp, lage, format, tenta) {
   if (SNABB.letar) return;
   lage = SNABB_LAGEN[lage] ? lage : "1v1";
+  format = format === "hel" || format === "kort" ? format : snabbFormat();
+  tenta = format === "hel" ? (tenta === undefined ? snabbValdTenta() : tenta) : "";
   SNABB.letar = true;
   SNABB.borta = "";
   const status = t => { if (knapp) knapp.textContent = t; };
@@ -25987,7 +26062,7 @@ async function snabbSok(knapp, lage) {
     if (!taBank(TA_BANK_ID).fragor.length) throw new Error("BV5-tentornas frågor saknas i den här versionen.");
     status("Söker spelare…");
     let lista = [];
-    try { lista = await snabbOppna(lage); }
+    try { lista = await snabbOppna(lage, format, tenta); }
     catch (e) { throw new Error("Lobbyerna kunde inte läsas (" + String(e && (e.code || e.message) || e) + ")."); }
     for (const m of lista) {
       if (await liveGaMed(m.id)) {
@@ -25997,7 +26072,7 @@ async function snabbSok(knapp, lage) {
       }
     }
     let id;
-    try { id = await snabbSkapa(lage); }
+    try { id = await snabbSkapa(lage, format, tenta); }
     catch (e) { throw new Error("Lobbyn kunde inte öppnas (" + String(e && (e.code || e.message) || e) + ")."); }
     SNABB.id = id;
     SNABB.sedan[id] = Date.now();
@@ -26079,7 +26154,7 @@ async function snabbTick(id) {
       if (!andra.length && nu - SNABB.koll > 4000) {
         SNABB.koll = nu;
         let lista = [];
-        try { lista = await snabbOppna(snabbLage(m)); } catch (e) { lista = []; }
+        try { lista = await snabbOppna(snabbLage(m), snabbFormat(m), m.tentaVal || ""); } catch (e) { lista = []; }
         const min = Number(m.klient) || 0;
         const aldre = lista.filter(x => x.id !== id && ((x.klient || 0) < min || ((x.klient || 0) === min && x.id < id)));
         if (aldre.length && !LIVE.spelare.some(s => s.uid !== SYNK.uid)) {
@@ -26099,7 +26174,7 @@ async function snabbTick(id) {
       if (plats >= snabbMax(m)) {
         /* Lobbyn blev full precis när jag kom in – leta vidare. */
         await snabbLamna(id);
-        try { await snabbSok(null, snabbLage(m)); } catch (e) { go("#/duell"); }
+        try { await snabbSok(null, snabbLage(m), snabbFormat(m), m.tentaVal || ""); } catch (e) { go("#/duell"); }
         return;
       }
       if (nu - (Number(m.puls) || Number(m.klient) || 0) > SNABB_FARSK + 15000 && SNABB.borta !== id) {
@@ -26155,9 +26230,9 @@ function viewSnabbLobby(id, m) {
 
   view.innerHTML = `
     ${duellCrumbs([{ t: "Livematch" }])}
-    <p class="eyebrow">Livematch · ${L.namn}${ranked ? ` · ${LIVE.spelare.length}/${L.max} spelare` : ""}</p>
+    <p class="eyebrow">Livematch · ${L.namn} · ${SNABB_FORMAT[snabbFormat(m)].namn}${ranked ? ` · ${LIVE.spelare.length}/${L.max} spelare` : ""}</p>
     <h1>${rubrik}</h1>
-    <p class="lede">${m.antal} frågor ur BV5-tentorna · ${m.minuter} minuter ·
+    <p class="lede">${snabbFormat(m) === "hel" ? `Hel tenta: <b>${esc(m.tentaNamn || "")}</b> · ${m.antal} frågor` : `${m.antal} frågor ur BV5-tentorna`} · ${snabbTidText(m.minuter)} ·
       ${L.elo ? `räknas mot din ELO (just nu <b>${eloPoang()}</b>)` : "räknas inte mot ELO"}.
       Alla får samma frågor och startar samtidigt, och resultatet visas när alla lämnat in.</p>
 
@@ -26190,7 +26265,7 @@ function viewSnabbLobby(id, m) {
   if (igen) igen.addEventListener("click", async () => {
     igen.disabled = true;
     await snabbLamna(id);
-    try { await snabbSok(igen, lage); }
+    try { await snabbSok(igen, lage, snabbFormat(m), m.tentaVal || ""); }
     catch (e) { igen.disabled = false; igen.textContent = "Sök igen"; }
   });
   const nuK = document.getElementById("snabbnu");
@@ -26250,6 +26325,13 @@ function viewLiveNedrakning(id, m) {
     el.textContent = kvar();
     if (!kvar()) { clearInterval(_nedrakning); _nedrakning = null; setTimeout(() => { if (parse().name === "duelllive") render(); }, 1500); }
   }, 250);
+}
+
+function snabbTidText(min) {
+  min = Number(min) || 0;
+  if (min < 90) return min + " minuter";
+  const h = Math.floor(min / 60), r = min % 60;
+  return `${h} h${r ? " " + r + " min" : ""}`;
 }
 
 function viewDuellLiveNy() {
@@ -34859,7 +34941,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261107-0200";
+const BYGGID = "20261107-0230";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
