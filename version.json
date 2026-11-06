@@ -1,5 +1,5 @@
 {
-  "bygg": "20261107-0010",
-  "namn": "Duell: Sök spelare (snabbmatch mot slumpvis motståndare på BV5-tentorna, med ELO) och livematch utan gruppkod.",
-  "nar": "2026-11-06T22:03:46+00:00"
+  "bygg": "20261107-0100",
+  "namn": "Livematch: 1v1 eller Ranked (upp till 20 spelare) med matchmaking, och progressbar per spelare som visar besvarade frågor och vilken fråga var och en står på.",
+  "nar": "2026-11-06T22:19:53+00:00"
 }
