@@ -1129,6 +1129,59 @@ body.insp-pa #fragaknapp{display:none !important}
 .insp-alt.granska .insp-opt.vald{background:var(--i-val)}
 .insp-linje{height:1px; background:#555; margin:22px 0 10px}
 .insp-totalpoang{text-align:right; margin:0; font-size:17px}
+.gx-forkl{margin-top:18px; border:1px solid var(--line); border-left:4px solid var(--teal); border-radius:10px; padding:14px 18px; background:var(--surface); font-size:15.5px; line-height:1.55}
+.gx-forkl.gx-insp{background:#fff; color:#222; border-color:#d8d8d8; border-left-color:var(--i-bla); border-radius:0; font-size:16px}
+.gx-huvud{display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px}
+.gx-huvud b{font-size:13px; letter-spacing:.08em; text-transform:uppercase; font-family:var(--mono)}
+.gx-kalla{font-size:12.5px; color:var(--ink-3)}
+.gx-insp .gx-kalla{color:#666}
+.gx-text p{margin:8px 0}
+.gx-obs{background:color-mix(in srgb, var(--warn) 14%, transparent); padding:6px 10px; border-radius:6px}
+.gx-punkter{margin-top:8px}
+.gx-punkter b{font-size:14px}
+.gx-punkter ul{margin:4px 0 0; padding-left:1.25em}
+.gx-punkter li{margin:3px 0}
+.gx-lankar{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; padding-top:10px; border-top:1px dashed var(--line)}
+.gx-insp .gx-lankar{border-top-color:#d8d8d8}
+.gx-lasmer{flex-basis:100%; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); font-family:var(--mono)}
+.gx-lank{display:flex; flex-direction:column; align-items:flex-start; gap:1px; text-align:left; max-width:100%; padding:7px 12px; border-radius:8px;
+  border:1px solid var(--line-strong); background:var(--paper); color:var(--accent-ink); cursor:pointer; font:inherit; font-size:14px}
+.gx-lank:hover{border-color:var(--accent)}
+.gx-insp .gx-lank{background:#f4f7fb; border-color:#c5d3e3; color:var(--i-marin); border-radius:3px}
+.gx-lt{font-weight:600}
+.gx-ls{font-size:12px; color:var(--ink-3)}
+.gx-insp .gx-ls{color:#666}
+.gx-rubrik{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px}
+.gx-rubrik h2{margin:0}
+.gx-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(168px, 1fr)); gap:12px; margin-top:14px}
+.gx-kort{display:flex; flex-direction:column; align-items:center; gap:3px; padding:14px 10px 12px; border:1px solid var(--line); border-radius:12px;
+  background:var(--surface); color:var(--ink); font:inherit; text-align:center; cursor:pointer}
+.gx-kort:hover, .gx-kort[aria-expanded="true"]{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent)}
+.gx-kort.gx-statisk{cursor:default}
+.gx-kort.gx-statisk:hover{border-color:var(--line); box-shadow:none}
+.gx-matare{display:block; margin-bottom:4px}
+.gx-namn{font-weight:700}
+.gx-sub{font-size:12.5px; color:var(--ink-2); line-height:1.3}
+.gx-tal{font-size:12.5px; color:var(--ink-3)}
+.gx-felmal{font-size:12.5px; color:var(--accent-ink); margin-top:2px}
+.gx-panel{margin-top:14px; border:1px solid var(--line-strong); border-radius:12px; padding:16px 18px; background:var(--surface)}
+.gx-panelhuvud{display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:4px 12px}
+.gx-panelhuvud h3{margin:0}
+.gx-panelhuvud span{font-size:13px; color:var(--ink-3)}
+.gx-mallista{list-style:none; margin:12px 0 0; padding:0; display:flex; flex-direction:column; gap:10px}
+.gx-malrad{border-top:1px solid var(--line); padding-top:10px}
+.gx-malhuvud{display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:4px 12px}
+.gx-maltitel{background:none; border:0; padding:0; font:inherit; font-weight:600; color:var(--accent-ink); text-align:left; cursor:pointer}
+span.gx-maltitel{color:var(--ink-2); cursor:default}
+.gx-maltitel:hover{text-decoration:underline}
+.gx-malid{font-family:var(--mono); font-size:13px; color:var(--ink-3)}
+.gx-maltal{font-size:13px; color:var(--err); white-space:nowrap}
+.gx-malfot{display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:6px; font-size:13px; color:var(--ink-3)}
+.gx-frnr{min-width:30px; padding:2px 7px; border-radius:6px; border:1px solid color-mix(in srgb, var(--err) 45%, transparent);
+  background:color-mix(in srgb, var(--err) 8%, transparent); color:var(--err); font:inherit; font-size:12.5px; cursor:pointer}
+.gx-frnr.obesv{border-color:var(--line-strong); background:transparent; color:var(--ink-3)}
+.gx-temalank{padding:2px 9px; border-radius:6px; border:1px solid var(--line-strong); background:var(--paper); color:var(--accent-ink); font:inherit; font-size:12.5px; cursor:pointer}
+.gx-panelfot{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px}
 .insp-forkl{margin-top:22px; background:#fff; border:1px solid #d8d8d8; padding:12px 18px; font-size:16px}
 .insp-forkl summary{cursor:pointer; font-weight:700}
 .insp-forkl p{margin:8px 0}
@@ -19328,7 +19381,8 @@ function autokoppla(tenta) {
 function kopplingsgrad(t) {
   const fr = (t && t.fragor) || [];
   if (!fr.length) return 0;
-  const starka = fr.filter(f => f.mal && (!f.konf || f.konf === "hög" || f.konf === "manuell")).length;
+  const starka = fr.filter(f => (f.mal && (!f.konf || f.konf === "hög" || f.konf === "manuell")) ||
+    (typeof taMatcha === "function" && taMatcha(f, t))).length;
   return starka / fr.length;
 }
 function egenKurs(t) { return kopplingsgrad(t) >= 0.35; }
@@ -19470,11 +19524,16 @@ function ratta(forsok, tenta) {
       if (bedombar && harSvar) { poangFatt = ratt ? poangMax : 0; bedomd = true; }
     }
 
-    const ref = f.mal ? malRef(f.mal) : null;
+    /* Motsvarar frågan en genomgången fråga i Tentaanalysen tas lärandemålet
+       därifrån: den kopplingen är gjord för hand och säkrare än textmatchningen. */
+    let ta = null;
+    try { ta = typeof taMatcha === "function" ? taMatcha(f, tenta) : null; } catch (e) { ta = null; }
+    const malId = ta && ta.f.mal && malRef(ta.f.mal) ? ta.f.mal : (f.mal || null);
+    const ref = malId ? malRef(malId) : null;
     return {
       plats: plats + 1, fi, fraga: f, svarat, harSvar, bedombar, ratt,
-      text, poangMax, poangFatt, bedomd,
-      ref, modulNr: ref ? ref.modul.nr : null,
+      text, poangMax, poangFatt, bedomd, ta, malId,
+      ref, modulNr: ref ? ref.modul.nr : (ta ? ta.f.m : null),
       avsnitt: f.avsnitt || "",
       flaggad: !!forsok.flagg[fi]
     };
@@ -19520,12 +19579,12 @@ function ratta(forsok, tenta) {
   const k = kursById(tenta.kurs) || KURSER[0];
   (k ? k.moduler : []).forEach(m => {
     const iModul = rader.filter(r => r.modulNr === m.nr);
-    const malTestade = [...new Set(iModul.map(r => r.fraga.mal).filter(Boolean))];
+    const malTestade = [...new Set(iModul.map(r => r.malId).filter(Boolean))];
     moduler.push(grupp("Modul " + m.nr, iModul, {
       modul: m,
       malTestade,
       felMal: [...new Set(iModul.filter(r => r.bedombar && r.harSvar && r.bedomd && !r.ratt)
-        .map(r => r.fraga.mal).filter(Boolean))]
+        .map(r => r.malId).filter(Boolean))]
     }));
   });
 
@@ -21196,8 +21255,6 @@ function viewTentaGranska(fid, posArg) {
   const f = rad.fraga;
   const v = rad.svarat;
   const hor = egenKurs(t);
-  const ref = (hor || f.konf === "manuell" || f.konf === "hög") ? rad.ref : null;
-  const forkl = ref && typeof forklaringUrMal === "function" ? forklaringUrMal(ref, f) : null;
   const bas = `/tenta/granska/${encodeURIComponent(fo.id)}/`;
 
   let svar;
@@ -21228,8 +21285,7 @@ function viewTentaGranska(fid, posArg) {
     ${svar}
     <div class="insp-linje"></div>
     <p class="insp-totalpoang">${rad.bedomd ? `Din poäng: ${fmtPoang(rad.poangFatt)} &nbsp;·&nbsp; ` : ""}Totalpoäng: ${fmtPoang(rad.poangMax)}</p>
-    ${forkl ? `<details class="insp-forkl" open><summary>Förklaring</summary>${forkl.map(b => b.typ === "formel"
-      ? `<div class="formula">${b.html}</div>` : `<p>${b.html}</p>`).join("")}</details>` : ""}`;
+    ${gxForklaringHtml(rad, t, hor, "insp")}`;
 
   const status = x => !x.bedombar || (x.text && !x.bedomd) ? "" : x.ratt ? " ratt" : (x.poangFatt > 0 ? " delvis" : " fel");
   const flikar = r.rader.map((x, p) => `<button class="tnum insp-flik svarad${p === pos ? " nu" : ""}${status(x)}${x.flaggad ? " flagg" : ""}"
@@ -21265,6 +21321,475 @@ function viewTentaGranska(fid, posArg) {
     if (e.key === "ArrowRight") { e.preventDefault(); gaTill(pos + 1); }
   };
   document.addEventListener("keydown", _tentaTangent);
+}
+
+
+/* =====================================================================
+   Granskning efter tentan: förklaring per fråga, ämnesnedbrytning per
+   modul och felen som Anki-kortlek.
+
+   Simulatorns frågor kopplas till Tentaanalysens 2 276 genomgångna
+   tentafrågor genom texten (frågan, alternativen, siffrorna och facit).
+   Kopplingen görs bara när den är säker; annars används lärandemålet i
+   Basvetenskap 5, och finns inget av dem visas ingen förklaring alls.
+   ===================================================================== */
+const GX_FRAN = "₀₁₂₃₄₅₆₇₈₉⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻", GX_TILL = "01234567890123456789+-";
+function gxIndexTecken(s) {
+  return String(s || "").replace(/[₀-₉⁰¹²³⁴-⁹⁺⁻]/g, c => {
+    const i = GX_FRAN.indexOf(c);
+    return i >= 0 ? GX_TILL[i] : c;
+  });
+}
+function gxNt(s) { return gxIndexTecken(s).toLowerCase().replace(/[^a-zåäöéü0-9]+/g, " ").trim(); }
+function gxTok(s) { return gxNt(s).split(" ").filter(t => t.length >= 3); }
+function gxTal(s) { return (gxIndexTecken(s).replace(/,/g, ".").match(/\d+(?:\.\d+)?/g) || []).sort(); }
+const GX_GENERISK = /^(alternativ )?[a-h]$|^se bilden$|^$/;
+/* Alternativ som bara är etiketter ("Alternativ A", "Kurva B") säger inget om innehållet. */
+function gxInformativa(opts) {
+  const o = (opts || []).filter(x => !GX_GENERISK.test(gxNt(x)));
+  const stam = new Set(o.map(x => gxNt(x).replace(/ [a-h0-9]$/, "")));
+  return stam.size > 1 || o.length <= 1 ? o : [];
+}
+function gxDice(a, b) {
+  if (!a.size && !b.size) return 0;
+  let n = 0; a.forEach(t => { if (b.has(t)) n++; });
+  return 2 * n / (a.size + b.size);
+}
+const GX_NEG = new Set(["inte", "ej", "felaktig", "felaktigt", "felaktiga", "falsk", "falskt", "minst", "undantag", "utom", "osann", "osant"]);
+const GX_PAR = [["hög", "låg"], ["höga", "låga"], ["ökad", "minskad"], ["ökar", "minskar"], ["ökning", "minskning"],
+  ["akut", "kronisk"], ["metabol", "respiratorisk"], ["acidos", "alkalos"], ["mest", "minst"], ["vänster", "höger"],
+  ["afferent", "efferent"], ["sympatisk", "parasympatisk"]];
+/* Två nästan likadana frågor kan fråga om motsatsen: "hög" mot "låg",
+   "hypo-" mot "hyper-", med eller utan "inte". Då är förklaringen fel. */
+function gxKonflikt(a, b) {
+  const A = new Set(gxNt(a).split(" ")), B = new Set(gxNt(b).split(" "));
+  const neg = X => [...X].filter(t => GX_NEG.has(t)).sort().join(",");
+  if (neg(A) !== neg(B)) return true;
+  const pre = (X, p) => new Set([...X].filter(t => t.startsWith(p) && t.length > p.length + 3).map(t => t.slice(p.length, p.length + 6)));
+  const Ao = pre(A, "hypo"), Ae = pre(A, "hyper"), Bo = pre(B, "hypo"), Be = pre(B, "hyper");
+  if ([...Ao].some(t => Be.has(t) && !Ae.has(t) && !Bo.has(t))) return true;
+  if ([...Ae].some(t => Bo.has(t) && !Ao.has(t) && !Be.has(t))) return true;
+  for (const [x, y] of GX_PAR) {
+    if ((A.has(x) && !A.has(y) && B.has(y) && !B.has(x)) || (A.has(y) && !A.has(x) && B.has(x) && !B.has(y))) return true;
+  }
+  return false;
+}
+/* Siffrorna (labbvärden, doser, volymer) måste stämma. */
+function gxTalStammer(a, b) {
+  const na = gxTal(a), nb = gxTal(b);
+  if (!na.length && !nb.length) return true;
+  const ca = {}, cb = {};
+  na.forEach(t => { ca[t] = (ca[t] || 0) + 1; });
+  nb.forEach(t => { cb[t] = (cb[t] || 0) + 1; });
+  let inter = 0, uni = 0;
+  new Set([...na, ...nb]).forEach(t => { inter += Math.min(ca[t] || 0, cb[t] || 0); uni += Math.max(ca[t] || 0, cb[t] || 0); });
+  return inter / uni >= 0.75;
+}
+function gxAltLik(a, b) {
+  const ta = new Set(gxTok(a)), tb = new Set(gxTok(b));
+  return ta.size || tb.size ? gxDice(ta, tb) : (gxNt(a) === gxNt(b) ? 1 : 0);
+}
+
+let _gxIx = null;
+function gxTaIndex() {
+  if (_gxIx) return _gxIx;
+  const D = taData();
+  const ids = Object.keys(D.fragor);
+  const stam = {}, alt = {}, inv = new Map();
+  ids.forEach(id => {
+    const g = D.fragor[id];
+    stam[id] = new Set(gxTok(g.q));
+    alt[id] = new Set(gxTok(gxInformativa(g.alt).join(" ")));
+    new Set([...stam[id], ...gxTok(g.alt.join(" "))]).forEach(t => {
+      if (!inv.has(t)) inv.set(t, []);
+      inv.get(t).push(id);
+    });
+  });
+  /* tema per lärandemål, för länkar från Basvetenskap 5 till Tentaanalysen */
+  const temaForMal = {};
+  D.moduler.forEach(m => m.teman.forEach(t => { if (t.mal && !temaForMal[t.mal]) temaForMal[t.mal] = t; }));
+  _gxIx = { D, stam, alt, inv, temaForMal };
+  return _gxIx;
+}
+
+/* "Ordinarie VT26" ur tentans titel eller källa, om det går. */
+function gxTermin(t) {
+  const s = [t && t.titel, t && t.kalla].filter(Boolean).join(" ");
+  let m = s.match(/(ordinarie|ord|rest|omtenta(?:men)?|omtentamen)[\s_.\-]*(?:tenta(?:men)?[\s_\-]*)?(ht|vt)[\s_\-]*(?:20)?(\d{2})/i);
+  if (m) return (/^ord/i.test(m[1]) ? "Ordinarie" : "Rest") + " " + m[2].toUpperCase() + m[3];
+  m = s.match(/(ht|vt)[\s_\-]*(?:20)?(\d{2})[\s_\-]*(?:moment[\s_\-]*\d+[\s_\-]*)?(ordinarie|ord|rest|omtenta)/i);
+  if (m) return (/^ord/i.test(m[3]) ? "Ordinarie" : "Rest") + " " + m[1].toUpperCase() + m[2];
+  return "";
+}
+
+const _gxMatchCache = new Map();
+/* Den genomgångna Tentaanalys-frågan som motsvarar frågan, eller null. */
+function taMatcha(f, tenta) {
+  if (!f || !f.q) return null;
+  let ix;
+  try { ix = gxTaIndex(); } catch (e) { return null; }
+  const termin = gxTermin(tenta);
+  const nyckel = [f.q, (f.options || []).join("\u0002"), JSON.stringify(f.svar), termin].join("\u0001");
+  if (_gxMatchCache.has(nyckel)) return _gxMatchCache.get(nyckel);
+  const opts = f.options || [];
+  const S = new Set(gxTok(f.q));
+  const inf = gxInformativa(opts);
+  const O = new Set(gxTok(inf.join(" ")));
+  const rakna = new Map();
+  new Set([...S, ...O]).forEach(t => {
+    const lista = ix.inv.get(t);
+    if (!lista || lista.length > 300) return;
+    lista.forEach(id => rakna.set(id, (rakna.get(id) || 0) + 1));
+  });
+  const topp = [...rakna.entries()].sort((a, b) => b[1] - a[1]).slice(0, 40);
+  const helText = f.q + " " + opts.join(" ");
+  let bast = null;
+  for (const [id] of topp) {
+    const g = ix.D.fragor[id];
+    const T = ix.stam[id];
+    let gem = 0; S.forEach(t => { if (T.has(t)) gem++; });
+    /* likhet åt båda hållen, plus hur mycket av frågan som täcks */
+    const ds = 0.5 * gxDice(S, T) + 0.5 * (S.size ? gem / S.size : 0);
+    const tinf = gxInformativa(g.alt);
+    const dO = inf.length && tinf.length ? gxDice(O, ix.alt[id]) : null;
+    if (ds < 0.7) continue;
+    if (dO === null && ds < 0.85) continue;
+    if (dO !== null && dO < 0.5) continue;
+    if (gxKonflikt(f.q, g.q)) continue;
+    if (!gxTalStammer(helText, g.q + " " + g.alt.join(" "))) continue;
+    /* facit: samma rätta svar, eller en officiell rättelse som förklarar skillnaden */
+    if (inf.length && tinf.length && g.fx.length && typeof f.svar === "number" && f.svar < opts.length) {
+      const ta = g.alt[g.fx[0]] || "", si = opts[f.svar] || "";
+      if (!GX_GENERISK.test(gxNt(ta)) && !GX_GENERISK.test(gxNt(si)) && gxAltLik(ta, si) < 0.6 && !g.e) continue;
+    }
+    let poang = dO === null ? ds : 0.6 * ds + 0.4 * dO;
+    if (termin && g.t === termin) poang += 0.05;
+    if (termin && g.t === termin && Number(g.nr) === Number(f.nr)) poang += 0.03;
+    if (!bast || poang > bast.poang) bast = { id, f: g, poang };
+  }
+  _gxMatchCache.set(nyckel, bast);
+  return bast;
+}
+
+/* Länkarna till där svaret och den djupare förståelsen finns. */
+function gxLankar(ta, ref) {
+  const ix = gxTaIndex(), ut = [];
+  if (ta) {
+    const g = ta.f, tema = ix.D.temaAv[g.tema];
+    if (tema) ut.push({ t: tema.tema, s: `Tentaanalys · Modul ${tema.m} · temats genomgång`, go: `/tentaanalys/m/${tema.m}/standard/${tema.i}` });
+    const r = g.mal ? malRef(g.mal) : null;
+    if (r) ut.push({ t: `${r.mal.id} ${r.mal.titel}`, s: `Basvetenskap 5 · Modul ${r.modul.nr} · lärandemål`, go: malLank(r) });
+    ut.push({ t: `${g.t}, fråga ${g.nr}`, s: "Tentaanalys · öva på frågan", go: "/tentaanalys/ova/en/" + encodeURIComponent(ta.id) });
+    if (tema) ut.push({ t: `Öva temats ${tema.ids.length} tentafrågor`, s: "Tentaanalys", go: "/tentaanalys/ova/tema/" + tema.key });
+  } else if (ref) {
+    ut.push({ t: `${ref.mal.id} ${ref.mal.titel}`, s: `Basvetenskap 5 · Modul ${ref.modul.nr} · lärandemål`, go: malLank(ref) });
+    const tema = ix.temaForMal[ref.mal.id];
+    if (tema) ut.push({ t: tema.tema, s: `Tentaanalys · Modul ${tema.m} · temats genomgång`, go: `/tentaanalys/m/${tema.m}/standard/${tema.i}` });
+    ut.push({ t: `Modul ${ref.modul.nr} – ${ref.modul.titel}`, s: "Basvetenskap 5 · hela modulen", go: `/kurs/${ref.kurs.id}/modul/${ref.modul.nr}` });
+  }
+  return ut;
+}
+
+/* Förklaringen till en rättad rad: ur Tentaanalysen i första hand, annars ur
+   lärandemålet i Basvetenskap 5. null när ingen förklaring finns. */
+function gxForklaring(rad, tenta, hor) {
+  const f = rad.fraga;
+  const ta = rad.ta !== undefined ? rad.ta : taMatcha(f, tenta);
+  if (ta && ta.f && ta.f.f) {
+    return { kalla: "ta", ta, text: ta.f.f, punkter: (ta.f.n || []).filter(Boolean), obs: ta.f.e || "",
+      etikett: `Tentaanalys · ${ta.f.t}, fråga ${ta.f.nr}`, lankar: gxLankar(ta, null) };
+  }
+  const ref = (hor || f.konf === "manuell" || f.konf === "hög") ? rad.ref : null;
+  const block = ref && typeof forklaringUrMal === "function" ? forklaringUrMal(ref, f) : null;
+  if (block && block.length) {
+    return { kalla: "bv5", ref, block, etikett: `Basvetenskap 5 · lärandemål ${ref.mal.id}`, lankar: gxLankar(null, ref) };
+  }
+  return null;
+}
+
+function gxForklaringHtml(rad, tenta, hor, stil) {
+  let x = null;
+  try { x = gxForklaring(rad, tenta, hor); } catch (e) { x = null; }
+  if (!x) return "";
+  const innehall = x.kalla === "ta"
+    ? `${x.obs ? `<p class="gx-obs"><b>Obs!</b> ${esc(x.obs)}</p>` : ""}
+       <p>${esc(x.text)}</p>
+       ${x.punkter.length ? `<div class="gx-punkter"><b>Det här ska du kunna</b><ul>${x.punkter.map(p => `<li>${esc(p)}</li>`).join("")}</ul></div>` : ""}`
+    : x.block.map(b => b.typ === "formel" ? `<div class="formula">${b.html}</div>` : `<p>${b.html}</p>`).join("");
+  return `<section class="gx-forkl gx-${stil}" aria-label="Förklaring">
+      <div class="gx-huvud"><b>Förklaring</b><span class="gx-kalla">${esc(x.etikett)}</span></div>
+      <div class="gx-text">${innehall}</div>
+      ${x.lankar.length ? `<div class="gx-lankar"><span class="gx-lasmer">Läs mer och öva</span>
+        ${x.lankar.map(l => `<button class="gx-lank" data-go="${esc(l.go)}"><span class="gx-lt">${esc(l.t)}</span><span class="gx-ls">${esc(l.s)}</span></button>`).join("")}
+      </div>` : ""}
+    </section>`;
+}
+
+/* ---------- ämnesnedbrytning: en mätare per modul ---------- */
+function gxMatare(procent, storlek) {
+  const r = 34, omk = 2 * Math.PI * r, p = procent === null ? 0 : Math.max(0, Math.min(100, procent));
+  const grans = godkantGrans();
+  const farg = procent === null ? "var(--ink-3)" : p >= grans ? "var(--ok)" : p >= grans - 10 ? "var(--warn)" : "var(--err)";
+  return `<svg class="gx-matare" viewBox="0 0 84 84" width="${storlek || 84}" height="${storlek || 84}" aria-hidden="true">
+    <circle cx="42" cy="42" r="${r}" fill="none" stroke="var(--line)" stroke-width="9"/>
+    ${p > 0 ? `<circle cx="42" cy="42" r="${r}" fill="none" stroke="${farg}" stroke-width="9" stroke-linecap="${p >= 100 ? "butt" : "round"}"
+      stroke-dasharray="${(omk * p / 100).toFixed(1)} ${omk.toFixed(1)}" transform="rotate(-90 42 42)"/>` : ""}
+    <text x="42" y="47" text-anchor="middle" font-size="17" font-weight="700" fill="var(--ink)">${procent === null ? "–" : p + "%"}</text>
+  </svg>`;
+}
+
+/* Raderna i en modul som blev fel (eller lämnades obesvarade), grupperade per lärandemål. */
+function gxFelPerMal(r, modulNr) {
+  const grupper = new Map();
+  r.rader.forEach((x, pos) => {
+    if (x.modulNr !== modulNr || !x.bedombar) return;
+    const nyckel = x.malId || (x.ta && x.ta.f.tema ? "tema:" + x.ta.f.tema : "övrigt");
+    if (!grupper.has(nyckel)) grupper.set(nyckel, { nyckel, malId: x.malId, ta: x.ta, alla: 0, fel: [] });
+    const g = grupper.get(nyckel);
+    g.alla++;
+    const fel = !x.harSvar || (x.bedomd && !x.ratt);
+    if (fel) g.fel.push({ pos, plats: x.plats, obesvarad: !x.harSvar, delvis: x.bedomd && x.poangFatt > 0 });
+  });
+  return [...grupper.values()].filter(g => g.fel.length).sort((a, b) => b.fel.length - a.fel.length || String(a.nyckel).localeCompare(String(b.nyckel), "sv", { numeric: true }));
+}
+
+function gxAmnesnedbrytning(fo, t, r, hor) {
+  const ix = (() => { try { return gxTaIndex(); } catch (e) { return null; } })();
+  const fid = encodeURIComponent(fo.id);
+  const antalFel = r.rader.filter(x => x.bedombar && (!x.harSvar || (x.bedomd && !x.ratt))).length;
+  const ankiKnapp = antalFel ? `<button class="btn primary" data-gx-anki="${fid}" data-gx-vad="alla" title="En .apkg-kortlek med frågorna du fick fel på, med facit, förklaring och bilder">Exportera felen till Anki (${antalFel} kort)</button>` : "";
+  if (!hor) {
+    const av = r.avsnitt.filter(a => a.testad && a.procent !== null);
+    if (av.length < 2) return ankiKnapp ? `<div class="rule"></div><div class="gx-rubrik"><h2>Öva på felen</h2>${ankiKnapp}</div>` : "";
+    return `<div class="rule"></div><div class="gx-rubrik"><h2>Ämnesnedbrytning</h2>${ankiKnapp}</div>
+      <div class="gx-grid">${av.map(a => `<div class="gx-kort gx-statisk">${gxMatare(a.procent)}
+        <span class="gx-namn">${esc(a.namn)}</span>
+        <span class="gx-tal">${a.procent === null ? "inget bedömt" : `${a.ratt} av ${a.grundbara} rätt`}</span></div>`).join("")}</div>`;
+  }
+  const moduler = r.moduler.filter(m => m.testad);
+  if (!moduler.length) return "";
+  const kort = moduler.map(m => {
+    const felMal = gxFelPerMal(r, m.modul.nr);
+    return `<button class="gx-kort" data-gx-modul="${m.modul.nr}" aria-expanded="false" aria-controls="gx-panel-${m.modul.nr}">
+      ${gxMatare(m.procent)}
+      <span class="gx-namn">Modul ${m.modul.nr}</span>
+      <span class="gx-sub">${esc(m.modul.titel)}</span>
+      <span class="gx-tal">${m.procent === null ? "inga bedömda svar" : `${m.ratt} av ${m.grundbara} rätt`}${m.obesvarade ? ` · ${m.obesvarade} obesvarade` : ""}</span>
+      <span class="gx-felmal">${felMal.length ? `${felMal.length} ${felMal.length === 1 ? "lärandemål" : "lärandemål"} att träna →` : "Inga fel"}</span>
+    </button>`;
+  }).join("");
+  const paneler = moduler.map(m => {
+    const felMal = gxFelPerMal(r, m.modul.nr);
+    const taMod = ix && ix.D.moduler.find(x => x.m === m.modul.nr);
+    const rader = felMal.map(g => {
+      const ref = g.malId ? malRef(g.malId) : null;
+      const tema = g.ta && ix ? ix.D.temaAv[g.ta.f.tema] : (ref && ix ? ix.temaForMal[ref.mal.id] : null);
+      const titel = ref ? `<button class="gx-maltitel" data-go="${malLank(ref)}"><span class="gx-malid">${esc(ref.mal.id)}</span> ${esc(ref.mal.titel)}</button>`
+        : tema ? `<button class="gx-maltitel" data-go="/tentaanalys/m/${tema.m}/standard/${tema.i}">${esc(tema.tema)}</button>`
+        : `<span class="gx-maltitel">Utan lärandemål</span>`;
+      return `<li class="gx-malrad">
+        <div class="gx-malhuvud">${titel}<span class="gx-maltal">${g.fel.length} av ${g.alla} fel</span></div>
+        <div class="gx-malfot">
+          <span>Frågor:</span>${g.fel.map(x => `<button class="gx-frnr${x.obesvarad ? " obesv" : ""}" data-go="/tenta/granska/${fid}/${x.pos}"
+             title="${x.obesvarad ? "Obesvarad" : x.delvis ? "Delvis rätt" : "Fel"} – visa frågan">${x.plats}</button>`).join("")}
+          ${tema && ref ? `<button class="gx-temalank" data-go="/tentaanalys/m/${tema.m}/standard/${tema.i}">Temat i Tentaanalys</button>
+             <button class="gx-temalank" data-go="/tentaanalys/ova/tema/${tema.key}">Öva ${tema.ids.length} tentafrågor</button>` : ""}
+        </div></li>`;
+    }).join("");
+    return `<div class="gx-panel" id="gx-panel-${m.modul.nr}" data-gx-panel="${m.modul.nr}" hidden>
+      <div class="gx-panelhuvud"><h3>Modul ${m.modul.nr} – ${esc(m.modul.titel)}</h3>
+        <span>${m.procent === null ? "" : m.procent + " % · "}${felMal.length ? `lärandemålen du fick fel på` : "inga fel i modulen"}</span></div>
+      ${felMal.length ? `<ul class="gx-mallista">${rader}</ul>` : `<p class="s">Alla bedömda frågor i modulen var rätt.</p>`}
+      <div class="gx-panelfot">
+        <button class="btn" data-go="/kurs/${t.kurs || "bv5"}/modul/${m.modul.nr}">Läs modulen</button>
+        ${taMod ? `<button class="btn" data-go="/tentaanalys/m/${m.modul.nr}/standard">Modulen i Tentaanalys</button>` : ""}
+        ${felMal.length ? `<button class="btn primary" data-gx-anki="${fid}" data-gx-vad="${m.modul.nr}">Modulens fel till Anki</button>` : ""}
+      </div></div>`;
+  }).join("");
+  return `<div class="rule"></div>
+    <div class="gx-rubrik"><h2>Ämnesnedbrytning</h2>
+      ${ankiKnapp}</div>
+    <p style="font-size:14px; color:var(--ink-2); max-width:66ch; margin-top:4px">Rätt per modul. Klicka på en modul för att se
+      exakt vilka lärandemål du fick fel på, med länkar direkt till avsnitten.</p>
+    <div class="gx-grid">${kort}</div>
+    ${paneler}`;
+}
+
+document.addEventListener("click", e => {
+  const k = e.target.closest("[data-gx-modul]");
+  if (k) {
+    const nr = k.dataset.gxModul;
+    const panel = document.querySelector(`[data-gx-panel="${nr}"]`);
+    const oppna = panel && panel.hidden;
+    document.querySelectorAll("[data-gx-panel]").forEach(p => { p.hidden = true; });
+    document.querySelectorAll("[data-gx-modul]").forEach(b => b.setAttribute("aria-expanded", "false"));
+    if (panel && oppna) {
+      panel.hidden = false;
+      k.setAttribute("aria-expanded", "true");
+      panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    return;
+  }
+  const a = e.target.closest("[data-gx-anki]");
+  if (a) gxFelTillAnki(decodeURIComponent(a.dataset.gxAnki), a.dataset.gxVad, a);
+});
+
+/* ---------- felen som Anki-kortlek ---------- */
+const GX_SAJT = "https://ybgdon7.github.io/bibliotek/";
+function gxSajt() {
+  try { if (/^https?:$/.test(location.protocol)) return location.origin + location.pathname; } catch (e) {}
+  return GX_SAJT;
+}
+function gxBildfil(dataUrl, nyckel, media, filer, sedda) {
+  if (!dataUrl) return "";
+  if (sedda[nyckel]) return sedda[nyckel];
+  const m = String(dataUrl).match(/^data:image\/([\w+]+);base64,/);
+  if (!m) return "";
+  const ext = m[1] === "jpeg" ? "jpg" : m[1] === "svg+xml" ? "svg" : m[1];
+  const nr = String(Object.keys(media).length);
+  const fil = `bv5fel-${String(nyckel).replace(/[^A-Za-z0-9]+/g, "-").slice(0, 60)}.${ext}`;
+  media[nr] = fil;
+  filer.push({ namn: nr, data: base64TillBytes(dataUrl.slice(dataUrl.indexOf(",") + 1)) });
+  sedda[nyckel] = fil;
+  return fil;
+}
+
+let _gxAnkiPagar = false;
+async function gxFelTillAnki(fid, vad, knapp) {
+  if (_gxAnkiPagar) return;
+  const fo = forsokById(fid);
+  const t = fo ? forsokTenta(fo) : null;
+  if (!fo || !t) return;
+  _gxAnkiPagar = true;
+  const fore = knapp ? knapp.textContent : "";
+  const status = s => { if (knapp) knapp.textContent = s; };
+  try {
+    status("Bygger kortleken…");
+    await new Promise(r => setTimeout(r, 30));
+    const r = ratta(fo, t);
+    const hor = egenKurs(t);
+    const rader = r.rader.filter(x => x.bedombar && (!x.harSvar || (x.bedomd && !x.ratt)) &&
+      (vad === "alla" || (hor && String(x.modulNr) === String(vad))));
+    if (!rader.length) { status("Inga fel att exportera"); setTimeout(() => status(fore), 3000); return; }
+    const kurs = kursById(t.kurs) || KURSER[0];
+    const SQL = await sqlMotor();
+    const db = new SQL.Database();
+    db.run(ANKI_SCHEMA);
+    const nu = Date.now(), sek = Math.floor(nu / 1000);
+    const crt = Math.floor(new Date(new Date().setHours(4, 0, 0, 0)).getTime() / 1000);
+    const mid = 1700000000617;
+    const modell = ankiModell(mid);
+    modell[mid].name = "BV5 Tentafel";
+    modell[mid].css += "\n.fel{color:#b3261e}\n.ratt{color:#2e7d32}\nol.alt{padding-left:1.4em; margin:10px 0 0; font-weight:400}\nol.alt li{margin:4px 0}" +
+      "\n.forkl{margin-top:12px; padding:10px 12px; background:#f4f1ea; border-radius:8px; font-size:17px}" +
+      "\n.lasmer{margin-top:10px; font-size:14px}\n.lasmer a{display:block; margin:3px 0}\ntable.m{border-collapse:collapse; font-size:16px; font-weight:400}\ntable.m td{border:1px solid #ccc; padding:4px 8px}";
+    const titel = String(fo.titel || t.titel || "Tenta").replace(/::/g, ":").replace(/"/g, "'").trim();
+    const rotNamn = "BV5 Tentafel::" + titel;
+    const did = namn => 1700000000000 + ((frohash(namn) >>> 0) % 900000000);
+    const decks = ankiDeck(did("BV5 Tentafel"), "BV5 Tentafel");
+    const lagg = namn => {
+      const id = did(namn);
+      if (!decks[id]) decks[id] = { ...decks[did("BV5 Tentafel")], id, name: namn };
+      return id;
+    };
+    lagg(rotNamn);
+    const modulNamn = nr => {
+      const m = kurs && kurs.moduler.find(x => x.nr === nr);
+      return m ? `${rotNamn}::Modul ${String(nr).padStart(2, "0")} – ${m.titel}`.replace(/"/g, "'") : `${rotNamn}::Övrigt`;
+    };
+    const media = {}, filer = [], sedda = {};
+    const sajt = gxSajt();
+    let nr = 0;
+    const kortRader = [];
+    for (const x of rader) {
+      nr++;
+      const f = x.fraga;
+      /* bilderna: frågans figurer och alternativens bilder */
+      const bild = async (ref, nyckel) => gxBildfil(await mediaKalla(ref), nyckel, media, filer, sedda);
+      const figurer = [];
+      for (const [i, b] of fragansBilder(f).entries()) {
+        const fil = await bild(b, (arDataUrl(b) ? "q" + nr + "-" + i : b));
+        if (fil) figurer.push(fil);
+      }
+      const altFil = [];
+      for (const [i, b] of (Array.isArray(f.altBilder) ? f.altBilder : []).entries()) {
+        altFil[i] = b ? await bild(b, arDataUrl(b) ? "a" + nr + "-" + i : b) : "";
+      }
+      const txt = s => ankiText(s).replace(/\n/g, "<br>");
+      const altText = i => {
+        const o = f.options[i] || "";
+        const auto = /^Alternativ [A-H]$/.test(o.trim()) || !!(f.altErsatt && f.altErsatt[i]);
+        return `${auto && altFil[i] ? "" : txt(o)}${altFil[i] ? `<br><img src="${altFil[i]}">` : ""}`;
+      };
+      const bokstav = i => String.fromCharCode(65 + i);
+      let fram = `<div>${txt(f.q)}</div>${figurer.map(fl => `<br><img src="${fl}">`).join("")}`;
+      let bak = "";
+      if (f.typ === "text") {
+        bak = `<div><b>Facit</b><br>${txt(f.facit || "–")}</div>` +
+          (x.harSvar ? `<div class="fel" style="margin-top:8px"><b>Ditt svar</b><br>${txt(x.svarat)}</div>` : `<div class="fel" style="margin-top:8px">Du svarade inte.</div>`);
+      } else if (f.typ === "matchning") {
+        const kol = f.options;
+        const facit = Array.isArray(f.svar) ? f.svar : [];
+        const mitt = Array.isArray(x.svarat) ? x.svarat : [];
+        fram += f.visning === "lucka" && f.lucktext ? `<div style="margin-top:8px; font-weight:400">${txt(f.lucktext)}</div>` : "";
+        fram += `<div style="margin-top:8px; font-weight:400">Välj bland: ${kol.map(txt).join(" · ")}</div>`;
+        bak = `<table class="m">${f.matchrader.map((rad, i) => {
+          const rt = facit[i], du = mitt[i];
+          return `<tr><td>${txt(rad || "Lucka " + (i + 1))}</td><td class="ratt">${rt === null || rt === undefined ? "–" : txt(kol[rt])}</td>${
+            du !== rt ? `<td class="fel">${du === null || du === undefined ? "obesvarad" : "du: " + txt(kol[du])}</td>` : "<td></td>"}</tr>`;
+        }).join("")}</table>`;
+      } else {
+        fram += `<ol class="alt" type="A">${f.options.map((o, i) => `<li>${altText(i)}</li>`).join("")}</ol>`;
+        const facit = Array.isArray(f.svar) ? f.svar : [f.svar];
+        const mina = Array.isArray(x.svarat) ? x.svarat : (x.svarat === null || x.svarat === undefined ? [] : [x.svarat]);
+        bak = `<div class="ratt"><b>Rätt svar:</b> ${facit.map(i => `${bokstav(i)}. ${altText(i)}`).join("<br>")}</div>` +
+          `<div class="fel" style="margin-top:6px"><b>Ditt svar:</b> ${mina.length ? mina.map(i => `${bokstav(i)}. ${altText(i)}`).join("<br>") : "obesvarad"}</div>`;
+      }
+      const fk = gxForklaring(x, t, hor);
+      if (fk) {
+        const inne = fk.kalla === "ta"
+          ? `${fk.obs ? `<p><b>Obs!</b> ${txt(fk.obs)}</p>` : ""}<p>${txt(fk.text)}</p>${fk.punkter.length ? `<ul>${fk.punkter.map(p => `<li>${txt(p)}</li>`).join("")}</ul>` : ""}`
+          : fk.block.map(b => `<p>${b.html}</p>`).join("");
+        bak += `<div class="forkl"><b>Förklaring</b> <span style="font-size:13px; color:#8b7f8c">(${txt(fk.etikett)})</span>${inne}
+          ${fk.lankar.length ? `<div class="lasmer">${fk.lankar.map(l => `<a href="${ankiText(sajt + "#" + l.go)}">${txt(l.t)}</a>`).join("")}</div>` : ""}</div>`;
+      }
+      /* En tenta utanför kursen sorteras på sina egna avsnitt, inte på kursens moduler. */
+      const modulNr = hor ? (x.modulNr || null) : null;
+      const deck = lagg(hor ? modulNamn(modulNr)
+        : x.avsnitt ? `${rotNamn}::${String(x.avsnitt).replace(/::/g, ":").replace(/"/g, "'")}` : rotNamn);
+      const kalla = `${titel} · fråga ${x.plats}${modulNr ? ` · Modul ${modulNr}` : ""}${hor && x.malId ? ` · mål ${x.malId}` : ""}`;
+      const taggar = " BV5_Tentafel " + (modulNr ? "Modul_" + String(modulNr).padStart(2, "0") + " " : "") +
+        (hor && x.malId ? "Mal_" + x.malId + " " : "") + (x.harSvar ? "" : "obesvarad ");
+      kortRader.push({ fram, bak, kalla: ankiText(kalla), taggar, deck, guid: ankiGuid("tf:" + gxNt(f.q) + ":" + f.options.map(gxNt).join("|")) });
+      if (nr % 20 === 0) { status(`Bygger kortleken… ${nr} av ${rader.length}`); await new Promise(r2 => setTimeout(r2, 0)); }
+    }
+    db.run(`INSERT INTO col VALUES (1, ?, ?, ?, 11, 0, -1, 0, ?, ?, ?, ?, '{}')`, [
+      crt, nu, nu, JSON.stringify({ ...ANKI_CONF, curModel: String(mid) }), JSON.stringify(modell),
+      JSON.stringify(decks), JSON.stringify(ANKI_DCONF)
+    ]);
+    let i = 0;
+    for (const k of kortRader) {
+      i++;
+      const nid = nu + i * 2;
+      db.run(`INSERT INTO notes VALUES (?, ?, ?, ?, -1, ?, ?, ?, ?, 0, '')`,
+        [nid, k.guid, mid, sek, k.taggar, [k.fram, k.bak, k.kalla].join("\x1f"), k.fram, await ankiCsum(k.fram)]);
+      db.run(`INSERT INTO cards VALUES (?, ?, ?, 0, ?, -1, 0, 0, ?, 0, 0, 0, 0, 0, 0, 0, 0, '')`,
+        [nid + 1, nid, k.deck, sek, i]);
+    }
+    const bin = db.export();
+    db.close();
+    const paket = zipSkriv([{ namn: "collection.anki2", data: bin }, { namn: "media", data: JSON.stringify(media) }].concat(filer));
+    const filnamn = ("BV5-tentafel-" + titel).replace(/[^\wÅÄÖåäö\-]+/g, "-").replace(/-+/g, "-").replace(/-$/, "") +
+      (vad === "alla" ? "" : "-modul-" + String(vad).padStart(2, "0")) + ".apkg";
+    laddaNed(paket, filnamn);
+    status(`Klart – ${kortRader.length} kort${filer.length ? ` och ${filer.length} bilder` : ""}`);
+    setTimeout(() => status(fore), 4000);
+  } catch (e) {
+    status("Det gick inte: " + String(e && e.message || e));
+    setTimeout(() => status(fore), 6000);
+  } finally {
+    _gxAnkiPagar = false;
+  }
 }
 
 
@@ -21337,8 +21862,7 @@ function viewTentaResultat(fid) {
     /* På en tenta utanför kursen visas bara de kopplingar som är riktigt säkra
        eller satta för hand — annars blir varje fråga garnerad med ett
        lärandemål som bara råkar dela några ord. */
-    const ref = (hor || f2.konf === "manuell" || f2.konf === "hög") ? rad.ref : null;
-    const forkl = ref ? forklaringUrMal(ref, f2) : null;
+
     /* Ett svar kan vara ett index (envalsfråga), en lista index (flerkryss)
        eller en kolumn per rad (matchning). Den gamla raden antog alltid det
        första, och gav "NaN" på de andra. */
@@ -21385,16 +21909,7 @@ function viewTentaResultat(fid) {
                 <td style="text-align:left; font-family:inherit; color:var(--ok)">${rattSvar}</td></tr>
           </table>
         </div>`}
-        ${ref && forkl ? `
-          <div class="expl">
-            <div style="font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); font-family:var(--mono)">
-              Förklaring</div>
-            <div style="margin-top:6px">
-              ${forkl.map(b => b.typ === "formel"
-                  ? `<div class="formula" style="margin:0 0 8px">${b.html}</div>`
-                  : `<p style="margin:0 0 8px">${b.html}</p>`).join("")}
-            </div>
-          </div>` : ""}
+        ${gxForklaringHtml(rad, t, hor, "res")}
       </div>`;
   }).join("");
 
@@ -21451,6 +21966,8 @@ function viewTentaResultat(fid) {
         : `<b>Under ${godkantGrans()} % totalt.</b> ${hor ? "Modultabellen" : avsnittRader ? "Avsnittstabellen" : "Frågelistan"}
            nedan visar var poängen försvann.`}
     </div>
+
+    ${gxAmnesnedbrytning(f, t, r, hor)}
 
     ${avsnittRader ? `
       <div class="rule"></div>
@@ -33635,7 +34152,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261105-2200";
+const BYGGID = "20261106-1500";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
