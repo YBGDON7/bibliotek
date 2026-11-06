@@ -1,5 +1,5 @@
 {
-  "bygg": "20261106-1500",
-  "namn": "Tentasimulatorn: förklaring per fråga med länkar till Tentaanalys och BV5, ämnesnedbrytning per modul och felen som Anki-kortlek.",
-  "nar": "2026-11-06T17:36:22+00:00"
+  "bygg": "20261106-2115",
+  "namn": "Förklaringarna: direkt svar, varför varje fel alternativ är fel och formel med uträkning steg för steg på räknefrågorna (alla 2 274 BV5-frågor).",
+  "nar": "2026-11-06T21:18:25+00:00"
 }
