@@ -1180,18 +1180,24 @@ body.insp-pa #fragaknapp{display:none !important}
 .snabb-par.manga .snabb-kort b{font-size:13.5px}
 .snabb-nedrakning{font-family:var(--display); font-size:34px; font-weight:700; color:var(--accent)}
 .lp-lista{display:flex; flex-direction:column; gap:7px; width:100%; max-height:300px; overflow:auto; padding-right:4px}
-.lp-rad{display:grid; grid-template-columns:minmax(90px, 170px) 1fr auto; gap:10px; align-items:center; font-size:13px}
+.lp-rad{display:grid; grid-template-columns:minmax(90px, 170px) 1fr 15.5em; gap:4px 14px; align-items:end; font-size:13px}
+.lp-namn, .lp-text{padding-bottom:0}
 .lp-namn{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .lp-rad.du .lp-namn{font-weight:700}
-.lp-bar{position:relative; display:block; height:12px; border-radius:999px; background:color-mix(in srgb, currentColor 13%, transparent); overflow:visible}
-.lp-fyll{position:absolute; left:0; top:0; bottom:0; border-radius:999px; width:0;
-  transition:width .9s cubic-bezier(.22,.8,.3,1), background-color .9s ease; box-shadow:0 0 8px -2px currentColor}
-.lp-nu{position:absolute; top:50%; width:9px; height:9px; margin:-4.5px 0 0 -4.5px; border-radius:50%;
-  background:#fff; box-shadow:0 0 0 2px rgba(0,0,0,.45); transition:left .9s cubic-bezier(.22,.8,.3,1)}
+.lp-bar{position:relative; display:block; padding-top:17px}
+.lp-spar{position:relative; display:block; height:8px; border-radius:999px; overflow:hidden;
+  background:color-mix(in srgb, currentColor 11%, transparent); box-shadow:inset 0 1px 1.5px rgba(0,0,0,.10)}
+.lp-fyll{position:absolute; inset:0; border-radius:999px;
+  background:linear-gradient(90deg, #e5484d 0%, #f76b15 22%, #f5b10a 48%, #a3c93a 72%, #2fa86b 100%);
+  clip-path:inset(0 100% 0 0 round 999px); transition:clip-path .9s cubic-bezier(.22,.8,.3,1)}
+.lp-pct{position:absolute; top:0; transform:translateX(-50%); font-size:11.5px; font-weight:700; line-height:14px;
+  font-variant-numeric:tabular-nums; letter-spacing:.01em; white-space:nowrap; transition:left .9s cubic-bezier(.22,.8,.3,1), transform .9s cubic-bezier(.22,.8,.3,1)}
+.lp-nu{position:absolute; bottom:4px; width:12px; height:12px; margin:0 0 -6px -6px; border-radius:50%;
+  background:#fff; box-shadow:0 0 0 1.5px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.25); transition:left .9s cubic-bezier(.22,.8,.3,1)}
 .lp-rad.klar .lp-text{color:hsl(130, 70%, 38%); opacity:1; font-weight:700}
 .lp-text{font-family:var(--mono, monospace); font-size:11.5px; opacity:.75; white-space:nowrap}
-.insp-live .lp-lista{max-height:150px}
-@media (max-width:560px){ .lp-rad{grid-template-columns:1fr auto} .lp-bar{grid-column:1 / -1; grid-row:2} }
+.insp-live .lp-lista{max-height:190px}
+@media (max-width:560px){ .lp-rad{grid-template-columns:1fr auto} .lp-bar{grid-column:1 / -1; grid-row:2} .lp-text{text-align:right} }
 .gx-punkter b{font-size:14px}
 .gx-punkter ul{margin:4px 0 0; padding-left:1.25em}
 .gx-punkter li{margin:3px 0}
@@ -25318,31 +25324,46 @@ function livePatchaRemsa() {
   remsa.innerHTML = liveRemsaInnehall();
 }
 
-/* Färgen följer hur långt man kommit: röd när man börjat, gul halvvägs, grön i mål. */
-function liveFargFor(andel) {
-  const h = Math.round(130 * Math.max(0, Math.min(1, andel)));
-  return `hsl(${h}, 78%, ${h > 90 ? 40 : 47}%)`;
-}
-/* Senast visade bredd per spelare. Sidan ritas om vid varje svar, så utan
+/* Senast visade andel per spelare. Sidan ritas om vid varje svar, så utan
    minnet skulle stapeln hoppa i stället för att glida fram. */
-const _lpForra = {}, _lpForraNu = {}, _lpForraFarg = {};
+const _lpForra = {}, _lpForraNu = {}, _lpForraPct = {};
 let _lpTimer = null;
+const lpKlipp = p => `inset(0 ${Math.max(0, 100 - p)}% 0 0 round 999px)`;
+/* Siffran står centrerad över stapelns ände, men får aldrig sticka ut ur banan i kanterna. */
+const lpSkjut = p => `translateX(-${Math.round(p < 8 ? (p / 8) * 50 : p > 92 ? 50 + ((p - 92) / 8) * 50 : 50)}%)`;
+
 function liveAnimeraRemsa() {
   _lpTimer = null;
-  document.querySelectorAll(".lp-fyll[data-mal]").forEach(el => {
-    const mal = Number(el.dataset.mal) || 0;
-    el.style.width = mal + "%";
-    el.style.background = el.dataset.farg;
-    const mk = el.parentElement && el.parentElement.querySelector(".lp-nu[data-mal]");
+  document.querySelectorAll(".lp-bar[data-mal]").forEach(bar => {
+    const mal = Number(bar.dataset.mal) || 0;
+    const pMal = Number(bar.dataset.pct) || 0, pFran = Number(bar.dataset.pctfran) || 0;
+    const fyll = bar.querySelector(".lp-fyll");
+    if (fyll) fyll.style.clipPath = lpKlipp(mal);
+    const pct = bar.querySelector(".lp-pct");
+    if (pct) {
+      pct.style.left = mal + "%";
+      pct.style.transform = lpSkjut(mal);
+      /* Siffran räknar upp i samma takt som stapeln glider. */
+      const t0 = performance.now(), T = 900;
+      const steg = nu => {
+        const x = Math.min(1, (nu - t0) / T), e = 1 - Math.pow(1 - x, 3);
+        pct.textContent = Math.round(pFran + (pMal - pFran) * e) + "%";
+        if (x < 1 && pct.isConnected) requestAnimationFrame(steg);
+      };
+      if (pFran !== pMal) requestAnimationFrame(steg); else pct.textContent = Math.round(pMal) + "%";
+    }
+    const mk = bar.querySelector(".lp-nu[data-mal]");
     if (mk) mk.style.left = mk.dataset.mal + "%";
   });
 }
 
 function liveRemsaInnehall() {
-  /* En rad per spelare med en stapel som glider fram för varje besvarad fråga
-     och skiftar från rött över gult till grönt. Pricken visar vilken fråga
-     personen står på just nu. Man själv står överst, sedan de som kommit
-     längst. Poängen syns aldrig förrän resultatet öppnas. */
+  /* En rad per spelare med en tunn stapel som glider fram för varje besvarad
+     fråga. Fyllningen är en gradient över hela banan – röd i början, gul
+     halvvägs, grön i mål – så den som precis börjat syns röd och den som
+     kommit långt drar ut i grönt. Pricken visar vilken fråga personen står
+     på. Man själv står överst, sedan de som kommit längst. Poängen syns
+     aldrig förrän resultatet öppnas. */
   const m = LIVE.match || {};
   const andra = LIVE.spelare.filter(s => s.uid !== SYNK.uid);
   if (!andra.length) return `<span style="color:var(--ink-3)">Ingen annan är med i matchen ännu.</span>`;
@@ -25356,22 +25377,23 @@ function liveRemsaInnehall() {
     /* Äldre versioner skickar bara antalet besvarade, inte vilken fråga man står på. */
     const vid = s.klar || !startat ? -1
       : (s.vid !== undefined && s.vid !== null ? Math.max(0, Math.min(Number(s.vid) || 0, n - 1)) : Math.min(antal, n - 1));
-    const andel = antal / n;
+    const andel = Math.round((antal / n) * 1000) / 10;
     /* Den som börjat men inte svarat på något får en liten röd stump – man ska se att hen är igång. */
-    const bredd = !startat ? 0 : s.klar ? 100 : Math.max(4, Math.round(andel * 1000) / 10);
-    const farg = s.klar ? liveFargFor(1) : liveFargFor(andel);
+    const synlig = !startat ? 0 : s.klar ? 100 : Math.max(3, andel);
     const forra = _lpForra[s.uid] !== undefined ? _lpForra[s.uid] : 0;
-    _lpForra[s.uid] = bredd;
-    const forraFarg = _lpForraFarg[s.uid] || farg;
-    _lpForraFarg[s.uid] = farg;
-    const nuPos = vid >= 0 ? Math.round(((vid + 0.5) / n) * 1000) / 10 : -1;
-    const forraNu = _lpForraNu[s.uid] !== undefined ? _lpForraNu[s.uid] : nuPos;
+    _lpForra[s.uid] = synlig;
+    const pct = s.klar ? 100 : andel;
+    const forraPct = _lpForraPct[s.uid] !== undefined ? _lpForraPct[s.uid] : 0;
+    _lpForraPct[s.uid] = pct;
+    const nuPos = vid >= 0 ? Math.round(((vid + 0.5) / n) * 100) : -1;
+    const forraNu = _lpForraNu[s.uid] !== undefined && _lpForraNu[s.uid] >= 0 ? _lpForraNu[s.uid] : nuPos;
     _lpForraNu[s.uid] = nuPos;
     const text = s.klar ? "klar" : startat ? `fråga ${vid + 1} av ${n} · ${antal} besvarade` : "ej startat";
     return `<div class="lp-rad${s.uid === SYNK.uid ? " du" : ""}${s.klar ? " klar" : ""}">
       <span class="lp-namn">${esc(giltigAvatar(s.avatar) || STANDARDAVATAR)} ${esc(s.namn || "Okänd")}${s.uid === SYNK.uid ? " (du)" : ""}</span>
-      <span class="lp-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${n}" aria-valuenow="${antal}" aria-label="${esc(s.namn || "Okänd")}: ${antal} av ${n} besvarade">
-        <span class="lp-fyll" data-mal="${bredd}" data-farg="${farg}" style="width:${forra}%; background:${forraFarg}"></span>
+      <span class="lp-bar" data-mal="${synlig}" data-pct="${pct}" data-pctfran="${forraPct}" role="progressbar" aria-valuemin="0" aria-valuemax="${n}" aria-valuenow="${antal}" aria-label="${esc(s.namn || "Okänd")}: ${antal} av ${n} besvarade">
+        <span class="lp-pct" style="left:${forra}%; transform:${lpSkjut(forra)}">${Math.round(forraPct)}%</span>
+        <span class="lp-spar"><span class="lp-fyll" style="clip-path:${lpKlipp(forra)}"></span></span>
         ${nuPos >= 0 ? `<span class="lp-nu" data-mal="${nuPos}" style="left:${forraNu}%" title="Står på fråga ${vid + 1}"></span>` : ""}
       </span>
       <span class="lp-text">${text}</span></div>`;
@@ -26967,9 +26989,9 @@ function duellTester() {
         /Adam/.test(remsa) && /1 besvarade/.test(remsa), remsa.replace(/<[^>]+>/g, " ").trim());
       ok("Remsan visar vilken fråga de står på", /fråga 2 av 4/.test(remsa), remsa.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
       ok("Remsan har en stapel per spelare", (remsa.match(/class="lp-fyll/g) || []).length === 2, String((remsa.match(/class="lp-fyll/g) || []).length));
-      ok("Stapeln är grön för den som är klar och rödare för den som precis börjat",
-        /data-mal="100" data-farg="hsl\(130/.test(remsa) && /data-mal="25" data-farg="hsl\(33/.test(remsa));
-      ok("Remsan lämnar ute poängen", !/75/.test(remsa) && !/procent/i.test(remsa));
+      ok("Stapeln är full för den som är klar och på en fjärdedel för den som svarat på en av fyra",
+        /data-mal="100"/.test(remsa) && /data-mal="25"/.test(remsa));
+      ok("Remsan lämnar ute poängen", !/75 %|rätt/.test(remsa.replace(/<[^>]+>/g, " ")) && !/procent/i.test(remsa));
       ok("Man ser inte sin egen rad i remsan", !/Värden/.test(remsa) || SYNK.uid !== "u-vard");
     } finally {
       LIVE.match = sparadLive.match;
@@ -34837,7 +34859,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261107-0130";
+const BYGGID = "20261107-0200";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";

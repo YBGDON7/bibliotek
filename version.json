@@ -1,5 +1,5 @@
 {
-  "bygg": "20261107-0130",
-  "namn": "Livematch: mjuk progressbar per spelare som glider fram och skiftar från rött över gult till grönt.",
-  "nar": "2026-11-06T22:27:25+00:00"
+  "bygg": "20261107-0200",
+  "namn": "Livematch: tunnare och skarpare progressbar med gradient från rött över gult till grönt och procentsiffra som följer med.",
+  "nar": "2026-11-06T22:42:44+00:00"
 }
