@@ -1160,6 +1160,18 @@ body.insp-pa #fragaknapp{display:none !important}
 .gx-dittsvar{font-size:11.5px; font-family:var(--mono); text-transform:uppercase; letter-spacing:.05em; color:var(--err); margin-right:6px}
 .gx-skal{display:block}
 .gx-ta{margin:6px 0}
+.snabb-ruta{margin-top:20px; padding:26px 20px; border-radius:16px; border:1px solid var(--line); background:color-mix(in srgb, var(--ink-3) 6%, transparent); text-align:center}
+.snabb-ruta.hittad{border-color:color-mix(in srgb, var(--ok) 55%, transparent); background:color-mix(in srgb, var(--ok) 8%, transparent)}
+.snabb-par{display:flex; align-items:center; justify-content:center; gap:18px; flex-wrap:wrap}
+.snabb-kort{display:flex; flex-direction:column; align-items:center; gap:8px; min-width:120px}
+.snabb-kort .avbild{box-shadow:0 0 0 3px var(--paper), 0 0 0 5px var(--line-strong)}
+.snabb-kort b{font-size:16px}
+.snabb-kort small{font-size:12.5px; color:var(--ink-3); font-family:var(--mono)}
+.snabb-vs{font-family:var(--display); font-weight:700; font-size:26px; color:var(--ink-3)}
+.snabb-radar{position:relative; width:64px; height:64px; border-radius:50%; border:2px dashed var(--line-strong); display:block}
+.snabb-radar::after{content:""; position:absolute; inset:-2px; border-radius:50%; border:2px solid var(--accent); animation:snabbpuls 1.6s ease-out infinite}
+@keyframes snabbpuls{0%{transform:scale(.6); opacity:1}100%{transform:scale(1.5); opacity:0}}
+.snabb-status{margin:18px 0 0; color:var(--ink-2); font-size:14px}
 .gx-punkter b{font-size:14px}
 .gx-punkter ul{margin:4px 0 0; padding-left:1.25em}
 .gx-punkter li{margin:3px 0}
@@ -23158,6 +23170,7 @@ function lokalTentaBank(id) {
   return { titel: t.titel, fragor: tentaSomBank(t) };
 }
 function tentaBank(id) {
+  if (String(id || "").indexOf("ta:") === 0) return taBank(id);
   return TENTACACHE[id] || lokalTentaBank(id);
 }
 
@@ -23555,6 +23568,7 @@ function viewDuellHub() {
           frågebank — den knappen ska finnas kvar även när biblioteket är tomt. */""}
     <div style="display:flex; gap:10px; flex-wrap:wrap; margin:22px 0 6px">
       ${bankTom ? "" : `<button class="btn primary" data-go="/duell/ny">Skapa utmaning</button>`}
+      <button class="btn primary" id="dsok">Sök spelare</button>
       <button class="btn primary" data-go="/duell/live">Starta livematch</button>
       ${bankTom ? "" : `<button class="btn" id="dklistra">Klistra in en kod</button>`}
       <button class="btn" data-go="/duell/topp">Topplista</button>
@@ -23565,12 +23579,15 @@ function viewDuellHub() {
         Livematchen fungerar ändå — den körs på en tenta du laddar upp.`
         : `<b>Utmaning</b> är asynkron: du skickar en kod och var och en kör när den hinner.`}
       <b>Livematch</b> samlar er i en lobby, startar samtidigt och håller resultatet dolt
-      tills alla lämnat in — den kräver gruppkod och uppkoppling, och körs på en uppladdad tenta.</p>
+      tills alla lämnat in — den kräver uppkoppling och körs på BV5-tentorna eller en uppladdad tenta.
+      <b>Sök spelare</b> paras ihop med en slumpvis motståndare som är uppkopplad just nu, oavsett grupp:
+      ${SNABB_ANTAL} frågor ur BV5-tentorna på ${SNABB_MIN} minuter, och resultatet räknas mot din ELO.</p>
+    <div id="dsoksvar"></div>
 
     ${(() => {
       /* Bara matcher som faktiskt är på gång visas här. Avslutade och
          bortrensade skulle bara växa till en lista man scrollar förbi. */
-      const alla = (SYNK.livematcher || []).filter(m => !arDold(m.id));
+      const alla = (SYNK.livematcher || []).filter(m => !arDold(m.id) && !arSnabb(m.id));
       const avslutad = m => m.slappt || (m.slutar && Date.now() >= m.slutar);
       const pagang = alla.filter(m => !avslutad(m));
       const klara = alla.filter(avslutad);
@@ -23733,6 +23750,26 @@ function viewDuellHub() {
   }
   kopplaSynkPanel();
   kopplaKopiering();
+  const sok = document.getElementById("dsok");
+  if (sok) sok.addEventListener("click", async () => {
+    const svar = document.getElementById("dsoksvar");
+    /* Ett namn som står i rutan men inte sparats ska följa med in i matchen. */
+    const falt = document.getElementById("dnamn");
+    const n = falt ? falt.value.trim().slice(0, 24) : "";
+    if (n && n !== (jagId().namn || "")) { jagId().namn = n; dsave(); }
+    if (!harNamn()) {
+      if (svar) svar.innerHTML = `<div class="note" style="margin-top:14px"><b>Skriv ditt namn först</b> — det är det motståndaren ser.</div>`;
+      if (falt) falt.focus();
+      return;
+    }
+    sok.disabled = true;
+    try { await snabbSok(sok); }
+    catch (e) {
+      sok.disabled = false; sok.textContent = "Sök spelare";
+      if (svar) svar.innerHTML = `<div class="note" style="margin-top:14px; background:color-mix(in srgb, var(--warn) 12%, transparent)">
+        <b>Sökningen kunde inte starta.</b> ${esc(String(e && e.message || e))}</div>`;
+    }
+  });
 }
 
 /* Håller reda på om inklistringsrutan är öppen och vad som står i den, så att
@@ -24247,6 +24284,10 @@ function viewDuellDela(forsokId) {
 
 const FB_VERSION = "10.14.1";
 const FBKEY = "lmb.fb.v1";
+/* Den som inte satt någon gruppkod hamnar i den öppna gruppen. Utan den gick
+   det varken att starta en livematch eller dela en tenta, och felet sa bara
+   "står på en gruppkod". Snabbmatcherna (Sök spelare) ligger alltid här. */
+const OPPEN_GRUPP = "ALLA";
 const SEDDKEY = "lmb.sedd.v1";
 
 /* Inbyggd konfiguration. Fylls i när biblioteket ska delas med andra —
@@ -24397,7 +24438,7 @@ function bytUtSynkPanel() {
 
 async function synkStarta() {
   const konf = fbKonfig();
-  const grupp = (dstore.grupp || "").toUpperCase();
+  const grupp = (dstore.grupp || "").toUpperCase() || OPPEN_GRUPP;
   if (SYNK.stoppa) { try { SYNK.stoppa(); } catch (e) {} SYNK.stoppa = null; }
   SYNK.resultat = []; SYNK.utmaningar = []; SYNK.livematcher = [];
   SYNK.utmaningsfel = ""; SYNK.livefel = "";
@@ -24632,7 +24673,7 @@ function placeringsHistorik(seed, pid) {
 /* ---------- panel: live-topplistans status ---------- */
 function synkPanel() {
   const konf = fbKonfig();
-  const grupp = (dstore.grupp || "").toUpperCase();
+  const grupp = (dstore.grupp || "").toUpperCase() || OPPEN_GRUPP;
   const spelare = new Set(SYNK.resultat.map(r => r.pid)).size;
 
   const chip = {
@@ -24698,7 +24739,7 @@ function synkPanel() {
           den avgör vilken topplista du hamnar på. Vänner och chatt fungerar redan.</p>`
         : SYNK.lage === "pa" ? `
         <p style="font-size:13.5px; color:var(--ink-2); margin:0">
-          Kopplad till grupp <b>${esc(grupp)}</b>${spelare ? ` · ${spelare} ${spelare === 1 ? "spelare" : "spelare"} har lämnat in` : " · inga resultat ännu"}.
+          Kopplad till grupp <b>${esc(grupp)}</b>${grupp === OPPEN_GRUPP && !dstore.grupp ? " (den öppna gruppen för alla utan egen kod)" : ""}${spelare ? ` · ${spelare} ${spelare === 1 ? "spelare" : "spelare"} har lämnat in` : " · inga resultat ännu"}.
           Nya resultat dyker upp här av sig själva.</p>
         ${SYNK.livefel || SYNK.utmaningsfel ? `
           <div class="note" style="margin-top:12px; background:color-mix(in srgb, var(--warn) 12%, transparent)">
@@ -24956,9 +24997,10 @@ let _liveSig = "";         // senaste ögonblicksbildens signatur
 let _liveGickMed = "";     // matchen vi redan skrivit in oss i
 let _livePos = -1;         // senast skrivna position, för att slippa dubbla skrivningar
 
-function liveRot() {
-  if (!SYNK.db || !SYNK.grupp) return null;
-  return SYNK.db.collection("grupper").doc(SYNK.grupp).collection("live");
+function liveRot(id) {
+  if (!SYNK.db) return null;
+  const g = arSnabb(id || LIVE.id) ? OPPEN_GRUPP : (SYNK.grupp || OPPEN_GRUPP);
+  return SYNK.db.collection("grupper").doc(g).collection("live");
 }
 function liveArVard() {
   return !!(LIVE.match && SYNK.uid && LIVE.match.uid === SYNK.uid);
@@ -24991,7 +25033,7 @@ function liveSomUtmaning(m) {
 }
 
 async function liveSkapa(u) {
-  const rot = liveRot();
+  const rot = liveRot(u.seed);
   if (!rot) throw new Error("Du är inte uppkopplad mot databasen.");
   const jag = jagId();
   await rot.doc(u.seed).set({
@@ -25010,7 +25052,7 @@ async function liveSkapa(u) {
 /* Skriver in mig i spelarlistan. Idempotent: kör man om den behålls det man
    redan hunnit göra. */
 async function liveGaMed(id) {
-  const rot = liveRot();
+  const rot = liveRot(id);
   if (!rot || !SYNK.uid) return false;
   const jag = jagId();
   /* Bara raden från DEN HÄR matchen får återanvändas. Lyssnaren kan
@@ -25031,7 +25073,7 @@ async function liveGaMed(id) {
 }
 
 async function liveStarta(id) {
-  const rot = liveRot();
+  const rot = liveRot(id);
   if (!rot || !LIVE.match) return false;
   const startar = Date.now() + 3000;
   try {
@@ -25044,14 +25086,14 @@ async function liveStarta(id) {
 }
 
 async function liveSlapp(id) {
-  const rot = liveRot();
+  const rot = liveRot(id);
   if (!rot) return false;
   try { await rot.doc(id).update({ slappt: true }); return true; }
   catch (e) { LIVE.fel = String(e && (e.code || e.message) || e); return false; }
 }
 
 async function liveAvbryt(id) {
-  const rot = liveRot();
+  const rot = liveRot(id);
   if (!rot) return false;
   try {
     const spelare = await rot.doc(id).collection("spelare").get();
@@ -25102,7 +25144,7 @@ function liveSluta() {
 function liveLyssna(id) {
   if (LIVE.id === id && LIVE.stoppa) return;
   liveSluta();
-  const rot = liveRot();
+  const rot = liveRot(id);
   if (!rot || !id) return;
   LIVE.id = id;
   const d = rot.doc(id);
@@ -25282,7 +25324,7 @@ function tagRetur() {
 
 /* Länken bär matchens id och gruppen den ligger i. */
 function liveLank(id, grupp) {
-  const g = (grupp || dstore.grupp || "").toUpperCase();
+  const g = arSnabb(id) ? OPPEN_GRUPP : (grupp || dstore.grupp || "").toUpperCase();
   return location.origin + location.pathname + "#/duell/live/" + encodeURIComponent(id)
     + (g ? "/g/" + encodeURIComponent(g) : "");
 }
@@ -25371,7 +25413,7 @@ function viewDuellLive(id, lankgrupp) {
   /* Länken kan bära gruppkoden. Står man på en annan grupp byter man inte
      i smyg — det skulle flytta ens egen topplista — utan får frågan. */
   const minGrupp = (dstore.grupp || "").toUpperCase();
-  if (lankgrupp && lankgrupp !== minGrupp) {
+  if (lankgrupp && lankgrupp !== minGrupp && !arSnabb(id) && !(lankgrupp === OPPEN_GRUPP && !minGrupp)) {
     sparaRetur("#/duell/live/" + encodeURIComponent(id));
     view.innerHTML = `
       ${duellCrumbs([{ t: "Livematch" }])}
@@ -25439,13 +25481,15 @@ function viewDuellLive(id, lankgrupp) {
   const lank = liveLank(id);
 
   /* ---- läge 1: lobby ---- */
+  if (m.lage === "lobby" && m.snabb) { viewSnabbLobby(id, m, u); return; }
+  if (m.lage === "kor" && m.startar && Date.now() < m.startar && jagMed && (!min || !min.klar) && !tstore.aktivt) { viewLiveNedrakning(id, m); return; }
   if (m.lage === "lobby") {
     view.innerHTML = `
       ${duellCrumbs([{ t: "Livematch" }])}
       <p class="eyebrow">Livematch · lobby</p>
       <h1>${esc(duellTitel(u))}</h1>
       <p class="lede">${m.antal} ${m.antal === 1 ? "fråga" : "frågor"} · ${m.minuter} minuter ·
-      grupp ${esc(SYNK.grupp)}${m.elo ? " · ELO räknas" : ""}. Alla startar samtidigt och svarar i
+      grupp ${esc(arSnabb(id) ? OPPEN_GRUPP : SYNK.grupp)}${m.elo ? " · ELO räknas" : ""}. Alla startar samtidigt och svarar i
       egen takt. Resultatet visas när alla lämnat in.</p>
 
       ${!harNamn() ? `<div class="note" style="margin-top:16px">
@@ -25719,6 +25763,297 @@ function viewDuellLive(id, lankgrupp) {
 }
 
 /* ---------- skapa en livematch ---------- */
+/* =====================================================================
+   SÖK SPELARE – snabbmatch mot en slumpvis motståndare
+   Den som söker går in i den äldsta öppna snabblobbyn i den öppna gruppen,
+   eller öppnar en egen och väntar där. Två som söker samtidigt hittar
+   varandra: den med den nyare lobbyn stänger sin och går in i den äldre.
+   Värden startar matchen själv så fort någon kommit in – resten sköts av
+   den vanliga livematchen. Frågorna är BV5-tentorna, som finns i varje
+   kopia av biblioteket, så ingenting behöver delas via databasen.
+   ===================================================================== */
+const TA_BANK_ID = "ta:bv5";
+const TA_BANK_TITEL = "BV5-tentorna (Tentaanalys)";
+const SNABB_ANTAL = 10;
+const SNABB_MIN = 10;
+const SNABB_FARSK = 30000;      // en lobby vars värd inte hörts av på så här länge räknas som övergiven
+const SNABB = { timer: null, id: "", startad: {}, letar: false, puls: 0, koll: 0, sedan: {}, tickar: false };
+
+function arSnabb(id) { return /^snabb-/.test(String(id || "")); }
+
+/* BV5-tentorna som frågebank i samma form som en delad tenta. Ordningen är
+   fast (tenta för tenta, fråga för fråga) – annars skulle samma frö ge olika
+   frågor på olika telefoner. Bara envalsfrågor utan figur och med facit. */
+let _taBank = null;
+function taBank(id) {
+  if (_taBank) return _taBank;
+  let D = null;
+  try { D = taData(); } catch (e) { D = null; }
+  if (!D || !D.fragor) return { titel: TA_BANK_TITEL, fragor: [] };
+  const tix = t => { const i = D.tentor.indexOf(t); return i < 0 ? 999 : i; };
+  const ids = Object.keys(D.fragor).filter(k => {
+    const f = D.fragor[k];
+    return f && !f.s && !f.fig && Array.isArray(f.fx) && f.fx.length === 1 &&
+      Array.isArray(f.alt) && f.alt.length >= 2 && f.alt.every(a => a && String(a).trim());
+  }).sort((a, b) => tix(D.fragor[a].t) - tix(D.fragor[b].t) || Number(D.fragor[a].nr) - Number(D.fragor[b].nr) || (a < b ? -1 : 1));
+  _taBank = {
+    titel: TA_BANK_TITEL,
+    fragor: ids.map((k, i) => {
+      const f = D.fragor[k];
+      return { q: f.q, o: f.alt.slice(), s: f.fx[0], m: f.mal || "", ty: "", po: 1, n: i + 1, p: i + 1, b: [] };
+    })
+  };
+  return _taBank;
+}
+
+function snabbRot() {
+  return SYNK.db ? SYNK.db.collection("grupper").doc(OPPEN_GRUPP).collection("live") : null;
+}
+
+/* Öppna snabblobbyer som går att gå in i, äldst först. Egna övergivna lobbyer
+   städas bort på vägen. */
+async function snabbOppna() {
+  const rot = snabbRot();
+  if (!rot) return [];
+  const snap = await rot.where("lage", "==", "lobby").get();
+  const nu = Date.now(), n = taBank(TA_BANK_ID).fragor.length;
+  const ut = [];
+  for (const d of snap.docs) {
+    const m = { id: d.id, ...(d.data() || {}) };
+    if (!m.snabb || !arSnabb(m.id)) continue;
+    const farsk = nu - (Number(m.puls) || Number(m.klient) || 0) < SNABB_FARSK;
+    if (m.uid === SYNK.uid) {
+      if (!farsk && m.id !== SNABB.id) { try { await d.ref.delete(); } catch (e) {} }
+      continue;
+    }
+    if (!farsk) continue;
+    if (m.bankAntal && m.bankAntal !== n) continue;     // en annan version av biblioteket – frågorna skulle inte stämma
+    ut.push(m);
+  }
+  return ut.sort((a, b) => (a.klient || 0) - (b.klient || 0) || (a.id < b.id ? -1 : 1));
+}
+
+async function snabbSkapa() {
+  const rot = snabbRot();
+  if (!rot) throw new Error("Du är inte uppkopplad mot databasen.");
+  const jag = jagId();
+  const id = "snabb-" + nyttFro();
+  const nu = Date.now();
+  await rot.doc(id).set({
+    uid: SYNK.uid, pid: jag.id, namn: jag.namn || "Okänd",
+    seed: id, typ: "s", antal: SNABB_ANTAL, minuter: SNABB_MIN, moduler: [],
+    tenta: TA_BANK_ID, tentaTitel: "Snabbmatch · BV5-tentorna", bank: bankAvtryck(),
+    elo: true, snabb: true, bankAntal: taBank(TA_BANK_ID).fragor.length, puls: nu,
+    lage: "lobby", startar: 0, slutar: 0, slappt: false, klient: nu
+  });
+  return id;
+}
+
+/* Knappen Sök spelare. */
+async function snabbSok(knapp) {
+  if (SNABB.letar) return;
+  SNABB.letar = true;
+  const status = t => { if (knapp) knapp.textContent = t; };
+  try {
+    if (SYNK.lage !== "pa") {
+      status("Kopplar upp…");
+      await synkStarta();
+    }
+    if (SYNK.lage !== "pa" || !SYNK.db || !SYNK.uid) {
+      throw new Error(SYNK.blockerad
+        ? "Den här vyn får inte nå databasen. Öppna biblioteket på dess vanliga adress."
+        : "Du är inte uppkopplad mot databasen." + (SYNK.fel ? " " + SYNK.fel : ""));
+    }
+    if (!taBank(TA_BANK_ID).fragor.length) throw new Error("BV5-tentornas frågor saknas i den här versionen.");
+    status("Söker spelare…");
+    let lista = [];
+    try { lista = await snabbOppna(); }
+    catch (e) { throw new Error("Lobbyerna kunde inte läsas (" + String(e && (e.code || e.message) || e) + ")."); }
+    for (const m of lista) {
+      if (await liveGaMed(m.id)) { go("#/duell/live/" + encodeURIComponent(m.id)); return; }
+    }
+    let id;
+    try { id = await snabbSkapa(); }
+    catch (e) { throw new Error("Lobbyn kunde inte öppnas (" + String(e && (e.code || e.message) || e) + ")."); }
+    SNABB.id = id;
+    SNABB.sedan[id] = Date.now();
+    await liveGaMed(id);
+    go("#/duell/live/" + encodeURIComponent(id));
+  } finally {
+    SNABB.letar = false;
+  }
+}
+
+function snabbStopp() {
+  if (SNABB.timer) clearInterval(SNABB.timer);
+  SNABB.timer = null; SNABB.timerFor = "";
+}
+
+async function snabbStarta(id) {
+  if (SNABB.startad[id]) return;
+  SNABB.startad[id] = true;
+  if (!await liveStarta(id)) SNABB.startad[id] = false;
+}
+
+async function snabbLamna(id) {
+  snabbStopp();
+  if (liveArVard()) { await liveAvbryt(id); }
+  else {
+    const rot = liveRot(id);
+    try { if (rot && SYNK.uid) await rot.doc(id).collection("spelare").doc(SYNK.uid).delete(); } catch (e) {}
+  }
+  if (SNABB.id === id) SNABB.id = "";
+}
+
+/* Var tredje sekund medan man står i snabblobbyn: värden håller lobbyn vid
+   liv, startar så fort någon kommit in, och går över till en äldre lobby om
+   två sökt samtidigt. */
+async function snabbTick(id) {
+  const r = parse();
+  const m = LIVE.match;
+  if (r.name !== "duelllive" || r.id !== id || LIVE.id !== id || !m || m.lage !== "lobby") { snabbStopp(); return; }
+  const tid = document.getElementById("snabbtid");
+  if (tid) {
+    const sek = Math.max(0, Math.floor((Date.now() - (SNABB.sedan[id] || Date.now())) / 1000));
+    tid.textContent = Math.floor(sek / 60) + ":" + String(sek % 60).padStart(2, "0");
+  }
+  if (SNABB.tickar) return;
+  SNABB.tickar = true;
+  try {
+    const andra = LIVE.spelare.filter(s => s.uid !== SYNK.uid);
+    if (liveArVard()) {
+      if (andra.length) { await snabbStarta(id); return; }
+      const nu = Date.now();
+      if (nu - SNABB.puls > 8000) {
+        SNABB.puls = nu;
+        try { await liveRot(id).doc(id).update({ puls: nu }); } catch (e) {}
+      }
+      if (nu - SNABB.koll > 4000) {
+        SNABB.koll = nu;
+        let lista = [];
+        try { lista = await snabbOppna(); } catch (e) { lista = []; }
+        const min = Number(m.klient) || 0;
+        const aldre = lista.filter(x => x.id !== id && ((x.klient || 0) < min || ((x.klient || 0) === min && x.id < id)));
+        if (aldre.length && LIVE.spelare.filter(s => s.uid !== SYNK.uid).length === 0) {
+          const mal = aldre[0];
+          if (await liveGaMed(mal.id)) {
+            snabbStopp();
+            try { await liveAvbryt(id); } catch (e) {}
+            SNABB.id = "";
+            SNABB.sedan[mal.id] = SNABB.sedan[id] || Date.now();
+            go("#/duell/live/" + encodeURIComponent(mal.id));
+          }
+        }
+      }
+    } else if (Date.now() - (Number(m.puls) || Number(m.klient) || 0) > SNABB_FARSK + 15000 && !SNABB.borta) {
+      SNABB.borta = id;
+      render();
+    }
+  } finally {
+    SNABB.tickar = false;
+  }
+}
+
+function snabbSpelarkort(namn, avatar, etikett) {
+  return `<div class="snabb-kort">${avatarBricka(avatar, 64)}<b>${esc(namn || "Okänd")}</b>${etikett ? `<small>${esc(etikett)}</small>` : ""}</div>`;
+}
+
+function viewSnabbLobby(id, m, u) {
+  liveKanskeGaMed(id);
+  if (!SNABB.sedan[id]) SNABB.sedan[id] = Date.now();
+  const vard = liveArVard();
+  const jag = LIVE.spelare.find(s => s.uid === SYNK.uid);
+  const andra = LIVE.spelare.filter(s => s.uid !== SYNK.uid);
+  const hittad = andra.length > 0;
+  const borta = SNABB.borta === id && !vard;
+  /* Värden startar direkt när någon kommit in, även om snapshoten kom före tickern. */
+  if (vard && hittad) snabbStarta(id);
+
+  view.innerHTML = `
+    ${duellCrumbs([{ t: "Sök spelare" }])}
+    <p class="eyebrow">Snabbmatch</p>
+    <h1>${borta ? "Motståndaren försvann" : hittad ? "Motståndare hittad!" : "Söker motståndare…"}</h1>
+    <p class="lede">${m.antal} frågor ur BV5-tentorna · ${m.minuter} minuter · räknas mot din ELO
+      (just nu <b>${eloPoang()}</b>). Ni får samma frågor och startar samtidigt, och resultatet visas
+      när båda lämnat in.</p>
+
+    <div class="snabb-ruta${hittad && !borta ? " hittad" : ""}">
+      <div class="snabb-par">
+        ${snabbSpelarkort(jag ? jag.namn : jagId().namn, jag ? jag.avatar : minAvatar(), "du")}
+        <span class="snabb-vs">VS</span>
+        ${hittad ? andra.map(s => snabbSpelarkort(s.namn, s.avatar, s.uid === m.uid ? "värd" : "")).join("")
+          : `<div class="snabb-kort"><span class="snabb-radar" aria-hidden="true"></span><b>Letar…</b></div>`}
+      </div>
+      <p class="snabb-status" id="snabbstatus">${borta
+        ? "Lobbyn har inte hörts av på en stund. Sök igen, så paras du med någon annan."
+        : hittad ? "Matchen startar om några sekunder…"
+        : `Söker bland alla som är uppkopplade just nu · <span id="snabbtid">0:00</span>`}</p>
+    </div>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-top:16px">
+      ${avatarValjareHtml("llobbyavatar", "Din emoji")}
+    </div>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:18px">
+      ${borta ? `<button class="btn primary" id="snabbigen">Sök igen</button>` : ""}
+      <button class="btn" id="snabbavbryt">${hittad ? "Lämna matchen" : "Avbryt sökningen"}</button>
+    </div>
+    <p style="font-size:13px; color:var(--ink-3); margin:12px 0 0; max-width:66ch">
+      Sökningen är öppen för alla som använder biblioteket, oavsett gruppkod. Vill du möta en
+      kompis: tryck på Sök spelare samtidigt, så hamnar ni i samma match.</p>`;
+
+  kopplaAvatarValjare("llobbyavatar", () => { liveGaMed(id); });
+  const av = document.getElementById("snabbavbryt");
+  if (av) av.addEventListener("click", async () => {
+    av.disabled = true;
+    await snabbLamna(id);
+    go("#/duell");
+  });
+  const igen = document.getElementById("snabbigen");
+  if (igen) igen.addEventListener("click", async () => {
+    igen.disabled = true;
+    SNABB.borta = false;
+    await snabbLamna(id);
+    try { await snabbSok(igen); }
+    catch (e) { igen.disabled = false; igen.textContent = "Sök igen"; }
+  });
+
+  if (SNABB.timer && SNABB.timerFor !== id) snabbStopp();
+  if (!SNABB.timer) {
+    SNABB.timerFor = id;
+    SNABB.timer = setInterval(() => snabbTick(id), 3000);
+    snabbTick(id);
+  }
+}
+
+/* De sista sekunderna innan värden släpper iväg matchen. Utan den här stod det
+   "Matchen är igång – ditt försök borde ha startat" under nedräkningen. */
+let _nedrakning = null;
+function viewLiveNedrakning(id, m) {
+  const andra = LIVE.spelare.filter(s => s.uid !== SYNK.uid);
+  const jag = LIVE.spelare.find(s => s.uid === SYNK.uid);
+  const kvar = () => Math.max(0, Math.ceil(((m.startar || 0) - Date.now()) / 1000));
+  view.innerHTML = `
+    ${duellCrumbs([{ t: m.snabb ? "Sök spelare" : "Livematch" }])}
+    <p class="eyebrow">${m.snabb ? "Snabbmatch" : "Livematch"}</p>
+    <h1>Matchen startar om <span id="nedrakning">${kvar()}</span></h1>
+    <div class="snabb-ruta hittad">
+      <div class="snabb-par">
+        ${snabbSpelarkort(jag ? jag.namn : jagId().namn, jag ? jag.avatar : minAvatar(), "du")}
+        <span class="snabb-vs">VS</span>
+        ${andra.map(s => snabbSpelarkort(s.namn, s.avatar, "")).join("") || `<div class="snabb-kort"><b>…</b></div>`}
+      </div>
+      <p class="snabb-status">${m.antal} frågor · ${m.minuter} minuter${m.elo ? " · ELO räknas" : ""}</p>
+    </div>`;
+  if (_nedrakning) clearInterval(_nedrakning);
+  _nedrakning = setInterval(() => {
+    const el = document.getElementById("nedrakning");
+    if (!el) { clearInterval(_nedrakning); _nedrakning = null; return; }
+    el.textContent = kvar();
+    if (!kvar()) { clearInterval(_nedrakning); _nedrakning = null; setTimeout(() => { if (parse().name === "duelllive") render(); }, 1500); }
+  }, 250);
+}
+
 function viewDuellLiveNy() {
   /* Livematchen körs numera bara på en uppladdad tenta. Steget "Vilka moduler?"
      och bibliotekets egen frågebank är borta härifrån — den som vill tävla på
@@ -25756,9 +26091,8 @@ function viewDuellLiveNy() {
     <label class="w-ctrl" style="min-width:260px; max-width:440px; margin-top:6px">
       <span>Tenta att tävla på</span>
       <select id="lkalla" style="${INPSTIL}">
-        ${egnaTentor.length
-          ? egnaTentor.map(t => `<option value="t:${esc(t.id)}">${esc(t.titel)} (${tentaSomBank(t).length} frågor)</option>`).join("")
-          : `<option value="">Ingen uppladdad tenta ännu</option>`}
+        <option value="${TA_BANK_ID}">${esc(TA_BANK_TITEL)} (${taBank(TA_BANK_ID).fragor.length} frågor)</option>
+        ${egnaTentor.map(t => `<option value="t:${esc(t.id)}">${esc(t.titel)} (${tentaSomBank(t).length} frågor)</option>`).join("")}
       </select>
     </label>
 
@@ -25809,11 +26143,12 @@ function viewDuellLiveNy() {
 
   const valdTenta = () => {
     const v = kalla.value || "";
+    if (v === TA_BANK_ID) return { id: TA_BANK_ID, titel: TA_BANK_TITEL, virtuell: true };
     return v.indexOf("t:") === 0 ? tentaById(v.slice(2)) : null;
   };
   const tillgangliga = () => {
     const t = valdTenta();
-    return t ? tentaSomBank(t).length : 0;
+    return t ? (t.virtuell ? taBank(t.id).fragor.length : tentaSomBank(t).length) : 0;
   };
   const uppdatera = () => {
     const n = tillgangliga();
@@ -25821,7 +26156,7 @@ function viewDuellLiveNy() {
     skapa.disabled = !n;
     tips.textContent = n
       ? `${n} frågor att välja bland. Alla får samma frågor i samma ordning som i originalfilen.`
-      : "Ladda upp en tenta-PDF först — livematchen körs bara på egna tentor.";
+      : "Välj BV5-tentorna eller ladda upp en tenta-PDF.";
   };
   kalla.addEventListener("change", uppdatera);
   antal.addEventListener("input", uppdatera);
@@ -25853,8 +26188,10 @@ function viewDuellLiveNy() {
     const u = skapaUtmaning("s", n, min, [], tenta);
     u.elo = elo;
     try {
-      const gick = await synkPubliceraTenta(tenta);
-      if (!gick) throw new Error("Tentan kunde inte delas med gruppen. Kontrollera att du är uppkopplad och står på en gruppkod.");
+      const gick = tenta.virtuell ? true : await synkPubliceraTenta(tenta);
+      if (!gick) throw new Error("Tentan kunde inte delas med gruppen" +
+        (SYNK.skrivfel ? ` (databasen svarade ${SYNK.skrivfel})` : "") +
+        ". Kontrollera att du är uppkopplad — eller välj BV5-tentorna, som inte behöver delas.");
       await liveSkapa(u);
       await liveGaMed(u.seed);
       go("#/duell/live/" + encodeURIComponent(u.seed));
@@ -34321,7 +34658,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261106-2230";
+const BYGGID = "20261107-0010";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";

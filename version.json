@@ -1,5 +1,5 @@
 {
-  "bygg": "20261106-2230",
-  "namn": "Anki-export av felen i samma format som simulatorn: rätt svar och ditt svar markerade, uträkning, varför varje fel alternativ är fel – med eget mörkt läge.",
-  "nar": "2026-11-06T21:35:57+00:00"
+  "bygg": "20261107-0010",
+  "namn": "Duell: Sök spelare (snabbmatch mot slumpvis motståndare på BV5-tentorna, med ELO) och livematch utan gruppkod.",
+  "nar": "2026-11-06T22:03:46+00:00"
 }
