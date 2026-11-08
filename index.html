@@ -1172,6 +1172,16 @@ body.insp-pa #fragaknapp{display:none !important}
 .snabb-radar::after{content:""; position:absolute; inset:-2px; border-radius:50%; border:2px solid var(--accent); animation:snabbpuls 1.6s ease-out infinite}
 @keyframes snabbpuls{0%{transform:scale(.6); opacity:1}100%{transform:scale(1.5); opacity:0}}
 .snabb-status{margin:18px 0 0; color:var(--ink-2); font-size:14px}
+.mo-chips{display:grid; grid-template-columns:repeat(auto-fill, minmax(168px, 1fr)); gap:8px}
+.mo-chip{display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; font:inherit; cursor:pointer;
+  padding:10px 12px; border-radius:12px; border:1.5px solid var(--line-strong); background:var(--paper); color:var(--ink)}
+.mo-chip b{font-size:14px}
+.mo-chip span{font-size:13px; color:var(--ink-2); line-height:1.3}
+.mo-chip small{font-size:11.5px; color:var(--ink-3); font-family:var(--mono); margin-top:3px}
+.mo-chip.vald{border-color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, var(--paper)); box-shadow:inset 0 0 0 1px var(--accent)}
+.mo-chip.vald b{color:var(--accent)}
+.mo-antal{display:inline-flex; align-items:center; gap:8px; font-size:14px; color:var(--ink-2)}
+.mo-snabbval{display:inline-flex; gap:6px}
 .snabb-lagen{display:inline-flex; border:1px solid var(--line-strong); border-radius:999px; padding:3px; gap:2px}
 .snabb-lage{border:0; background:transparent; color:var(--ink-2); font:inherit; font-size:14px; font-weight:600; padding:7px 14px; border-radius:999px; cursor:pointer}
 .snabb-lage.vald{background:var(--accent); color:#fff}
@@ -20219,6 +20229,210 @@ function tentaCrumbs(extra) {
 }
 
 /* ===== 1. Hub ===== */
+/* =====================================================================
+   ÖVA PER MODUL I SIMULATORN
+   Alla tentafrågor ur Tentaanalysen för en eller flera moduler – antingen
+   samtliga, eller ett slumpat urval. Frågorna läggs in som en vanlig tenta,
+   så att tid, rättning, modulnedbrytning, förklaringar och Anki-export
+   fungerar precis som för en uppladdad tenta.
+   ===================================================================== */
+const MO_KALLA_ALLA = "tentaanalys-moduler:";
+const MO_KALLA_SLUMP = "tentaanalys-slump";
+
+function moModuler() {
+  let D = null;
+  try { D = taData(); } catch (e) { return []; }
+  if (!D || !D.moduler) return [];
+  return D.moduler.map(m => ({ m: m.m, namn: m.namn, ids: moIds([m.m]) }));
+}
+/* Frågorna i valda moduler, i fast ordning: modul, tenta, frågenummer. */
+function moIds(moduler) {
+  let D = null;
+  try { D = taData(); } catch (e) { return []; }
+  const valda = new Set((moduler || []).map(Number));
+  const tix = t => { const i = D.tentor.indexOf(t); return i < 0 ? 999 : i; };
+  return Object.keys(D.fragor).filter(id => {
+    const f = D.fragor[id];
+    return f && !f.s && valda.has(Number(f.m)) && Array.isArray(f.fx) && f.fx.length && Array.isArray(f.alt) && f.alt.length >= 2;
+  }).sort((a, b) => {
+    const x = D.fragor[a], y = D.fragor[b];
+    return Number(x.m) - Number(y.m) || tix(x.t) - tix(y.t) || Number(x.nr) - Number(y.nr) || (a < b ? -1 : 1);
+  });
+}
+function moValda() {
+  const alla = moModuler().map(m => m.m);
+  if (!Array.isArray(tstore.moVal)) return alla.slice(0, 1);
+  return tstore.moVal.map(Number).filter(n => alla.includes(n));
+}
+function moTid(antal) { return Math.max(5, Math.round(antal * 1.5)); }
+
+/* En fråga ur Tentaanalysen i simulatorns form. Figuren sparas i det lokala
+   mediebiblioteket, precis som när en hel tenta läggs in. */
+async function moFraga(id, plats) {
+  const D = taData();
+  const f = D.fragor[id];
+  const bilder = [];
+  if (f.fig) {
+    const bid = "ta-" + id.replace(/[^A-Za-z0-9]+/g, "-");
+    try { await mediaSpara({ id: bid, kalla: "Tentaanalys", dokument: f.t, sida: 0, data: f.fig, bredd: 0, hojd: 0 }); bilder.push(bid); } catch (e) {}
+  }
+  const t = D.temaAv[f.tema];
+  const fler = f.fx.length > 1;
+  return {
+    q: f.q, options: f.alt.map(a => a || "(se bilden)"),
+    svar: fler ? f.fx.slice().sort((a, b) => a - b) : f.fx[0], typ: fler ? "flerval" : "sba",
+    nr: plats, plats, bilder, mal: f.mal || null, konf: f.mal ? "hög" : null,
+    avsnitt: "Modul " + f.m + (t ? " · " + t.tema : ""),
+    facit: f.e ? "Officiell rättelse: " + f.e : "", kalla: f.t + ", fråga " + f.nr
+  };
+}
+
+async function moSkapa(moduler, antal, knapp) {
+  const ids = moIds(moduler);
+  if (!ids.length) throw new Error("Inga frågor i de valda modulerna.");
+  const alla = !antal || antal >= ids.length;
+  const etikett = moduler.length === moModuler().length ? "Alla moduler"
+    : (moduler.length === 1 ? "Modul " : "Modul ") + moduler.slice().sort((a, b) => a - b).join(" + ");
+  const kalla = alla ? MO_KALLA_ALLA + moduler.slice().sort((a, b) => a - b).join(",") : MO_KALLA_SLUMP;
+
+  /* Samtliga frågor i samma moduler läggs bara in en gång. */
+  if (alla) {
+    const finns = (tstore.egna || []).find(x => x.kalla === kalla);
+    if (finns) return finns;
+  }
+  let urval = ids;
+  if (!alla) {
+    const kvar = ids.slice();
+    urval = [];
+    while (urval.length < antal && kvar.length) urval.push(kvar.splice(Math.floor(Math.random() * kvar.length), 1)[0]);
+  }
+  const fragor = [];
+  for (const [i, id] of urval.entries()) {
+    fragor.push(await moFraga(id, i + 1));
+    if (knapp && i % 40 === 39) { knapp.textContent = `Lägger in… ${i + 1} av ${urval.length}`; await new Promise(r => setTimeout(r, 0)); }
+  }
+  /* Gamla slumpade övningar som aldrig sparats städas bort, annars växer
+     listan med en ny tenta varje gång man trycker. */
+  if (!alla) {
+    tstore.egna = (tstore.egna || []).filter(x => x.kalla !== MO_KALLA_SLUMP || tstore.forsok.some(f => f.tentaId === x.id) ||
+      (tstore.aktivt && tstore.aktivt.tentaId === x.id));
+  }
+  const titel = alla ? `${etikett} · alla ${urval.length} tentafrågor` : `${etikett} · ${urval.length} slumpade frågor`;
+  const tenta = normaliseraTenta({ id: tid(), titel, kurs: KURSER[0].id, tid: moTid(urval.length), ordning: "fast", kalla, fragor });
+  try { autokoppla(tenta); } catch (e) {}
+  tenta.kalla = kalla;
+  tstore.egna.unshift(tenta);
+  tsave();
+  return tenta;
+}
+
+function moPanelHtml() {
+  const mods = moModuler();
+  if (!mods.length) return "";
+  const valda = moValda();
+  const tillg = moIds(valda).length;
+  const antal = Math.max(1, Math.min(Number(tstore.moAntal) || 30, Math.max(1, tillg)));
+  const slump = tstore.moLage !== "alla";
+  return `
+    <div class="panel mo-panel" style="margin-bottom:22px">
+      <h4>Öva per modul</h4>
+      <p style="font-size:13.5px; color:var(--ink-2); margin:0 0 12px; max-width:70ch">
+        Alla tentafrågor ur BV5-tentorna, sorterade på modul. Välj en eller flera moduler och kör
+        antingen samtliga frågor eller ett slumpat urval — på tid, med rättning, modulnedbrytning
+        och förklaringar som på en vanlig tenta.</p>
+      <div class="mo-chips" role="group" aria-label="Moduler">
+        ${mods.map(m => `<button type="button" class="mo-chip${valda.includes(m.m) ? " vald" : ""}" data-mo="${m.m}" aria-pressed="${valda.includes(m.m)}">
+          <b>Modul ${m.m}</b><span>${esc(m.namn)}</span><small>${m.ids.length} frågor</small></button>`).join("")}
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px">
+        <button type="button" class="btn" data-moalla="1" style="padding:6px 11px; font-size:13px">Välj alla</button>
+        <button type="button" class="btn" data-moalla="0" style="padding:6px 11px; font-size:13px">Rensa</button>
+      </div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:16px">
+        <span class="snabb-lagen" role="radiogroup" aria-label="Urval">
+          <button type="button" class="snabb-lage${slump ? "" : " vald"}" data-molage="alla" role="radio" aria-checked="${!slump}">Alla frågor</button>
+          <button type="button" class="snabb-lage${slump ? " vald" : ""}" data-molage="slump" role="radio" aria-checked="${slump}">Slumpa</button>
+        </span>
+        <label class="mo-antal"${slump ? "" : " hidden"}>
+          <input id="moantal" type="number" min="1" max="${Math.max(1, tillg)}" value="${antal}" style="${INPSTIL}; width:90px; text-align:center">
+          <span>frågor</span>
+        </label>
+        <span class="mo-snabbval"${slump ? "" : " hidden"}>${[10, 25, 50].map(n => `<button type="button" class="btn" data-moantal="${n}" style="padding:6px 11px; font-size:13px">${n}</button>`).join("")}</span>
+        <button class="btn primary" id="mostart"${tillg ? "" : " disabled"}>Starta</button>
+      </div>
+      <p id="moinfo" style="font-size:13px; color:var(--ink-3); margin:10px 0 0"></p>
+    </div>`;
+}
+
+function kopplaMoPanel() {
+  const panel = view.querySelector(".mo-panel");
+  if (!panel) return;
+  const info = document.getElementById("moinfo");
+  const falt = document.getElementById("moantal");
+  const uppdatera = () => {
+    const valda = moValda();
+    const tillg = moIds(valda).length;
+    const slump = tstore.moLage !== "alla";
+    if (falt) falt.max = String(Math.max(1, tillg));
+    const n = slump ? Math.max(1, Math.min(Number(falt && falt.value) || 1, tillg)) : tillg;
+    const start = document.getElementById("mostart");
+    if (start) start.disabled = !tillg;
+    if (info) info.textContent = tillg
+      ? `${slump ? `${n} av ${tillg}` : `${tillg}`} frågor ur ${valda.length === 1 ? "modul " + valda[0] : valda.length + " moduler"} · ${moTid(n)} minuter (1,5 min per fråga, går att ändra innan du startar).`
+      : "Välj minst en modul.";
+  };
+  panel.querySelectorAll("[data-mo]").forEach(k => k.addEventListener("click", () => {
+    const m = Number(k.dataset.mo);
+    const nu = new Set(moValda());
+    if (nu.has(m)) nu.delete(m); else nu.add(m);
+    tstore.moVal = [...nu].sort((a, b) => a - b);
+    tsave();
+    k.classList.toggle("vald", nu.has(m)); k.setAttribute("aria-pressed", String(nu.has(m)));
+    uppdatera();
+  }));
+  panel.querySelectorAll("[data-moalla]").forEach(k => k.addEventListener("click", () => {
+    tstore.moVal = k.dataset.moalla === "1" ? moModuler().map(m => m.m) : [];
+    tsave();
+    const valda = tstore.moVal;
+    panel.querySelectorAll("[data-mo]").forEach(x => {
+      const pa = valda.includes(Number(x.dataset.mo));
+      x.classList.toggle("vald", pa); x.setAttribute("aria-pressed", String(pa));
+    });
+    uppdatera();
+  }));
+  panel.querySelectorAll("[data-molage]").forEach(k => k.addEventListener("click", () => {
+    tstore.moLage = k.dataset.molage; tsave();
+    panel.querySelectorAll("[data-molage]").forEach(x => { x.classList.toggle("vald", x === k); x.setAttribute("aria-checked", String(x === k)); });
+    const slump = tstore.moLage !== "alla";
+    panel.querySelector(".mo-antal").hidden = !slump;
+    panel.querySelector(".mo-snabbval").hidden = !slump;
+    uppdatera();
+  }));
+  panel.querySelectorAll("[data-moantal]").forEach(k => k.addEventListener("click", () => {
+    if (falt) falt.value = k.dataset.moantal;
+    tstore.moAntal = Number(k.dataset.moantal); tsave();
+    uppdatera();
+  }));
+  if (falt) falt.addEventListener("input", () => { tstore.moAntal = Number(falt.value) || 1; tsave(); uppdatera(); });
+  const start = document.getElementById("mostart");
+  if (start) start.addEventListener("click", async () => {
+    const valda = moValda();
+    if (!valda.length) { if (info) info.textContent = "Välj minst en modul."; return; }
+    const tillg = moIds(valda).length;
+    const slump = tstore.moLage !== "alla";
+    const antal = slump ? Math.max(1, Math.min(Number(falt && falt.value) || 1, tillg)) : 0;
+    start.disabled = true; start.textContent = "Lägger in…";
+    try {
+      const t = await moSkapa(valda, antal, start);
+      go("#/tenta/" + encodeURIComponent(t.id));
+    } catch (e) {
+      start.disabled = false; start.textContent = "Starta";
+      if (info) info.textContent = String(e && e.message || e);
+    }
+  });
+  uppdatera();
+}
+
 function viewTentaHub() {
   const tentor = allaTentor();
   const a = tstore.aktivt;
@@ -20290,6 +20504,8 @@ function viewTentaHub() {
       <button class="btn" data-go="/duell">Duell mot kursen</button>
     </div>
 
+    ${moPanelHtml()}
+
     <div class="panel" style="margin-bottom:22px">
       <h4>Godkäntgräns</h4>
       <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center">
@@ -20316,6 +20532,7 @@ function viewTentaHub() {
       .then(ja => { if (ja) { tstore.aktivt = null; tsave(); render(); } });
   });
   kopplaGransFalt("th", () => render());
+  kopplaMoPanel();
 
   /* Sparade resultat går att radera i efterhand — ett feltryck eller ett
      försök man inte vill ha kvar ska inte behöva ligga kvar för alltid. */
@@ -35001,7 +35218,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261107-0330";
+const BYGGID = "20261108-1200";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";

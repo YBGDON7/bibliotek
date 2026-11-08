@@ -1,5 +1,5 @@
 {
-  "bygg": "20261107-0330",
-  "namn": "Rättat: uppladdade tentor gick inte att dela till livematchen (databasen svarade invalid-argument).",
-  "nar": "2026-11-06T23:08:50+00:00"
+  "bygg": "20261108-1200",
+  "namn": "Tentasimulatorn: öva per modul – alla tentafrågor i valda moduler eller ett slumpat urval ur valfri kombination.",
+  "nar": "2026-11-08T16:40:01+00:00"
 }
