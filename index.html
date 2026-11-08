@@ -19517,7 +19517,9 @@ function parseTentaText(raw) {
 /* ---------- försök ---------- */
 function startaForsok(tenta, opt) {
   const t = normaliseraTenta(tenta);
-  const minuter = Math.max(1, Number(opt.minuter) || t.tid);
+  /* minuter 0 = utan tidsgräns. Duell och livematch har alltid tid. */
+  const utanTid = !opt.duell && !opt.live && (opt.utanTid || Number(opt.minuter) === 0);
+  const minuter = utanTid ? 0 : Math.max(1, Number(opt.minuter) || t.tid);
   const idx = t.fragor.map((_, i) => i);
   const ordning = (opt.ordning || t.ordning) === "slump" ? shuffle(idx) : idx;
   tstore.aktivt = {
@@ -19532,7 +19534,9 @@ function startaForsok(tenta, opt) {
     startad: Date.now(),
     /* En livematch har en gemensam sluttid som värden satt — den går före
        den egna minutberäkningen, annars slutar alla vid olika klockslag. */
-    slutar: Number(opt.slutar) > Date.now() ? Number(opt.slutar) : Date.now() + minuter * 60000,
+    slutar: utanTid ? Date.now() + 3650 * 86400000
+      : Number(opt.slutar) > Date.now() ? Number(opt.slutar) : Date.now() + minuter * 60000,
+    utanTid,
     svar: {},
     flagg: {},
     poang: {},
@@ -19695,7 +19699,8 @@ function lamnaIn(auto) {
     ordning: a.ordning, svar: a.svar, flagg: a.flagg, poang: a.poang || {},
     bedomning: a.bedomning || {},
     minuter: a.minuter, startad: a.startad, slutad: Date.now(),
-    anvandTid: Math.min(a.minuter * 60000, Date.now() - a.startad),
+    anvandTid: a.utanTid ? Date.now() - a.startad : Math.min(a.minuter * 60000, Date.now() - a.startad),
+    utanTid: !!a.utanTid,
     auto: !!auto,
     facitOk: nuSumma === a.facitSumma,
     sammanfattning: {
@@ -20338,7 +20343,7 @@ function moPanelHtml() {
       <h4>Öva per modul</h4>
       <p style="font-size:13.5px; color:var(--ink-2); margin:0 0 12px; max-width:70ch">
         Alla tentafrågor ur BV5-tentorna, sorterade på modul. Välj en eller flera moduler och kör
-        antingen samtliga frågor eller ett slumpat urval — på tid, med rättning, modulnedbrytning
+        antingen samtliga frågor eller ett slumpat urval — utan tidspress, med rättning, modulnedbrytning
         och förklaringar som på en vanlig tenta.</p>
       <div class="mo-chips" role="group" aria-label="Moduler">
         ${mods.map(m => `<button type="button" class="mo-chip${valda.includes(m.m) ? " vald" : ""}" data-mo="${m.m}" aria-pressed="${valda.includes(m.m)}">
@@ -20378,7 +20383,7 @@ function kopplaMoPanel() {
     const start = document.getElementById("mostart");
     if (start) start.disabled = !tillg;
     if (info) info.textContent = tillg
-      ? `${slump ? `${n} av ${tillg}` : `${tillg}`} frågor ur ${valda.length === 1 ? "modul " + valda[0] : valda.length + " moduler"} · ${moTid(n)} minuter (1,5 min per fråga, går att ändra innan du startar).`
+      ? `${slump ? `${n} av ${tillg}` : `${tillg}`} frågor ur ${valda.length === 1 ? "modul " + valda[0] : valda.length + " moduler"} · utan tidsgräns (du kan sätta tid innan du startar).`
       : "Välj minst en modul.";
   };
   panel.querySelectorAll("[data-mo]").forEach(k => k.addEventListener("click", () => {
@@ -20491,7 +20496,8 @@ function viewTentaHub() {
     ${a ? `
       <div class="note" style="margin-top:20px">
         <b>Du har ett pågående försök:</b> ${esc(a.titel)} —
-        ${kvar > 0 ? `${fmtTid(kvar)} kvar av ${a.minuter} minuter.` : `tiden har gått ut.`}
+        ${a.utanTid ? `utan tidsgräns, ${fmtTid(Date.now() - a.startad)} hittills.`
+          : kvar > 0 ? `${fmtTid(kvar)} kvar av ${a.minuter} minuter.` : `tiden har gått ut.`}
         <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap">
           <button class="btn primary" data-go="/tenta/kor">${kvar > 0 ? "Fortsätt" : "Lämna in"}</button>
           <button class="btn" id="avbrytForsok">Avbryt och kasta försöket</button>
@@ -20945,6 +20951,12 @@ function narmastTentaTid(fragor) {
 }
 
 /* ===== 3. Inställningar och koppling ===== */
+function arModulOvning(t) {
+  /* kalla följer inte alltid med genom normaliseraTenta – läs den ur listan. */
+  const ra = t && ((tstore.egna || []).find(x => x.id === t.id) || t);
+  const k = String((ra && ra.kalla) || (t && t.kalla) || "");
+  return k.indexOf("tentaanalys-moduler:") === 0 || k === "tentaanalys-slump";
+}
 function viewTentaStart(id) {
   const t = tentaById(id);
   if (!t) { view.innerHTML = `${tentaCrumbs([{ t: "Saknas" }])}
@@ -21048,7 +21060,9 @@ function viewTentaStart(id) {
             <span>Tid</span>
             <select id="mtid" style="width:100%; font:inherit; padding:8px 10px; border-radius:8px;
               border:1px solid var(--line-strong); background:var(--paper); color:var(--ink)">
-              ${[30, 60, 90, 120, 180, 240].map(v => `<option value="${v}"${v === t.tid ? " selected" : ""}>${v} minuter</option>`).join("")}
+              <option value="0"${arModulOvning(t) ? " selected" : ""}>Utan tid</option>
+              ${[...new Set([30, 60, 90, 120, 180, 240, Number(t.tid) || 0])].filter(v => v > 0).sort((x, y) => x - y)
+                .map(v => `<option value="${v}"${v === t.tid && !arModulOvning(t) ? " selected" : ""}>${v} minuter</option>`).join("")}
             </select>
           </label>
           <label class="w-ctrl" style="min-width:0; width:100%; margin-bottom:14px">
@@ -21192,7 +21206,7 @@ function inspStartKort(t) {
       ${sen ? `<span class="insp-stangd">Senaste försöket ${fmtDatum(sen.slutad)}</span>` : ""}
     </div>
     ${a ? `<div class="insp-gul"><span class="insp-gulikon pagar">●</span>
-        <span>Tentan pågår – ${fmtTid(a.slutar - Date.now())} kvar.</span>
+        <span>Tentan pågår – ${a.utanTid ? "utan tidsgräns" : fmtTid(a.slutar - Date.now()) + " kvar"}.</span>
         <button class="insp-lank" data-go="/tenta/kor">Fortsätt skriva</button></div>`
       : sen ? `<div class="insp-gul"><span class="insp-gulikon">${INSP_IKON.bock}</span><span>Du lämnade in ${inspSedan(sen.slutad)}</span></div>` : ""}
     ${sen ? `<h3 class="insp-resrubrik">Tentamensresultat</h3>
@@ -21385,7 +21399,8 @@ function viewTentaKor() {
 
   view.innerHTML = inspRam({
     titel: t.titel, live: !!a.live,
-    timer: `<b class="ttimer insp-tid" id="ttimer" role="timer" aria-live="off">${fmtTid(a.slutar - Date.now())}</b>`,
+    timer: `<b class="ttimer insp-tid${a.utanTid ? " utantid" : ""}" id="ttimer" role="timer" aria-live="off"
+      title="${a.utanTid ? "Utan tidsgräns – tid hittills" : "Tid kvar"}">${fmtTid(a.utanTid ? Date.now() - a.startad : a.slutar - Date.now())}</b>`,
     framsteg: Math.round(100 * antalSvar() / n),
     meny, over: live, nrKolumn, kropp, oversikt, flikar,
     forsta: pos === 0, sista: pos === n - 1,
@@ -21517,6 +21532,7 @@ function viewTentaKor() {
   _tentaTimer = setInterval(() => {
     const el = document.getElementById("ttimer");
     if (!el || !tstore.aktivt) { stoppaTimer(); return; }
+    if (tstore.aktivt.utanTid) { el.textContent = fmtTid(Date.now() - tstore.aktivt.startad); return; }
     const kvar = tstore.aktivt.slutar - Date.now();
     if (kvar <= 0) { stoppaTimer(); lamnaIn(true); return; }
     el.textContent = fmtTid(kvar);
@@ -22375,7 +22391,7 @@ function viewTentaResultat(fid) {
       </div>
       <div class="tsum-box">
         <span class="tsum-n">${fmtTid(f.anvandTid)}</span>
-        <span class="tsum-l">av ${f.minuter} minuter${f.auto ? " · tiden tog slut" : ""}</span>
+        <span class="tsum-l">${f.utanTid ? "utan tidsgräns" : `av ${f.minuter} minuter${f.auto ? " · tiden tog slut" : ""}`}</span>
       </div>
       <div class="tsum-box">
         <span class="tsum-n">${r.svarade} / ${r.antalFragor}</span>
@@ -35218,7 +35234,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261108-1200";
+const BYGGID = "20261108-1900";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";

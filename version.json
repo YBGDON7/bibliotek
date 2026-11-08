@@ -1,5 +1,5 @@
 {
-  "bygg": "20261108-1200",
-  "namn": "Tentasimulatorn: öva per modul – alla tentafrågor i valda moduler eller ett slumpat urval ur valfri kombination.",
-  "nar": "2026-11-08T16:40:01+00:00"
+  "bygg": "20261108-1900",
+  "namn": "Tentasimulatorn: modulövningarna körs utan tidsgräns (klockan räknar uppåt), och Utan tid går att välja för alla tentor.",
+  "nar": "2026-11-08T17:58:32+00:00"
 }
