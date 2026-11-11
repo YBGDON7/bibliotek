@@ -1059,6 +1059,32 @@ body.insp-pa #fragaknapp{display:none !important}
 }
 .insp-kid{font-weight:700; font-size:18px}
 .insp-tophoger{display:flex; align-items:center; gap:18px; color:#222}
+.insp-pausknapp{margin-right:-8px}
+.insp-pausknapp.pa{color:#3a6797; background:#e6eef7}
+.insp-paus{position:absolute; inset:62px 0 0 0; z-index:20; background:rgba(240,240,240,.97); display:flex; align-items:center; justify-content:center; padding:24px}
+.insp-pauskort{background:#fff; border:1px solid #d9d9d9; border-radius:8px; box-shadow:0 10px 30px -14px rgba(0,0,0,.35); padding:32px 28px; max-width:440px; width:100%; text-align:center; color:#222}
+.insp-pausikon{width:56px; height:56px; border-radius:50%; background:#e6eef7; color:#3a6797; display:inline-flex; align-items:center; justify-content:center; margin-bottom:10px}
+.insp-pauskort h2{font-size:22px; margin:6px 0 10px}
+.insp-pauskort p{margin:0 0 10px; color:#444; line-height:1.5}
+.insp-paustid{font-weight:700; color:#222 !important; font-variant-numeric:tabular-nums}
+.insp-fortsatt{margin-top:8px; background:#3a6797; color:#fff; border:0; border-radius:4px; padding:12px 26px; font-size:16px; font-weight:600; cursor:pointer}
+.insp-fortsatt:hover{background:#2f5780}
+.insp-paustips{font-size:13px; color:#777 !important; margin-top:14px !important}
+.insp-paustips kbd{border:1px solid #ccc; border-bottom-width:2px; border-radius:3px; padding:0 5px; font-size:12px; background:#fafafa}
+.insp-nav.pausad{opacity:.45; pointer-events:none}
+@media (max-width:720px){.insp-skilj-bred{display:none}}
+.insp-brytare{margin-left:auto; font-size:12px; font-weight:700; padding:2px 8px; border-radius:10px; background:#ddd; color:#555}
+.insp-brytare.pa{background:#3a6797; color:#fff}
+.insp-tidnotis{position:absolute; top:74px; left:50%; transform:translateX(-50%); z-index:30; background:#8e1c1c; color:#fff; font-weight:700;
+  padding:10px 18px; border-radius:6px; box-shadow:0 8px 24px -10px rgba(0,0,0,.5); animation:inspNotis 5s ease forwards}
+@keyframes inspNotis{0%{opacity:0; transform:translate(-50%,-8px)} 8%,85%{opacity:1; transform:translate(-50%,0)} 100%{opacity:0}}
+@media (prefers-reduced-motion: reduce){.insp-tidnotis{animation:none}}
+@media (max-width:720px){
+  .insp-yta{padding-bottom:28px}
+  .insp .insp-pilar{position:static; flex:none; justify-content:space-between; gap:8px; padding:6px 12px;
+    margin-bottom:calc(66px + env(safe-area-inset-bottom,0px)); background:var(--i-bg); border-top:1px solid #dcdcdc}
+  .insp .insp-pil{flex:1; width:auto; max-width:150px; height:48px}
+}
 .insp-tid{font-family:"Helvetica Neue", Arial, sans-serif; font-weight:700; font-size:16px; font-variant-numeric:tabular-nums; color:#222}
 .insp-tid.varning{color:var(--i-fel)}
 .insp-wifi{display:inline-flex; color:#222}
@@ -3849,6 +3875,10 @@ function taData() {
   if (!_TA) {
     const el = document.getElementById("ta-data");
     _TA = JSON.parse(el.textContent);
+    Object.values(_TA.fragor).forEach(f => {
+      if (typeof f.q === "string") f.q = snyggText(f.q, { stam: true });
+      if (Array.isArray(f.alt)) f.alt = f.alt.map(a => typeof a === "string" ? snyggText(a) : a);
+    });
     _TA.temaAv = {};
     _TA.moduler.forEach(m => m.teman.forEach(t => { t.m = m.m; t.key = m.m + "." + t.i; _TA.temaAv[t.key] = t; }));
   }
@@ -16603,6 +16633,7 @@ async function pdfLasTenta(bytes, onProgress, opt) {
       await fangaInsperaFigurer(doc, insp.fragor, onProgress);
       try { doc.destroy(); } catch (e) {}
       const F = insp.fragor;
+      F.forEach(snyggaFraga);
       return {
         fragor: F,
         diagnos: {
@@ -16689,6 +16720,7 @@ async function pdfLasTenta(bytes, onProgress, opt) {
   try { doc.destroy(); } catch (e) {}
 
   const ut = resultat.fragor;
+  ut.forEach(snyggaFraga);
   return {
     fragor: ut,
     diagnos: {
@@ -19391,7 +19423,8 @@ function facitSumma(fragor) {
 }
 
 /* ---------- tentor ---------- */
-function allaTentor() {
+function allaTentor() { return allaTentorRa().map(snyggaTenta); }
+function allaTentorRa() {
   return [
     ...TENTOR.map(t => ({ ...tillampaOverride(normaliseraTenta(t)), inbyggd: true })),
     ...tstore.egna.map(t => ({ ...normaliseraTenta(t), inbyggd: false }))
@@ -19399,7 +19432,156 @@ function allaTentor() {
 }
 function tentaById(id) { return allaTentor().find(t => t.id === id) || null; }
 
-function normaliseraTenta(t) {
+/* =====================================================================
+   SNYGG TEXT – ETT GEMENSAMT FORMATLAGER FÖR ALLA TENTOR
+   Varje tenta passerar hit, oavsett varifrån den kommer: PDF-läsarna
+   (Inspera, Word-tentor, inskannade), Tentaanalysens inbyggda frågor, delade
+   tentor och sådana som sparats i webbläsaren tidigare. Läsarna får alltså
+   fokusera på att hitta frågor, alternativ och facit – här rättas tecken och
+   format som PDF:er brukar förstöra:
+     • osynliga tecken, hårda mellanslag, mjuka bindestreck och ligaturer
+     • "hjärt- lungräddning" – ett bindestreck följt av radbrytning
+     • kemiska formler och joner: O2 → O₂, HCO3- → HCO₃⁻, Ca2+ → Ca²⁺, H+ → H⁺
+     • enheter: mm2 → mm², 10^9 → 10⁹
+     • blodgaser och labbvärden som flutit ihop på en rad
+     • alternativ som bär egna bokstäver ("A. …", "B) …")
+     • blanksteg före skiljetecken och dubbla mellanslag
+   Allt är idempotent: att köra texten två gånger ger samma resultat.
+   ===================================================================== */
+const SNYGG_UPP = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "-": "⁻", "−": "⁻", "+": "⁺" };
+const SNYGG_NED = { "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄", "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉" };
+const snyggUpp = s => [...s].map(c => SNYGG_UPP[c] || c).join("");
+const snyggNed = s => [...s].map(c => SNYGG_NED[c] || c).join("");
+
+/* ord som får stå efter "hjärt- " utan att bindestrecket hör ihop med nästa ord */
+const SNYGG_BINDEORD = new Set(["och", "eller", "samt", "respektive", "resp", "resp.", "som", "till", "men", "and", "or", "nor",
+  "to", "kontra", "versus", "vs", "vs.", "utan", "med", "alternativt", "liksom", "än", "el.", "o", "&"]);
+
+/* formler där siffrorna alltid är index */
+const SNYGG_FORMLER = ["C6H12O6", "H2CO3", "H2PO4", "H2O2", "H2O", "CH4", "NH3", "NH4", "HCO3", "HPO4", "SO4", "PO4", "NO3", "NO2", "H2S", "N2O"];
+const RE_SNYGG_FORMEL = new RegExp("(^|[^\\p{L}\\p{N}])(" + SNYGG_FORMLER.join("|") + ")(?![\\p{L}\\p{N}])", "gu");
+
+/* blodgas- och labbvärden: namn, värde och ev. enhet */
+const SNYGG_LABB = "(?:pH|P[aAvV]?O₂|P[aAvV]?CO₂|S[aApPvV]O₂|HCO₃⁻?|BE|Base excess|Basöverskott|B-Hb|Hb|Laktat|Na⁺|K⁺|Cl⁻|Glukos|P-Glukos|Kreatinin|CRP|Albumin|Anjongap|Ca²⁺|Osmolalitet|Urea)";
+const SNYGG_VARDE = "\\s*[:=]?\\s*[<>≈~]?\\s*[-+−]?\\d+(?:[.,]\\d+)?\\s*(?:kPa|mmHg|mmol\\/[lL]|µmol\\/[lL]|μmol\\/[lL]|nmol\\/[lL]|g\\/[lL]|mg\\/[lL]|mosm\\/kg|%)?";
+const RE_SNYGG_LABBRAD = new RegExp("(?:" + SNYGG_LABB + SNYGG_VARDE + ")(?:[ \\t]+" + SNYGG_LABB + SNYGG_VARDE + "){2,}", "g");
+const RE_SNYGG_LABBDEL = new RegExp(SNYGG_LABB + SNYGG_VARDE, "g");
+
+function snyggText(s, opt) {
+  opt = opt || {};
+  let t = String(s == null ? "" : s);
+  if (!t) return t;
+  /* osynligt och udda blanktecken */
+  t = t.normalize("NFC")
+    .replace(/[­​‌‍⁠﻿]/g, "")
+    .replace(/[       \t]/g, " ")
+    .replace(/\r\n?/g, "\n")
+    .replace(/ﬀ/g, "ff").replace(/ﬁ/g, "fi").replace(/ﬂ/g, "fl").replace(/ﬃ/g, "ffi").replace(/ﬄ/g, "ffl").replace(/ﬅ|ﬆ/g, "st");
+
+  /* "hjärt- lungräddning", "PD-L1- hämmare", "T- celler": ett äkta bindestreck
+     som hamnat sist på en rad. Mellanslaget tas bort, bindestrecket behålls.
+     "hjärt- och kärl", nya meningar ("prot- Ökar") och tabellkolumner rörs inte. */
+  t = t.replace(/([\p{L}\p{N}+′')\]])- ([\p{L}\p{N}][^\s]*)/gu, (m, a, b) => {
+    const ren = b.replace(/[.,;:?!)\]”"]+$/, "");
+    if (SNYGG_BINDEORD.has(ren.toLowerCase())) return m;
+    if (/^\p{Lu}\p{Ll}{2,}/u.test(ren)) return m;            // ny mening eller kolumn
+    if (!/^(?:[\p{L}\p{N}]{2,}|\p{N})/u.test(ren)) return m;   // "A." och liknande
+    return a + "-" + b;
+  });
+  t = t.replace(/(\p{Ll})-\n(\p{Ll}{2,})/gu, (m, a, b) => SNYGG_BINDEORD.has(b.toLowerCase()) ? m : a + "-" + b);
+
+  /* joner */
+  t = t.replace(/(^|[^\p{L}\p{N}])(Ca|Mg|Fe|Zn|Cu|Mn|Co|Ni|Ba|Sr|Pb|Hg)([23])\+(?![\p{L}\p{N}+])/gu,
+    (m, f, j, d) => f + j + snyggUpp(d) + "⁺");
+  t = t.replace(/(^|[^\p{L}\p{N}])(NH4|NADPH|NADP|NAD|Na|K|H|Li|Ag)\+(?![\p{L}\p{N}+])/gu,
+    (m, f, j) => f + snyggNed(j) + "⁺");
+  t = t.replace(/(^|[^\p{L}\p{N}])(HCO3|H2PO4|NO3|NO2|OH|Cl)-(?=$|[\s,.;:)\/=]|-[\p{L}])/gu,
+    (m, f, j) => f + snyggNed(j) + "⁻");
+  /* formler och partialtryck */
+  t = t.replace(RE_SNYGG_FORMEL, (m, f, x) => f + snyggNed(x));
+  t = t.replace(/(^|[^\p{L}\p{N}])(Pa|PA|Pv|PV|Pc|P|Sa|SA|Sp|Sv|S|Fi|FI|Et|ET|Ca|C)?(CO|O)2(?![\p{L}\p{N}])/gu,
+    (m, f, p, g) => f + (p || "") + g + "₂");
+  t = t.replace(/([\p{L}])₂ O(?![\p{L}])/gu, "$1₂O");
+  /* enheter och tiopotenser */
+  t = t.replace(/(\d[ ]?)(km|dm|cm|mm|µm|μm|nm|m)\^?([23])(?![\p{L}\p{N}])/gu, (m, a, u, d) => a + u + snyggUpp(d));
+  t = t.replace(/10\^\(?([-−]?\d{1,2})\)?/g, (m, d) => "10" + snyggUpp(d));
+  /* elektronkonfiguration som brutits isär: "2 p⁶ 3 s²" → "2p⁶ 3s²" */
+  t = t.replace(/(^|\s)(\d) ([spdf][¹²³⁴⁵⁶⁷⁸⁹][⁰¹²³⁴]?)(?![\p{L}\p{N}])/gu, "$1$2$3");
+
+  if (opt.stam) {
+    /* Inspera-instruktionen i slutet av stammen hör till svarsytan, inte frågan. */
+    t = t.replace(/\s*(?:Välj (?:ett|ett eller flera|en eller flera) alternativ|Select (?:one|one or more) alternatives?)\s*:?\s*$/i, "");
+    /* blodgaser och labbvärden som flutit ihop: ett värde per rad */
+    t = t.replace(RE_SNYGG_LABBRAD, (rad, off, hel) =>
+      (off > 0 && hel[off - 1] !== "\n" ? "\n" : "") + rad.match(RE_SNYGG_LABBDEL).map(x => x.trim()).join("\n"));
+  }
+
+  /* blanksteg */
+  t = t.split("\n").map(r => r.replace(/ {2,}/g, " ").replace(/^ +| +$/g, "")).join("\n");
+  t = t.replace(/([\p{L}\p{N})\]”"])[ ]+([,;:!?])(?=\s(?!\d)|$)/gu, "$1$2");
+  t = t.replace(/([\p{L}\p{N})])[ ]+\.(?=\s|$)/gu, "$1.");
+  t = t.replace(/\( +/g, "(").replace(/ +\)/g, ")");
+  t = t.replace(/\n{3,}/g, "\n\n");
+
+  return opt.behallKanter ? t : t.trim();
+}
+
+/* Alternativ som bär egna etiketter i följd – "A. …", "B) …", "c: …" – får
+   etiketten borttagen; simulatorn sätter sina egna. Bara när ALLA alternativ
+   bär exakt nästa bokstav, så att "a. arcuata" i en anatomifråga får stå kvar. */
+function snyggAlternativ(opts) {
+  const L = (opts || []).map(o => snyggText(o));
+  if (L.length >= 2) {
+    const re = /^\(?([A-Ha-h1-9])[\).:]\s+(?=\S)/;
+    const etik = L.map(o => (o.match(re) || [])[1]);
+    const bokst = etik.every((e, i) => e && e.toUpperCase() === "ABCDEFGH"[i]);
+    const siffr = etik.every((e, i) => e && e === String(i + 1));
+    if (bokst || siffr) return L.map(o => o.replace(re, ""));
+  }
+  return L;
+}
+
+/* En fråga: stammen styckvis runt figurerna, så att figurernas platser i
+   texten följer med när texten blir kortare. */
+function snyggaFraga(f) {
+  if (!f || typeof f !== "object") return f;
+  if (typeof f.q === "string") {
+    const pl = Array.isArray(f.bildPlats) ? f.bildPlats.filter(p => p && typeof p.pos === "number").sort((a, b) => a.pos - b.pos) : [];
+    if (!pl.length) f.q = snyggText(f.q, { stam: true });
+    else {
+      let ut = "", fran = 0;
+      pl.forEach(p => {
+        ut += snyggText(f.q.slice(fran, Math.max(fran, p.pos)), { stam: true, behallKanter: true });
+        fran = Math.max(fran, p.pos);
+        p.pos = ut.length;
+      });
+      ut += snyggText(f.q.slice(fran), { stam: true, behallKanter: true });
+      const fore = ut.length; ut = ut.replace(/^\s+/, ""); const skift = fore - ut.length;
+      if (skift) pl.forEach(p => { p.pos = Math.max(0, p.pos - skift); });
+      f.q = ut.replace(/\s+$/, "");
+      pl.forEach(p => { p.pos = Math.min(p.pos, f.q.length); });
+    }
+  }
+  if (Array.isArray(f.options)) {
+    const fore = f.options.length;
+    const nya = snyggAlternativ(f.options);
+    if (nya.length === fore) f.options = nya;
+  }
+  if (Array.isArray(f.matchrader)) f.matchrader = f.matchrader.map(x => snyggText(x));
+  return f;
+}
+
+const _snyggade = new WeakSet();
+function snyggaTenta(t) {
+  if (!t || typeof t !== "object" || _snyggade.has(t)) return t;
+  (t.fragor || []).forEach(snyggaFraga);
+  _snyggade.add(t);
+  return t;
+}
+
+/* Alla vägar in till en tenta går via normaliseraTenta – där passerar också formatlagret. */
+function normaliseraTenta(t) { return snyggaTenta(normaliseraTentaRa(t)); }
+function normaliseraTentaRa(t) {
   const kursId = t.kurs || (KURSER[0] && KURSER[0].id);
   return {
     id: t.id || tid(),
@@ -19718,8 +19900,9 @@ function lamnaIn(auto) {
     snapshot: a.snapshot || t,
     ordning: a.ordning, svar: a.svar, flagg: a.flagg, poang: a.poang || {},
     bedomning: a.bedomning || {},
-    minuter: a.minuter, startad: a.startad, slutad: Date.now(),
-    anvandTid: a.utanTid ? Date.now() - a.startad : Math.min(a.minuter * 60000, Date.now() - a.startad),
+    minuter: a.minuter, startad: a.startadFaktisk || a.startad, slutad: Date.now(),
+    anvandTid: a.utanTid ? tentaNu(a) - a.startad : Math.min(a.minuter * 60000, tentaNu(a) - a.startad),
+    pauser: a.pauser || 0, pausTid: a.pausTid || 0,
     utanTid: !!a.utanTid,
     auto: !!auto,
     facitOk: nuSumma === a.facitSumma,
@@ -20244,6 +20427,62 @@ function harSvarat(v) {
   return v !== undefined && v !== null;
 }
 
+/* Tentans "nu": står klockan still under en paus. */
+function tentaNu(a) { return a && a.pausad ? a.pausad : Date.now(); }
+function kanPausa(a) { return !!a && !a.duell && !a.live; }
+function pausaTenta() {
+  const a = tstore.aktivt;
+  if (!kanPausa(a) || a.pausad) return;
+  if (!a.startadFaktisk) a.startadFaktisk = a.startad;
+  a.pausad = Date.now();
+  tsave();
+}
+function fortsattTenta() {
+  const a = tstore.aktivt;
+  if (!a || !a.pausad) return;
+  delete a.autoPausad;
+  const d = Math.max(0, Date.now() - a.pausad);
+  a.startad += d;
+  if (!a.utanTid) a.slutar += d;
+  a.pausTid = (a.pausTid || 0) + d;
+  a.pauser = (a.pauser || 0) + 1;
+  delete a.pausad;
+  tsave();
+}
+function autoPausPa() { return tstore.autoPaus !== false; }
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) return;
+  const a = tstore.aktivt;
+  if (!a || a.pausad || !kanPausa(a) || !autoPausPa()) return;
+  pausaTenta();
+  a.autoPausad = true;
+  tsave();
+  try { if (parse().name === "tentakor") render(); } catch (e) {}
+});
+/* "Öva på det du missade": en ny kort tenta med de felbesvarade och obesvarade frågorna. */
+function ovaMissade(fid) {
+  const fo = forsokById(fid);
+  const t = fo ? forsokTenta(fo) : null;
+  if (!t) return;
+  const r = ratta(fo, t);
+  const miss = r.rader.filter(x => x.bedombar && (!x.harSvar || (x.bedomd && !x.ratt)));
+  if (!miss.length) return;
+  tstore.egna = (tstore.egna || []).filter(x => x.kalla !== "missade" || tstore.forsok.some(f => f.tentaId === x.id) ||
+    (tstore.aktivt && tstore.aktivt.tentaId === x.id));
+  const fragor = miss.map((x, i) => Object.assign(JSON.parse(JSON.stringify(x.fraga)), { nr: i + 1, plats: i + 1 }));
+  const per = (t.tid || 60) / Math.max(1, t.fragor.length);
+  const ny = normaliseraTenta({ id: tid(), titel: `${t.titel} · ${miss.length} missade`, kurs: t.kurs,
+    tid: Math.max(5, Math.round(per * miss.length)), ordning: "fast", kalla: "missade", fragor });
+  try { autokoppla(ny); } catch (e) {}
+  ny.kalla = "missade";
+  tstore.egna.unshift(ny);
+  tsave();
+  go("#/tenta/" + encodeURIComponent(ny.id));
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest("[data-ova-missade]");
+  if (b) { e.preventDefault(); ovaMissade(b.dataset.ovaMissade); }
+});
 function stoppaTimer() {
   if (_tentaTimer) { clearInterval(_tentaTimer); _tentaTimer = null; }
   if (_tentaTangent) { document.removeEventListener("keydown", _tentaTangent); _tentaTangent = null; }
@@ -20461,7 +20700,7 @@ function kopplaMoPanel() {
 function viewTentaHub() {
   const tentor = allaTentor();
   const a = tstore.aktivt;
-  const kvar = a ? a.slutar - Date.now() : 0;
+  const kvar = a ? a.slutar - tentaNu(a) : 0;
 
   const kort = tentor.map(t => {
     const bedombara = t.fragor.filter(f => f.svar !== null).length;
@@ -20516,7 +20755,7 @@ function viewTentaHub() {
     ${a ? `
       <div class="note" style="margin-top:20px">
         <b>Du har ett pågående försök:</b> ${esc(a.titel)} —
-        ${a.utanTid ? `utan tidsgräns, ${fmtTid(Date.now() - a.startad)} hittills.`
+        ${a.pausad ? "<b>pausad</b> – " : ""}${a.utanTid ? `utan tidsgräns, ${fmtTid(tentaNu(a) - a.startad)} hittills.`
           : kvar > 0 ? `${fmtTid(kvar)} kvar av ${a.minuter} minuter.` : `tiden har gått ut.`}
         <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap">
           <button class="btn primary" data-go="/tenta/kor">${kvar > 0 ? "Fortsätt" : "Lämna in"}</button>
@@ -21226,7 +21465,7 @@ function inspStartKort(t) {
       ${sen ? `<span class="insp-stangd">Senaste försöket ${fmtDatum(sen.slutad)}</span>` : ""}
     </div>
     ${a ? `<div class="insp-gul"><span class="insp-gulikon pagar">●</span>
-        <span>Tentan pågår – ${a.utanTid ? "utan tidsgräns" : fmtTid(a.slutar - Date.now()) + " kvar"}.</span>
+        <span>Tentan ${a.pausad ? "är pausad" : "pågår"} – ${a.utanTid ? "utan tidsgräns" : fmtTid(a.slutar - tentaNu(a)) + " kvar"}.</span>
         <button class="insp-lank" data-go="/tenta/kor">Fortsätt skriva</button></div>`
       : sen ? `<div class="insp-gul"><span class="insp-gulikon">${INSP_IKON.bock}</span><span>Du lämnade in ${inspSedan(sen.slutad)}</span></div>` : ""}
     ${sen ? `<h3 class="insp-resrubrik">Tentamensresultat</h3>
@@ -21245,12 +21484,16 @@ function inspBetyg(procent) {
 }
 
 /* Gemensam ram: översta raden, frågeytan, pilar och frågefältet nedtill. */
+const INSP_PAUS = {
+  paus: '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>',
+  spela: '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" fill="currentColor"/></svg>'
+};
 function inspRam(o) {
   return `<div class="insp" id="insp">
     <header class="insp-top">
       <div class="insp-kid">Kandidat-ID</div>
       <div class="insp-tophoger">
-        ${o.timer || ""}
+        ${o.paus || ""}${o.timer || ""}
         <span class="insp-wifi" title="${o.live ? "Livematch – ansluten" : "Svaren sparas lokalt"}">${INSP_IKON.wifi}</span>
         <button class="insp-ikonknapp" id="inspmeny" aria-haspopup="true" aria-expanded="false" aria-label="Meny">${INSP_IKON.meny}</button>
       </div>
@@ -21261,7 +21504,16 @@ function inspRam(o) {
       ${o.meny}
     </div>
     ${o.over || ""}
-    <main class="insp-yta" id="inspyta">
+    ${o.pausad ? `<div class="insp-paus" id="inspPausTacke" role="dialog" aria-modal="true" aria-labelledby="inspPausRubrik">
+      <div class="insp-pauskort">
+        <div class="insp-pausikon">${INSP_PAUS.paus}</div>
+        <h2 id="inspPausRubrik">Tentan är pausad</h2>
+        <p>${o.autoPausad ? "Tentan pausades automatiskt när du lämnade appen. " : ""}Klockan står still och frågorna är dolda tills du fortsätter. Dina svar är sparade.</p>
+        <p class="insp-paustid">${o.paustext || ""}</p>
+        <button class="insp-fortsatt" id="inspFortsatt">Fortsätt skriva</button>
+        <p class="insp-paustips">Tryck <kbd>P</kbd> eller <kbd>Mellanslag</kbd> för att fortsätta</p>
+      </div></div>` : ""}
+    <main class="insp-yta" id="inspyta"${o.pausad ? ' aria-hidden="true" inert' : ""}>
       <div class="insp-fraga">
         <div class="insp-nr">${o.nrKolumn}</div>
         <div class="insp-kropp">${o.kropp}</div>
@@ -21272,7 +21524,7 @@ function inspRam(o) {
       <button class="insp-pil hoger" id="next"${o.sista ? " disabled" : ""} aria-label="Nästa fråga">${INSP_IKON.hoger}</button>
     </div>
     <div class="insp-oversikt" id="inspoversikt" hidden>${o.oversikt}</div>
-    <nav class="insp-nav" aria-label="Frågor">
+    <nav class="insp-nav${o.pausad ? " pausad" : ""}" aria-label="Frågor"${o.pausad ? " inert" : ""}>
       <button class="insp-navknapp ikon" id="inspoversiktknapp" aria-label="Översikt över alla frågor">${INSP_IKON.oversikt}</button>
       <div class="insp-flikar" id="tgrid">${o.flikar}</div>
       ${o.slutknapp}
@@ -21352,7 +21604,9 @@ function viewTentaKor() {
   if (!a) { go("#/tenta"); return; }
   const t = aktivTenta();
   if (!t) { tstore.aktivt = null; tsave(); go("#/tenta"); return; }
-  if (Date.now() >= a.slutar) { lamnaIn(true); return; }
+  if (!a.pausad && Date.now() >= a.slutar) { lamnaIn(true); return; }
+  if (a.pausad && !kanPausa(a)) fortsattTenta();
+  const pausad = !!a.pausad;
 
   const n = a.ordning.length;
   const pos = Math.max(0, Math.min(a.pos || 0, n - 1));
@@ -21382,7 +21636,8 @@ function viewTentaKor() {
 
   const kropp = `
     <h2 class="insp-rubrik">Fråga ${pos + 1}</h2>
-    ${f.sort || f.avsnitt ? `<p class="insp-under">${esc([f.sort, f.avsnitt].filter(Boolean).join(" · "))}</p>` : ""}
+    ${(() => { const u = [f.sort, String(f.avsnitt || "").replace(/^(Modul \d+) · .*$/s, "$1")].filter(Boolean).join(" · ");
+      return u ? `<p class="insp-under">${esc(u)}</p>` : ""; })()}
     ${stamMedBilder(f, "insp-stam", "", "Figur till frågan")}
     ${svar}
     <div class="insp-linje"></div>
@@ -21410,8 +21665,10 @@ function viewTentaKor() {
     ${antalFlagg ? `<button class="insp-menyrad" id="nastaflagg">Nästa flaggade fråga (${antalFlagg})<kbd>N</kbd></button>` : ""}
     ${harSvarat(valt) ? `<button class="insp-menyrad" id="rensa">Rensa svaret på fråga ${pos + 1}</button>` : ""}
     <div class="insp-menyinfo">${antalSvar()} av ${n} besvarade. Svaren sparas löpande i webbläsaren.<br>
-      Tangentbord: <b>A–H</b> väljer alternativ, <b>←/→</b> byter fråga, <b>F</b> flaggar, <b>N</b> nästa flaggade.</div>
-    <button class="insp-menyrad" data-go="/tenta">Lämna tentaläget (svaren sparas)</button>
+      Tangentbord: <b>A–H</b> väljer alternativ, <b>←/→</b> byter fråga, <b>F</b> flaggar, <b>N</b> nästa flaggade${kanPausa(a) ? ", <b>P</b> pausar" : ""}.</div>
+    ${kanPausa(a) ? `<button class="insp-menyrad" id="pausmeny">${pausad ? "Fortsätt tentan" : "Pausa tentan"}<kbd>P</kbd></button>` : ""}
+    ${kanPausa(a) ? `<button class="insp-menyrad" id="autopaus" role="switch" aria-checked="${autoPausPa()}">Pausa automatiskt när jag lämnar appen<b class="insp-brytare${autoPausPa() ? " pa" : ""}">${autoPausPa() ? "På" : "Av"}</b></button>` : ""}
+    <button class="insp-menyrad" data-go="/tenta" id="lamnalage">Lämna tentaläget (svaren sparas${kanPausa(a) ? ", klockan pausas" : ""})</button>
     <button class="insp-menyrad stark" data-meny="lamna">Lämna in</button>`;
 
   const live = a.live ? `<div class="insp-live"><span class="insp-livetitel">Livematch</span>
@@ -21420,9 +21677,14 @@ function viewTentaKor() {
   view.innerHTML = inspRam({
     titel: t.titel, live: !!a.live,
     timer: `<b class="ttimer insp-tid${a.utanTid ? " utantid" : ""}" id="ttimer" role="timer" aria-live="off"
-      title="${a.utanTid ? "Utan tidsgräns – tid hittills" : "Tid kvar"}">${fmtTid(a.utanTid ? Date.now() - a.startad : a.slutar - Date.now())}</b>`,
+      title="${a.utanTid ? "Utan tidsgräns – tid hittills" : "Tid kvar"}">${fmtTid(a.utanTid ? tentaNu(a) - a.startad : a.slutar - tentaNu(a))}</b>`,
+    paus: kanPausa(a) ? `<button class="insp-ikonknapp insp-pausknapp${pausad ? " pa" : ""}" id="insppaus" aria-pressed="${pausad}"
+      aria-label="${pausad ? "Fortsätt tentan" : "Pausa tentan"}" title="${pausad ? "Fortsätt (P)" : "Pausa (P)"}">${pausad ? INSP_PAUS.spela : INSP_PAUS.paus}</button>` : "",
+    pausad, autoPausad: !!a.autoPausad,
     framsteg: Math.round(100 * antalSvar() / n),
-    meny, over: live, nrKolumn, kropp, oversikt, flikar,
+    paustext: pausad ? (a.utanTid ? `Tid hittills: ${fmtTid(tentaNu(a) - a.startad)}` : `Tid kvar: ${fmtTid(a.slutar - tentaNu(a))} av ${a.minuter} minuter`) +
+      (a.pauser ? ` · pausad ${a.pauser + 1} gånger` : "") : "",
+    meny, over: live, nrKolumn, kropp: pausad ? "" : kropp, oversikt, flikar,
     forsta: pos === 0, sista: pos === n - 1,
     slutknapp: `<button class="insp-navknapp lamna" id="lamna" aria-label="Lämna in" title="Lämna in">${INSP_IKON.bock}</button>`
   });
@@ -21490,6 +21752,35 @@ function viewTentaKor() {
     svarsruta.addEventListener("blur", () => { clearTimeout(spar); tsave(); uppdatera(); });
   }
 
+  const vaxlaPaus = () => { if (tstore.aktivt && tstore.aktivt.pausad) fortsattTenta(); else pausaTenta(); render(); };
+  const pk = document.getElementById("insppaus"); if (pk) pk.addEventListener("click", e => { e.stopPropagation(); vaxlaPaus(); });
+  const pm = document.getElementById("pausmeny"); if (pm) pm.addEventListener("click", vaxlaPaus);
+  const fk = document.getElementById("inspFortsatt"); if (fk) { fk.addEventListener("click", vaxlaPaus); setTimeout(() => fk.focus(), 0); }
+  const ll = document.getElementById("lamnalage"); if (ll) ll.addEventListener("click", () => pausaTenta(), true);
+  const ap = document.getElementById("autopaus"); if (ap) ap.addEventListener("click", () => {
+    tstore.autoPaus = !autoPausPa(); tsave(); render();
+    setTimeout(() => { const m = document.getElementById("inspmenypanel"); if (m) m.hidden = false; }, 0);
+  });
+  const yta = document.getElementById("inspyta");
+  if (yta && !pausad) {
+    let sx = 0, sy = 0, st = 0, ok = false;
+    yta.addEventListener("touchstart", e => {
+      ok = e.touches.length === 1 && !(window.visualViewport && window.visualViewport.scale > 1.05) &&
+        !e.target.closest("input, textarea, select, [contenteditable], .insp-editor, .matchwrap, .tablewrap, table, img");
+      for (let el = e.target; ok && el && el !== yta; el = el.parentElement)
+        if (el.scrollWidth > el.clientWidth + 4 && /(auto|scroll)/.test(getComputedStyle(el).overflowX)) ok = false;
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now();
+    }, { passive: true });
+    yta.addEventListener("touchmove", e => { if (e.touches.length > 1) ok = false; }, { passive: true });
+    yta.addEventListener("touchend", e => {
+      if (!ok) return; ok = false;
+      const p = e.changedTouches[0], dx = p.clientX - sx, dy = p.clientY - sy;
+      if (Date.now() - st > 700 || Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.6) return;
+      if (String(window.getSelection ? window.getSelection() : "").length) return;
+      const mal = pos + (dx < 0 ? 1 : -1);
+      if (mal >= 0 && mal < n) gaTill(mal);
+    }, { passive: true });
+  }
   document.getElementById("prev").addEventListener("click", () => gaTill(pos - 1));
   document.getElementById("next").addEventListener("click", () => gaTill(pos + 1));
   document.getElementById("flagga").addEventListener("click", () => {
@@ -21516,9 +21807,11 @@ function viewTentaKor() {
   });
   document.getElementById("lamna").addEventListener("click", async () => {
     const kvar = n - antalSvar();
+    const fl = Object.keys(a.flagg).length;
+    const flTxt = fl ? ` ${fl} ${fl === 1 ? "fråga är flaggad" : "frågor är flaggade"} för granskning.` : "";
     const txt = kvar
-      ? `${kvar} ${kvar === 1 ? "fråga är" : "frågor är"} obesvarade. Lämna in ändå?`
-      : "Alla frågor är besvarade. Lämna in tentan?";
+      ? `${kvar} ${kvar === 1 ? "fråga är" : "frågor är"} obesvarade.${flTxt} Lämna in ändå?`
+      : fl ? `Alla frågor är besvarade.${flTxt} Lämna in ändå?` : "Alla frågor är besvarade. Lämna in tentan?";
     if (!await bekrafta(txt, "Lämna in")) return;
     lamnaIn(false);
   });
@@ -21530,6 +21823,11 @@ function viewTentaKor() {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (document.querySelector(".dlg")) return;
     const k = e.key;
+    if (tstore.aktivt.pausad) {
+      if (k === "p" || k === "P" || k === " " || k === "Enter") { e.preventDefault(); vaxlaPaus(); }
+      return;
+    }
+    if ((k === "p" || k === "P") && kanPausa(tstore.aktivt)) { e.preventDefault(); vaxlaPaus(); return; }
     if (k === "ArrowLeft") { e.preventDefault(); gaTill(pos - 1); return; }
     if (k === "ArrowRight") { e.preventDefault(); gaTill(pos + 1); return; }
     if (k === "Escape") { document.getElementById("inspmenypanel").hidden = true; document.getElementById("inspoversikt").hidden = true; return; }
@@ -21552,11 +21850,18 @@ function viewTentaKor() {
   _tentaTimer = setInterval(() => {
     const el = document.getElementById("ttimer");
     if (!el || !tstore.aktivt) { stoppaTimer(); return; }
+    if (tstore.aktivt.pausad) return;
     if (tstore.aktivt.utanTid) { el.textContent = fmtTid(Date.now() - tstore.aktivt.startad); return; }
     const kvar = tstore.aktivt.slutar - Date.now();
     if (kvar <= 0) { stoppaTimer(); lamnaIn(true); return; }
     el.textContent = fmtTid(kvar);
     el.classList.toggle("varning", kvar <= 5 * 60000);
+    if (kvar <= 5 * 60000 && kvar > 4 * 60000 && tstore.aktivt.minuter > 10 && !tstore.aktivt.varnad5) {
+      tstore.aktivt.varnad5 = true; tsave();
+      const ram = document.getElementById("insp");
+      if (ram) { const d = document.createElement("div"); d.className = "insp-tidnotis"; d.setAttribute("role", "status");
+        d.textContent = "5 minuter kvar"; ram.appendChild(d); setTimeout(() => d.remove(), 5000); }
+    }
   }, 250);
 }
 
@@ -21602,6 +21907,7 @@ function viewTentaGranska(fid, posArg) {
 
   const kropp = `
     <h2 class="insp-rubrik">Fråga ${pos + 1}</h2>
+    ${f.sort || f.avsnitt ? `<p class="insp-under">${esc([f.sort, f.avsnitt].filter(Boolean).join(" · "))}</p>` : ""}
     ${stamMedBilder(f, "insp-stam", "", "Figur till frågan")}
     ${svar}
     <div class="insp-linje"></div>
@@ -22387,6 +22693,8 @@ function viewTentaResultat(fid) {
       <h3 class="insp-resrubrik">Tentamensresultat</h3>
       <div class="insp-streckad">
         <button class="insp-lank" data-go="/tenta/granska/${encodeURIComponent(f.id)}/0">${INSP_IKON.oga} Visa inlämnade svar</button>
+        ${(() => { const m = r.rader.filter(x => x.bedombar && (!x.harSvar || (x.bedomd && !x.ratt))).length;
+          return m ? `<span class="insp-skilj insp-skilj-bred"></span><button class="insp-lank" data-ova-missade="${esc(f.id)}">↻ Öva på de ${m} du missade</button>` : ""; })()}
         <span class="insp-resprocent">${r.totalProcent} % · ${r.godkand ? "Godkänd" : "Underkänd"}</span>
       </div>
     </section>
@@ -35254,7 +35562,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261109-1058";
+const BYGGID = "20261111-1623";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
