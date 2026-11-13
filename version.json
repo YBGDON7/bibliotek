@@ -1,5 +1,5 @@
 {
-  "bygg": "20261111-1623",
-  "namn": "Tentasimulatorn: universellt formatlager för alla tentor, paus (även automatisk), dolt tema under skrivning, svep mellan frågor, öva på missade frågor, tidspåminnelse och mobilpilar som inte täcker svaren.",
-  "nar": "2026-11-11T16:26:41+00:00"
+  "bygg": "20261113-1131",
+  "namn": "Installera biblioteket som app och använd det utan nät. Ny startsida och meny, Dagens pass, felbank, övningsläge, läget med studieplan, progress som följer med mellan enheter och notiser.",
+  "nar": "2026-11-13T11:40:33+00:00"
 }

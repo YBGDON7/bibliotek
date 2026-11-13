@@ -1,0 +1,48 @@
+{
+  "name": "Lärandemålsbiblioteket",
+  "short_name": "Biblioteket",
+  "description": "Lärandemål, sammanfattningar, quiz, flashcards och tentasimulator för läkarprogrammet.",
+  "lang": "sv",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "id": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f7f4f7",
+  "theme_color": "#f7f4f7",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Tentamenssimulator",
+      "url": "./#/tenta"
+    },
+    {
+      "name": "Tentaanalys",
+      "url": "./#/tentaanalys"
+    },
+    {
+      "name": "Duell",
+      "url": "./#/duell"
+    }
+  ]
+}
