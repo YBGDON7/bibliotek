@@ -1,5 +1,5 @@
 {
-  "bygg": "20261113-1131",
-  "namn": "Installera biblioteket som app och använd det utan nät. Ny startsida och meny, Dagens pass, felbank, övningsläge, läget med studieplan, progress som följer med mellan enheter och notiser.",
-  "nar": "2026-11-13T11:40:33+00:00"
+  "bygg": "20261113-1700",
+  "namn": "Snabbare: tentans sida, Tentaanalysen och sökningen laddar betydligt fortare, och appen sparar alltid rätt version för offline.",
+  "nar": "2026-11-13T17:10:23+00:00"
 }

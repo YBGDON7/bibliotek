@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="bygg" content="20261113-1131">
+<meta name="bygg" content="20261113-1700">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lärandemålsbiblioteket</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -1551,7 +1551,7 @@ main{padding-left:max(24px, env(safe-area-inset-left,0px)); padding-right:max(24
 .mertext b{line-height:1.3}
 @media (max-width:720px){
   #bottenmeny{position:fixed; left:0; right:0; bottom:0; z-index:47; display:flex; align-items:stretch;
-    background:color-mix(in srgb, var(--surface) 94%, transparent); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+    background:var(--surface);
     border-top:1px solid var(--line); padding:0 max(4px, env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(4px, env(safe-area-inset-left,0px))}
   #bottenmeny button{position:relative; flex:1; min-width:0; min-height:58px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
     background:none; border:0; cursor:pointer; color:var(--ink-3); font-size:11.5px; font-weight:500; -webkit-tap-highlight-color:transparent}
@@ -4132,13 +4132,23 @@ function taOversikt() {
     <div class="ta-filter" id="ta-filter"><button class="chip accent" data-f="alla">Alla moduler</button>
       ${D.moduler.map(m => `<button class="chip" data-f="${m.m}">M${m.m}</button>`).join("")}
       <label class="ta-tog"><input type="checkbox" id="ta-barafire"> Bara 🔥</label></div>
-    <div id="ta-topp">${taTemaTabell(topp, true)}</div>
+    <div id="ta-topp"></div>
     <p class="ta-sub">”Tentor” anger i hur många av de 16 tentorna temat förekommer.</p>`;
-  let fm = "alla";
+  let fm = "alla", alleVisas = false;
   const fire = document.getElementById("ta-barafire");
-  const filt = () => view.querySelectorAll("#ta-topp tbody tr").forEach(r => {
-    r.hidden = (fm !== "alla" && r.dataset.m !== fm) || (fire.checked && r.dataset.c !== "1");
-  });
+  const TOPPANTAL = 40;
+  /* Bara de rader som syns byggs. Hela listan är över 300 teman och tog
+     en halv sekund att rita på mobilen. */
+  const filt = () => {
+    const urval = topp.filter(t => (fm === "alla" || String(t.m) === fm) && (!fire.checked || t.c));
+    const visas = alleVisas ? urval : urval.slice(0, TOPPANTAL);
+    const ruta = document.getElementById("ta-topp");
+    ruta.innerHTML = taTemaTabell(visas, true) + (urval.length > visas.length
+      ? `<div style="margin-top:12px"><button class="btn" id="ta-toppalla">Visa alla ${urval.length} teman</button></div>` : "");
+    const k = document.getElementById("ta-toppalla");
+    if (k) k.addEventListener("click", () => { alleVisas = true; filt(); });
+  };
+  filt();
   view.querySelectorAll("#ta-filter .chip").forEach(c => c.addEventListener("click", () => {
     fm = c.dataset.f; view.querySelectorAll("#ta-filter .chip").forEach(x => x.classList.toggle("accent", x === c)); filt();
   }));
@@ -9708,6 +9718,8 @@ function appSwStarta() {
     const d = e.data || {};
     if (d.typ === "sparad") {
       _swSparad = true;
+      /* Den sparade kopian ska vara samma bygge som körs. Är den äldre hämtas det här bygget. */
+      if (d.bygg !== BYGGID && !_nyttBygg) swSkicka({ typ: "hamta", bygg: BYGGID });
       try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (err) {}
     } else if (d.typ === "klar") {
       _swKlarBygg = d.bygg; _swBegard = "";
@@ -17402,16 +17414,36 @@ function sokText(html) {
   const fet = [...d.querySelectorAll("b, strong")].map(e => e.textContent.trim().toLowerCase()).filter(Boolean);
   return { text: d.textContent.replace(/\s+/g, " ").trim(), fet };
 }
+let _sokDelar = null, _sokPos = 0;
+function sokPost(k, m, s, g) {
+  const { text, fet } = sokText(g.sammanfattning);
+  const lag = text.toLowerCase();
+  return { k, m, s, g, text, lag, fold: sokFold(lag), fet, fetFold: fet.map(sokFold),
+    href: `/kurs/${k.id}/modul/${m.nr}/sub/${s.nr}/mal/${encodeURIComponent(g.id)}` };
+}
+function sokForbered() {
+  if (_sokIndex) return;
+  if (!_sokDelar) { _sokDelar = []; KURSER.forEach(k => k.moduler.forEach(m => subs(m).forEach(s => s.mal.forEach(g => _sokDelar.push([k, m, s, g]))))); _sokPos = 0; _sokBygger = []; }
+}
+let _sokBygger = [];
 function sokBygg() {
   if (_sokIndex) return _sokIndex;
-  _sokIndex = [];
-  KURSER.forEach(k => k.moduler.forEach(m => subs(m).forEach(s => s.mal.forEach(g => {
-    const { text, fet } = sokText(g.sammanfattning);
-    const lag = text.toLowerCase();
-    _sokIndex.push({ k, m, s, g, text, lag, fold: sokFold(lag), fet, fetFold: fet.map(sokFold),
-      href: `/kurs/${k.id}/modul/${m.nr}/sub/${s.nr}/mal/${encodeURIComponent(g.id)}` });
-  }))));
+  sokForbered();
+  while (_sokPos < _sokDelar.length) { const d = _sokDelar[_sokPos++]; _sokBygger.push(sokPost(d[0], d[1], d[2], d[3])); }
+  _sokIndex = _sokBygger; _sokDelar = null;
   return _sokIndex;
+}
+/* Bygger några mål åt gången när webbläsaren inte har något annat för sig. */
+function sokIndexIBakgrunden() {
+  const ledig = window.requestIdleCallback || (fn => setTimeout(() => fn({ timeRemaining: () => 8 }), 200));
+  const steg = dl => {
+    if (_sokIndex) return;
+    sokForbered();
+    while (_sokPos < _sokDelar.length && dl.timeRemaining() > 4) { const d = _sokDelar[_sokPos++]; _sokBygger.push(sokPost(d[0], d[1], d[2], d[3])); }
+    if (_sokPos >= _sokDelar.length) { _sokIndex = _sokBygger; _sokDelar = null; return; }
+    ledig(steg, { timeout: 4000 });
+  };
+  setTimeout(() => ledig(steg, { timeout: 4000 }), 6000);
 }
 function sokUtdrag(post, pos, len, ord) {
   const t = post.text;
@@ -22933,7 +22965,7 @@ function viewTentaStart(id) {
             style="width:100%; font:inherit; font-size:13px; padding:6px 8px;
             border-radius:7px; border:1px solid var(--line-strong); background:var(--paper); color:var(--ink)">
             <option value="">— ingen koppling —</option>
-            ${malVal}
+            ${ref ? `<option value="${esc(ref.id)}">${esc(ref.id)} ${esc(ref.mal.titel.slice(0, 52))}</option>` : ""}
           </select>
           ${ref ? `<div style="font-size:11.5px; color:var(--ink-3); margin-top:4px">Modul ${ref.modul.nr} · ${esc(ref.sub.titel)}</div>` : ""}
         </td>
@@ -23062,8 +23094,15 @@ function viewTentaStart(id) {
       </aside>
     </div>`;
 
+  const fyllMal = sel => {
+    if (sel.dataset.fylld) return;
+    sel.dataset.fylld = "1";
+    sel.innerHTML = `<option value="">— ingen koppling —</option>${malVal}`;
+    sel.value = sel.dataset.vald || "";
+  };
   view.querySelectorAll("[data-map]").forEach(sel => {
     sel.value = sel.dataset.vald || "";
+    ["pointerdown", "touchstart", "focus", "keydown"].forEach(ev => sel.addEventListener(ev, () => fyllMal(sel), { passive: true }));
     sel.addEventListener("change", () => {
       const i = +sel.dataset.map;
       sattMal(t.id, t.fragor[i].id, sel.value || null);
@@ -37277,7 +37316,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261113-1131";
+const BYGGID = "20261113-1700";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
@@ -37366,6 +37405,7 @@ appMenyStarta();
 render();
 startaVersionskoll();
 appSwStarta();
+try { sokIndexIBakgrunden(); } catch (e) {}
 try { psVakta(); notisStarta(); } catch (e) {}
 /* Migrationerna är idempotenta och körs i bakgrunden vid varje start. */
 setTimeout(() => { korMigrationer().then(r => { if (r && r.media && r.media.flyttade) render(); }); }, 400);

@@ -9,7 +9,7 @@
       textigenkänning), så att även de finns utan nät.
    version.json går alltid till nätet – det är den som avslöjar nya byggen.
    ===================================================================== */
-const SIDCACHE = "bib-sida-v1";
+const SIDCACHE = "bib-sida-v2";      // v1 kunde spara en föråldrad kopia av sidan
 const CDNCACHE = "bib-cdn-v1";
 const SKAL = self.registration.scope;                 // t.ex. https://…/bibliotek/
 const META = SKAL + "__meta";
@@ -62,8 +62,10 @@ async function lasByggId(strom) {
   return m ? m[1] : "";
 }
 
-/* Hämtar sidan och lägger den i cachen. kravBygg: lagra bara om filen
-   verkligen är det bygget (annars har servern inte hunnit med ännu). */
+/* Hämtar sidan och lägger den i cachen. Filen måste bära ett bygg-id i sina
+   första rader: en äldre kopia ur webbläsarens egen cache saknar det, och får
+   aldrig sparas – då skulle appen fastna på en gammal version.
+   kravBygg: lagra bara om filen är just det bygget. */
 async function hamtaOchSpara(adress, cacheLage, kravBygg) {
   const svar = await fetch(adress, { cache: cacheLage, credentials: "same-origin" });
   if (!svar.ok || svar.status !== 200 || !svar.body) throw new Error("status " + svar.status);
@@ -71,16 +73,13 @@ async function hamtaOchSpara(adress, cacheLage, kravBygg) {
   const huvud = new Headers(svar.headers);
   huvud.delete("content-encoding"); huvud.delete("content-length");
   if (!huvud.get("content-type")) huvud.set("content-type", "text/html; charset=utf-8");
-  const c = await caches.open(SIDCACHE);
-  const idLofte = lasByggId(forId);
-  if (kravBygg) {
-    const id = await idLofte;
-    if (id !== kravBygg) { try { await forCache.cancel(); } catch (e) {} throw new Error("gammal"); }
-    await c.put(SKAL, new Response(forCache, { status: 200, headers: huvud }));
-    await skrivMeta({ bygg: id, nar: Date.now() });
-    return id;
+  const id = await lasByggId(forId);
+  if (!id || (kravBygg && id !== kravBygg)) {
+    try { forCache.cancel().catch(() => {}); } catch (e) {}
+    throw new Error(id ? "gammal" : "omarkt");
   }
-  const [, id] = await Promise.all([c.put(SKAL, new Response(forCache, { status: 200, headers: huvud })), idLofte]);
+  const c = await caches.open(SIDCACHE);
+  await c.put(SKAL, new Response(forCache, { status: 200, headers: huvud }));
   await skrivMeta({ bygg: id, nar: Date.now() });
   return id;
 }
@@ -110,8 +109,14 @@ self.addEventListener("message", e => {
     e.waitUntil((async () => {
       try {
         const c = await caches.open(SIDCACHE);
-        if (await c.match(SKAL, { ignoreVary: true })) { svara({ typ: "sparad", bygg: (await lasMeta()).bygg || "" }); return; }
-        const id = await hamtaOchSpara(SKAL, "force-cache", "");
+        const meta = await lasMeta();
+        if (meta.bygg && await c.match(SKAL, { ignoreVary: true })) { svara({ typ: "sparad", bygg: meta.bygg }); return; }
+        /* Först ur webbläsarens cache, men bara om det är samma bygge som sidan som frågar.
+           Annars hämtas filen på nytt från servern. */
+        const vill = String(d.bygg || "");
+        let id = "";
+        try { id = await hamtaOchSpara(SKAL, "force-cache", vill); }
+        catch (err) { id = await hamtaOchSpara(SKAL + "?v=" + encodeURIComponent(vill || Date.now()), "reload", ""); }
         svara({ typ: "sparad", bygg: id });
       } catch (err) { svara({ typ: "sparfel", fel: String(err && err.message || err) }); }
     })());
