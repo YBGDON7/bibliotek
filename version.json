@@ -1,5 +1,5 @@
 {
-  "bygg": "20261113-1700",
-  "namn": "Snabbare: tentans sida, Tentaanalysen och sökningen laddar betydligt fortare, och appen sparar alltid rätt version för offline.",
-  "nar": "2026-11-13T17:10:23+00:00"
+  "bygg": "20261114-1401",
+  "namn": "Dueller, livematcher och ranked visar nu samma resultat som tentasimulatorn: moduler, Visa inlämnade svar och jämförelse med matchen. Gäller även äldre matcher.",
+  "nar": "2026-11-14T14:14:00+00:00"
 }

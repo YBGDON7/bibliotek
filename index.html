@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="bygg" content="20261113-1700">
+<meta name="bygg" content="20261114-1401">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lärandemålsbiblioteket</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -10986,6 +10986,107 @@ function viewInstallningar() {
   if (b("notisAv")) b("notisAv").addEventListener("click", async () => { await notisSla(false); render(); });
   if (b("instNu")) b("instNu").addEventListener("click", installVisa);
   if (b("instTema")) b("instTema").addEventListener("click", () => { const t = document.getElementById("theme"); if (t) t.click(); });
+}
+
+/* =====================================================================
+   DUELL, LIVEMATCH OCH RANKED MED SIMULATORNS RESULTATVY
+   Matchsidorna visar samma sak som en vanlig tenta: band i tentastil,
+   kortet med "Visa inlämnade svar" och "Visa resultat", och nedbrytningen
+   per modul. Allt räknas ur det sparade försöket, så även matcher som
+   gjordes före uppdateringen får sin modulvy. Finns försöket inte kvar på
+   enheten visas modulsiffrorna som sparades med matchresultatet.
+   ===================================================================== */
+function duellTyp(u, live) { return u && u.elo ? "RANKED" : (live || (u && u.live)) ? "LIVEMATCH" : "DUELL"; }
+/* Mitt försök i en match: livematchens id först, annars matchens frö. */
+function duellForsok(seed, liveId) {
+  const alla = (tstore.forsok || []).slice();
+  if (tstore.senaste) alla.unshift(tstore.senaste);
+  return (liveId && alla.find(f => f.live && f.live.id === liveId))
+    || (seed && alla.find(f => f.duell && f.duell.seed === seed)) || null;
+}
+function duellModulKort(moduler) {
+  const k = KURSER[0];
+  const rader = (moduler || []).filter(m => m && m[2] > 0).sort((a, b) => a[0] - b[0]);
+  if (!rader.length) return "";
+  return `<div class="rule"></div><div class="gx-rubrik"><h2>Ämnesnedbrytning</h2></div>
+    <div class="gx-grid">${rader.map(([nr, ratt, av]) => {
+      const m = k ? k.moduler.find(x => x.nr === nr) : null;
+      return `<div class="gx-kort gx-statisk">${gxMatare(Math.round(ratt / av * 100))}
+        <span class="gx-namn">Modul ${nr}</span>
+        ${m ? `<span class="gx-sub">${esc(m.titel)}</span>` : ""}
+        <span class="gx-tal">${ratt} av ${av} rätt</span></div>`;
+    }).join("")}</div>`;
+}
+/* Du jämfört med alla som gjort matchen, modul för modul. */
+function duellModulJamforelse(rs, mina) {
+  const andra = (rs || []).filter(r => Array.isArray(r.moduler) && r.moduler.length);
+  if (andra.length < 2 || !mina || !mina.length) return "";
+  const grupp = new Map();
+  andra.forEach(r => r.moduler.forEach(([nr, ratt, av]) => { const g = grupp.get(nr) || { r: 0, a: 0 }; g.r += ratt; g.a += av; grupp.set(nr, g); }));
+  const k = KURSER[0];
+  const pc = (r, a) => a ? Math.round(r / a * 100) : null;
+  const rader = mina.filter(m => m[2] > 0).sort((a, b) => a[0] - b[0]).map(([nr, ratt, av]) => {
+    const g = grupp.get(nr), min = pc(ratt, av), gp = g ? pc(g.r, g.a) : null;
+    const m = k ? k.moduler.find(x => x.nr === nr) : null;
+    const diff = gp === null ? null : min - gp;
+    return `<tr><td><b>Modul ${nr}</b>${m ? ` <span style="color:var(--ink-3)">${esc(m.titel)}</span>` : ""}</td>
+      <td style="white-space:nowrap"><b>${min} %</b> <span style="color:var(--ink-3)">${ratt}/${av}</span></td>
+      <td style="white-space:nowrap">${gp === null ? "–" : gp + " %"}</td>
+      <td style="white-space:nowrap; font-weight:600; color:${diff === null || diff === 0 ? "var(--ink-3)" : diff > 0 ? "var(--ok)" : "var(--err)"}">${
+        diff === null ? "" : diff === 0 ? "lika" : (diff > 0 ? "+" : "−") + Math.abs(diff)}</td></tr>`;
+  }).join("");
+  return `<h3 style="margin-top:28px">Du jämfört med matchen</h3>
+    <p style="font-size:14px; color:var(--ink-2); margin:0 0 12px; max-width:66ch">Din andel rätt per modul bredvid snittet för alla ${andra.length} som har gjort matchen.</p>
+    <div class="tablewrap"><table><thead><tr><th>Modul</th><th>Du</th><th>Matchen</th><th></th></tr></thead><tbody>${rader}</tbody></table></div>`;
+}
+/* Det egna resultatet i en match, i två delar: kortet överst och modulerna längre ned. */
+function duellMitt(seed, liveId) {
+  const tom = { kort: "", moduler: "", procent: null, fo: null };
+  let rs = [], mitt = null;
+  try { const jag = jagId(); rs = seed ? resultatForSeed(seed) : []; mitt = rs.find(r => r.pid === jag.id) || null; } catch (e) {}
+  const fo = duellForsok(seed, liveId);
+  let t = null, r = null;
+  if (fo) { try { t = forsokTenta(fo); r = t ? ratta(fo, t) : null; } catch (e) { r = null; } }
+  if (!r && !mitt) return tom;
+  const procent = r ? r.totalProcent : mitt.procent;
+  const godk = arGodkand(procent) === true;
+  if (r) {
+    const fid = encodeURIComponent(fo.id);
+    const mina = r.moduler.filter(m => m.grundbara > 0).map(m => [m.modul.nr, m.ratt, m.grundbara]);
+    let gx = "";
+    try { gx = gxAmnesnedbrytning(fo, t, r, egenKurs(t)); } catch (e) { gx = duellModulKort(mina); }
+    return { fo, procent,
+      kort: `<section class="insp-kort">
+        <div class="insp-kortrad"><div class="insp-tidrad"><span>Start- och sluttid</span>${INSP_IKON.kalender}
+          <b>${fmtDatum(fo.startad)} till ${fmtDatum(fo.slutad)}</b></div></div>
+        <div class="insp-gul"><span class="insp-gulikon">${INSP_IKON.bock}</span><span>Du lämnade in ${inspSedan(fo.slutad)}</span></div>
+        <h3 class="insp-resrubrik">Tentamensresultat</h3>
+        <div class="insp-streckad">
+          <button class="insp-lank" data-go="/tenta/granska/${fid}/0">${INSP_IKON.oga} Visa inlämnade svar</button>
+          <span class="insp-skilj insp-skilj-bred"></span>
+          <button class="insp-lank" data-go="/tenta/resultat/${fid}">${INSP_IKON.ladda} Visa resultat</button>
+          <span class="insp-resprocent">${procent} % · ${godk ? "Godkänd" : "Underkänd"}</span>
+        </div>
+      </section>
+      <div class="tsum">
+        <div class="tsum-box"><span class="tsum-n">${r.antalRatt} / ${r.bedombara}</span><span class="tsum-l">rätt av bedömningsbara frågor</span></div>
+        <div class="tsum-box"><span class="tsum-n" style="color:${godk ? "var(--ok)" : "var(--err)"}">${procent} %</span><span class="tsum-l">totalt resultat</span></div>
+        <div class="tsum-box"><span class="tsum-n">${fmtTid(fo.anvandTid || 0)}</span><span class="tsum-l">${fo.utanTid ? "utan tidsgräns" : `av ${fo.minuter} minuter${fo.auto ? " · tiden tog slut" : ""}`}</span></div>
+        <div class="tsum-box"><span class="tsum-n">${r.svarade} / ${r.antalFragor}</span><span class="tsum-l">besvarade frågor</span></div>
+      </div>`,
+      moduler: gx + duellModulJamforelse(rs, mina) };
+  }
+  /* Försöket finns inte kvar här (annan enhet eller för gammalt): visa det som sparades med resultatet. */
+  return { fo: null, procent,
+    kort: `<section class="insp-kort">
+      <div class="insp-gul"><span class="insp-gulikon">${INSP_IKON.bock}</span><span>Du lämnade in${mitt.nar ? " " + inspSedan(mitt.nar) : ""}</span></div>
+      <h3 class="insp-resrubrik">Tentamensresultat</h3>
+      <div class="insp-streckad">
+        <span style="font-size:14.5px; color:var(--ink-2); max-width:46ch">Frågorna och dina svar finns inte kvar på den här enheten, så bara siffrorna kan visas.</span>
+        <span class="insp-resprocent">${procent} % · ${godk ? "Godkänd" : "Underkänd"}</span>
+      </div>
+    </section>`,
+    moduler: duellModulKort(mitt.moduler) + duellModulJamforelse(rs, mitt.moduler) };
 }
 
 function viewHemGammal() {
@@ -22443,7 +22544,7 @@ function viewTentaHub() {
             <span class="idx">${f.sammanfattning.procent} %</span>
             <span>
               <span class="t">${esc(f.titel)}</span>
-              <span class="s">${fmtDatum(f.slutad)} · ${f.sammanfattning.ratt}/${f.sammanfattning.antal} rätt · ${fmtTid(f.anvandTid)}${f.auto ? " · tiden tog slut" : ""}</span>
+              <span class="s">${f.duell || f.live ? ({ RANKED: "Ranked", LIVEMATCH: "Livematch", DUELL: "Duell" })[duellTyp(f.duell, !!f.live)] + " · " : ""}${fmtDatum(f.slutad)} · ${f.sammanfattning.ratt}/${f.sammanfattning.antal} rätt · ${fmtTid(f.anvandTid)}${f.auto ? " · tiden tog slut" : ""}</span>
             </span>
             <span class="arrow" aria-hidden="true">→</span>
           </button>
@@ -23676,6 +23777,7 @@ function viewTentaGranska(fid, posArg) {
     framsteg: Math.round(100 * (pos + 1) / n),
     meny: `<div class="insp-menyinfo">Inlämnad ${fmtDatum(fo.slutad)} · ${r.totalProcent} % · ${inspBetyg(r.totalProcent) === "G" ? "Godkänd" : "Underkänd"} (gräns ${godkantGrans()} %)</div>
       <button class="insp-menyrad" data-go="/tenta/resultat/${encodeURIComponent(fo.id)}">Till resultatet</button>
+      ${fo.duell && fo.duell.seed ? `<button class="insp-menyrad" data-go="/duell/m/${encodeURIComponent(fo.duell.seed)}">Till matchen</button>` : ""}
       <button class="insp-menyrad" data-go="/tenta">Tillbaka till listan</button>`,
     nrKolumn: `<span>${pos + 1}</span>`,
     kropp, oversikt, flikar,
@@ -24431,7 +24533,7 @@ function viewTentaResultat(fid) {
   }).join("");
 
   view.innerHTML = `
-    ${inspBand({ titel: f.titel, typ: f.duell ? "DUELL" : f.live ? "LIVEMATCH" : "INDIVIDUELL", status: "INLÄMNAD",
+    ${inspBand({ titel: f.titel, typ: f.duell || f.live ? duellTyp(f.duell, !!f.live) : "INDIVIDUELL", status: "INLÄMNAD",
       betyg: inspBetyg(r.totalProcent), betygTitel: `${r.totalProcent} %, gräns ${godkantGrans()} %`,
       tillbaka: f.duell ? "/duell/m/" + encodeURIComponent(f.duell.seed) : "/tenta/" + encodeURIComponent(t.id) })}
     <section class="insp-kort">
@@ -24580,7 +24682,7 @@ function viewTentaResultat(fid) {
         </div>` : ""}
 
     <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:26px">
-      <button class="btn primary" data-go="/tenta/${encodeURIComponent(t.id)}">Gör om tentan</button>
+      ${tentaById(t.id) ? `<button class="btn primary" data-go="/tenta/${encodeURIComponent(t.id)}">Gör om tentan</button>` : ""}
       ${f.duell
         ? `<button class="btn" data-go="/duell/m/${encodeURIComponent(f.duell.seed)}">Se matchens ställning</button>`
         : `<button class="btn" data-go="/duell/dela/${encodeURIComponent(f.id)}">Dela resultatet med kursen</button>`}
@@ -25223,13 +25325,14 @@ function eloPanelHtml() {
       ${h.length ? `<details style="margin-top:12px">
         <summary style="cursor:pointer; font-size:13.5px">De ${Math.min(h.length, 10)} senaste matcherna</summary>
         <div class="tablewrap" style="margin-top:10px">
-          <table><thead><tr><th>När</th><th>Placering</th><th>Poäng</th><th>Summa</th></tr></thead><tbody>
+          <table><thead><tr><th>När</th><th>Placering</th><th>Poäng</th><th>Summa</th><th></th></tr></thead><tbody>
             ${h.slice(0, 10).map(x => `<tr>
               <td>${fmtDatum(x.nar)}</td>
               <td>${x.plats} av ${x.av}</td>
               <td style="color:${x.poang > 0 ? "var(--ok)" : x.poang < 0 ? "var(--err)" : "var(--ink-3)"}">
                 ${x.poang > 0 ? "+" : ""}${x.poang}</td>
-              <td>${x.summa}</td></tr>`).join("")}
+              <td>${x.summa}</td>
+              <td>${x.id ? `<button class="lankmal" data-go="/duell/m/${encodeURIComponent(x.id)}">Resultat och moduler</button>` : ""}</td></tr>`).join("")}
           </tbody></table>
         </div></details>` : ""}
     </div>`;
@@ -26529,10 +26632,13 @@ function viewDuellMatch(seed) {
   const jag = jagId();
   const mitt = rs.find(r => r.pid === jag.id);
 
+  const _dm = duellMitt(seed, null);
   view.innerHTML = `
-    ${duellCrumbs([{ t: "Match" }])}
-    <p class="eyebrow">Duell</p>
-    <h1>${esc(u ? duellTitel(u) : "Match")}</h1>
+    ${inspBand({ titel: u ? duellTitel(u) : "Match", typ: duellTyp(u, false), status: mitt || _dm.fo ? "INLÄMNAD" : "EJ GJORD",
+      betyg: _dm.procent !== null ? inspBetyg(_dm.procent) : "", betygTitel: _dm.procent !== null ? `${_dm.procent} %, gräns ${godkantGrans()} %` : "",
+      tillbaka: "/duell" })}
+    ${_dm.kort}
+    <h2 style="margin:26px 0 0">Ställning</h2>
     ${!rs.length ? `<div class="empty" style="margin-top:22px">
         <b>Inga resultat ännu</b>
         När du och de andra gjort matchen och klistrat in varandras resultatkoder dyker de upp här.</div>`
@@ -26548,6 +26654,7 @@ function viewDuellMatch(seed) {
           </tr>`).join("")}</tbody>
       </table></div>`}
 
+    ${_dm.moduler}
     ${delningsVarning(seed)}
     ${nyhetsPanel("match:" + seed)}
     ${historikPanel(seed)}
@@ -28162,11 +28269,14 @@ function viewDuellLive(id, lankgrupp) {
     return r ? r.poang : null;
   };
 
+  const _dm = duellMitt(m.seed, id);
   view.innerHTML = `
-    ${duellCrumbs([{ t: "Livematch" }])}
-    <p class="eyebrow">Livematch · resultat</p>
-    <h1>${esc(duellTitel(u))}</h1>
-    <p class="lede">${m.antal} frågor · ${m.minuter} minuter · grupp ${esc(SYNK.grupp)}.
+    ${inspBand({ titel: duellTitel(u), typ: duellTyp(u, true), status: "INLÄMNAD",
+      betyg: _dm.procent !== null ? inspBetyg(_dm.procent) : "", betygTitel: _dm.procent !== null ? `${_dm.procent} %, gräns ${godkantGrans()} %` : "",
+      tillbaka: "/duell" })}
+    ${_dm.kort}
+    <h2 style="margin:26px 0 0">Ställning</h2>
+    <p class="lede" style="margin-top:8px">${m.antal} frågor · ${m.minuter} minuter · grupp ${esc(SYNK.grupp)}.
     ${m.slappt && inteKlara.length ? "Resultatet släpptes innan alla var klara." : "Alla har lämnat in."}</p>
 
     <div class="tablewrap" style="margin-top:18px">
@@ -28202,12 +28312,24 @@ function viewDuellLive(id, lankgrupp) {
       <div style="margin-top:10px"><button class="btn" data-go="/duell">Se din ELO-historik</button></div>
     </div>` : ""}
 
+    ${_dm.moduler}
+
     <div class="rule"></div>
     <h2>Gå igenom frågorna tillsammans</h2>
-    <p style="font-size:14px; color:var(--ink-2); max-width:66ch">
-      Alla frågor med rätt svar, i den ordning ni fick dem. Har du gjort matchen på den här
-      enheten är ditt eget svar utmarkerat — annars ser du bara facit.</p>
-    <div style="margin-top:16px">${liveFacitLista(u, id)}</div>
+    ${_dm.fo ? `<p style="font-size:14px; color:var(--ink-2); max-width:66ch">
+        Öppna dina inlämnade svar i tentavyn, med rätt svar och förklaring till varje fråga.</p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
+        <button class="btn primary" data-go="/tenta/granska/${encodeURIComponent(_dm.fo.id)}/0">Visa inlämnade svar</button>
+        <button class="btn" data-go="/tenta/resultat/${encodeURIComponent(_dm.fo.id)}">Visa hela resultatet</button>
+      </div>
+      <details class="panel" id="lfacit" style="margin-top:16px">
+        <summary style="cursor:pointer; font-weight:600">Alla frågor med facit på en sida</summary>
+        <div id="lfacitin" style="margin-top:14px"></div>
+      </details>`
+    : `<p style="font-size:14px; color:var(--ink-2); max-width:66ch">
+        Alla frågor med rätt svar, i den ordning ni fick dem. Matchen gjordes inte på den här
+        enheten, så du ser bara facit.</p>
+      <div style="margin-top:16px">${liveFacitLista(u, id)}</div>`}
 
     <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:22px">
       <button class="btn" data-go="/duell/m/${encodeURIComponent(m.seed)}">Matchens topplista</button>
@@ -28215,6 +28337,12 @@ function viewDuellLive(id, lankgrupp) {
       ${vard ? `<button class="btn" id="lavbryt2">Ta bort matchen</button>` : ""}
     </div>`;
 
+  /* Den långa facitlistan byggs först när man öppnar den. */
+  const lfd = document.getElementById("lfacit");
+  if (lfd) lfd.addEventListener("toggle", () => {
+    const ruta = document.getElementById("lfacitin");
+    if (lfd.open && ruta && !ruta.dataset.klar) { ruta.dataset.klar = "1"; ruta.innerHTML = liveFacitLista(u, id); }
+  });
   const av2 = document.getElementById("lavbryt2");
   if (av2) av2.addEventListener("click", async () => {
     if (!await bekrafta("Ta bort livematchen? Resultatet finns kvar på topplistan.", "Ta bort")) return;
@@ -37316,7 +37444,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261113-1700";
+const BYGGID = "20261114-1401";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
