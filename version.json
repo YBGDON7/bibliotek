@@ -1,5 +1,5 @@
 {
-  "bygg": "20261114-1401",
-  "namn": "Dueller, livematcher och ranked visar nu samma resultat som tentasimulatorn: moduler, Visa inlämnade svar och jämförelse med matchen. Gäller även äldre matcher.",
-  "nar": "2026-11-14T14:14:00+00:00"
+  "bygg": "20261116-0951",
+  "namn": "Uppladdade tentor: tecken från Word (%, °, ±, pilar, grekiska bokstäver) visas rätt, sidhuvud och sidfot hamnar inte i frågorna, bilder kopplas till rätt fråga, inskannade tentor läses renare (radioknappar och frågenummer) och skrivfrågor med svar tas med.",
+  "nar": "2026-11-16T10:15:04+00:00"
 }

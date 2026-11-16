@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="bygg" content="20261114-1401">
+<meta name="bygg" content="20261116-0951">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lärandemålsbiblioteket</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -18144,7 +18144,22 @@ const RE_FRAGA_ENSAM = /^\s*(\d{1,3})\s*$/;          // numret på egen rad, tex
 const RE_FRAGA_DUBBEL = /^\s*(\d{1,3})\s+\1\s*[a-zA-Z]?\s*$/;
 const RE_ENDAST_SYMBOL = /^[^\p{L}\p{N}]{1,3}$/u;      // punktlista före ett alternativ
 const RE_ALT = /^\s*(\S{1,3}\s+)?[(\[]?\s*([a-hA-H])\s*[.)\]:]\s+(.*\S)\s*$/;
-const RE_RATTSVAR = /^\s*(?:rätt(?:a)?\s*svar(?:et)?|korrekt(?:a)?\s*svar|svar|facit)\s*(?:är)?\s*[:：]?\s*([a-hA-H])\s*[.)\]]?\s*$/i;
+const RE_RATTSVAR = /^\s*(?:rätt(?:a)?\s*svar(?:et)?|korrekt(?:a)?\s*svar|rätt\s*alternativ|svar|facit|(?:the\s+)?(?:correct|right)\s+(?:answer|option|alternative)|answer|key)\s*(?:är|is)?\s*[:：]?\s*([a-hA-H])\s*[.)\]]?\s*$/i;
+/* "Fråga 3 (1 p)", "Question 3", "Uppgift 3:" på egen rad – frågetexten följer på nästa rad */
+const RE_FRAGA_RUBRIK = /^\s*(?:fråga|question|uppgift|task|item)\s*(\d{1,3})\s*(?:\(\s*([\d.,]+)\s*p\w*\s*\))?\s*[.:)\-–]?\s*(.*)$/i;
+/* tabellrad: delar med stora mellanrum emellan */
+function tabellCeller(rad) {
+  const d = (rad.delar || []).filter(x => String(x.s || "").trim());
+  if (d.length < 2) return null;
+  const celler = [];
+  let nu = null;
+  d.forEach((x, i) => {
+    const fore = d[i - 1];
+    if (!nu || (fore && x.x - (fore.xe || fore.x) > Math.max(10, (rad.h || 10) * 1.4))) { nu = { s: "" }; celler.push(nu); }
+    nu.s += (nu.s && !/\s$/.test(nu.s) ? " " : "") + String(x.s).trim();
+  });
+  return celler.length >= 2 ? celler.map(c => c.s.trim()).filter(Boolean) : null;
+}
 const RE_FACITRAD = /^\s*(\d{1,3})\s*[.):\-–]?\s*([a-hA-H])\s*$/;
 const RE_FACITRUBRIK = /^\s*(facit|svarsnyckel|rätta\s*svaren?|rättningsmall|answer\s*key|lösningsförslag)\s*[:.\-–]?\s*$/i;
 const RE_VALJ = /^\s*(välj|markera|kryssa)\s+(ett|en|det|flera|alla|minst)\b/i;
@@ -18258,6 +18273,14 @@ async function pdfSidData(sida) {
     }
   }
 
+  /* fontnamn för symboltecken: Symbol och Wingdings lägger tecknen på olika platser */
+  const namnCache = {};
+  const fontNamn = fn => {
+    if (namnCache[fn] !== undefined) return namnCache[fn];
+    let namn = "";
+    try { const f = sida.commonObjs.get(fn); namn = (f && (f.name || f.loadedName)) || ""; } catch (e) {}
+    return (namnCache[fn] = namn);
+  };
   /* fontnamn för fetstilsdetektering (upplösta först efter getOperatorList) */
   const fetCache = {};
   const arFet = fn => {
@@ -18271,7 +18294,7 @@ async function pdfSidData(sida) {
   const tc = await sida.getTextContent();
   const bitar = tc.items
     .filter(i => i.str && i.transform)
-    .map(i => ({ s: String(i.str), x: i.transform[4], y: i.transform[5], h: Math.abs(i.height) || 10, w: i.width || 0, fet: arFet(i.fontName) }))
+    .map(i => ({ s: symbolTecken(String(i.str), /[\uE000-\uF8FF]/.test(i.str) ? fontNamn(i.fontName) : ""), x: i.transform[4], y: i.transform[5], h: Math.abs(i.height) || 10, w: i.width || 0, fet: arFet(i.fontName) }))
     .sort((a, b) => (b.y - a.y) || (a.x - b.x));
 
   const grupper = [];
@@ -18300,7 +18323,9 @@ async function pdfSidData(sida) {
     /* Ett tecken utan glyf (\u0000) är laddningen i en jon: minus efter anjoner, annars plus. */
     if (txt.indexOf("\u0000") >= 0) txt = txt
       .replace(/(HCO|HPO|SO|NO|CO|PO)([3-4₃₄]?)\s?\u0000/g, (m, a, b) => a + b + "\u207B")
-      .replace(/(Cl|OH|Br|I|F)\s?\u0000/g, "$1\u207B").replace(/\u0000/g, "\u207A");
+      .replace(/(Cl|OH|Br|I|F)\s?\u0000/g, "$1\u207B")
+      .replace(/(^|[\s(\[=<>≈~–-])(\d+(?:[.,]\d+)?)\s?\u0000(?=$|[\s,.;:)\]])/g, "$1$2 %")
+      .replace(/\u0000/g, "\u207A");
     /* inget mellanrum mellan index och skiljetecken: "(C₀ )" → "(C₀)" */
     txt = txt.replace(/([\u2080-\u208E\u2090-\u209C\u1D62-\u1D65\u2070-\u207F\u00B2\u00B3\u00B9]) ([.,:;)\]])/g, "$1$2");
     const langa = bs.filter(b => b.s.trim().length > 2);
@@ -18393,13 +18418,31 @@ async function pdfLasTenta(bytes, onProgress, opt) {
   }
 
   /* ---- sidhuvud och sidfot bort: text som upprepas på många sidor ---- */
-  const iMarginal = (r, hojd) => r.y > hojd * 0.93 || r.y < hojd * 0.07;
+  const iMarginal = (r, hojd) => r.y > hojd * 0.87 || r.y < hojd * 0.13;
+  const marginalNyckel = t => String(t || "").replace(/\d+/g, "#").replace(/\s+/g, " ").trim().toLowerCase();
+  /* Rader som hör till frågorna även när de står i marginalen och återkommer på varje sida. */
+  const skyddad = t => arTotalpoang(t) || arValjRad(t) || RE_FRITEXT.test(t) || RE_ROLLGARDIN.test(t) || arRedigerarSkrap(t) ||
+    /teckens|teckenf|^\s*(ord|words?)\s*:/i.test(t) || /^\s*([A-Ha-h]|[1-9]|alternativ\s*\d+|svar|answer|facit)\s*[.):]?\s*$/i.test(t) ||
+    /^\s*(\d{1,3}[.)]?\s+)?(fråga|question|uppgift|task|del|part|section|avsnitt)\s*\d+/i.test(t);
+  /* Sidnummer: samma avstånd mellan tryckt nummer och sidans plats på de flesta sidor. */
+  const sidnrMonster = (() => {
+    const per = {};
+    sidor.forEach(s => {
+      const set = new Set();
+      s.rader.forEach(r => { if ((r.y > s.hojd * 0.93 || r.y < s.hojd * 0.07) && /^\s*\d{1,3}\s*$/.test(r.text)) set.add(Number(r.text) - s.nr); });
+      set.forEach(d => { per[d] = (per[d] || 0) + 1; });
+    });
+    const bast = Object.keys(per).sort((a, b) => per[b] - per[a])[0];
+    return bast !== undefined && per[bast] >= Math.max(3, Math.ceil(sidor.length * 0.5)) ? { diff: Number(bast) } : null;
+  })();
   const forekomst = {};
   sidor.forEach(s => {
     const sedda = new Set();
     s.rader.forEach(r => {
-      if (!iMarginal(r, s.hojd) || sedda.has(r.text)) return;
-      sedda.add(r.text); forekomst[r.text] = (forekomst[r.text] || 0) + 1;
+      if (!iMarginal(r, s.hojd)) return;
+      const k = marginalNyckel(r.text);
+      if (!k || sedda.has(k)) return;
+      sedda.add(k); forekomst[k] = (forekomst[k] || 0) + 1;
     });
   });
   const gransUpprepning = Math.max(3, Math.ceil(sidor.length * 0.35));
@@ -18410,7 +18453,11 @@ async function pdfLasTenta(bytes, onProgress, opt) {
       if (ocr && iMarginal(r, s.hojd) && (/https?:|inspera|www\./i.test(r.text) ||
         /^\d{4}-\d{2}-\d{2}\b/.test(r.text) || /^\d{1,3}\s*[\/|l]\s*\d{1,3}$/.test(r.text))) return false;
       /* bara text i sidhuvud eller sidfot får rensas bort som upprepning */
-      if (iMarginal(r, s.hojd) && forekomst[r.text] >= gransUpprepning && r.text.length < 200) return false;
+      if (iMarginal(r, s.hojd) && forekomst[marginalNyckel(r.text)] >= gransUpprepning && r.text.length < 200 && !skyddad(r.text) &&
+        /\p{L}{2}/u.test(r.text)) return false;
+      /* ett ensamt sidnummer längst upp eller ned, när sidorna numreras så genom hela dokumentet */
+      if (sidnrMonster && /^\s*\d{1,3}\s*$/.test(r.text) && Number(r.text) - s.nr === sidnrMonster.diff &&
+        (r.y > s.hojd * 0.93 || r.y < s.hojd * 0.07)) return false;
       return true;
     });
   });
@@ -18698,6 +18745,31 @@ const RE_REDIGERARE = /^\s*(format\b.*|words?\s*:\s*\d+|ord\s*:\s*\d+|tecken\s*:
 function arRedigerarSkrap(t) {
   const s = String(t || "").replace(/[\uE000-\uF8FF\s]/g, "");
   return !s || RE_REDIGERARE.test(t) || /^[Σ∑ΩΣ\-–|]+$/.test(s);
+}
+
+/* Adobe Symbol-kodning (0x20–0xFF) och de vanligaste Wingdings-tecknen. */
+const SYMBOL_PUA = (() => {
+  const t = {};
+  const rad = (start, tecken) => [...tecken].forEach((c, i) => { if (c !== "·") t[start + i] = c; });
+  rad(0x20, " !∀#∃%&∋()∗+,−./0123456789:;<=>?");
+  rad(0x40, "≅ΑΒΧΔΕΦΓΗΙϑΚΛΜΝΟΠΘΡΣΤΥςΩΞΨΖ[∴]⊥_");
+  rad(0x60, "‾αβχδεφγηιϕκλμνοπθρστυϖωξψζ{|}∼");
+  rad(0xA0, "€ϒ′≤⁄∞ƒ♣♦♥♠↔←↑→↓°±″≥×∝∂•÷≠≡≈…|—↵");
+  rad(0xC0, "ℵℑℜ℘⊗⊕∅∩∪⊃⊇⊄⊂⊆∈∉∠∇®©™∏√⋅¬∧∨⇔⇐⇑⇒⇓");
+  rad(0xE0, "◊〈®©™∑⎛⎜⎝⎡⎢⎣⎧⎨⎩⎪·〉∫⌠⎮⌡⎞⎟⎠⎤⎥⎦⎫⎬⎭");
+  return t;
+})();
+const WINGDINGS_PUA = { 0x6C: "●", 0x6E: "■", 0x6F: "□", 0x71: "❑", 0x75: "◆", 0x76: "❖", 0x77: "◆", 0x9F: "•", 0xA7: "▪",
+  0xA8: "◻", 0xD8: "➢", 0xE0: "→", 0xE8: "➔", 0xF0: "⇨", 0xFB: "✗", 0xFC: "✓", 0xFD: "☒", 0xFE: "☑", 0x9E: "·", 0xB7: "•" };
+/* Bara tecken ur Symbol och Wingdings översätts. Ikonteckensnitt (till exempel verktygsraden i
+   Insperas textruta) ligger också i det privata området, men där betyder platserna något annat
+   och tecknen ska lämnas orörda – läsaren känner igen dem som ikoner och sorterar bort dem. */
+function symbolTecken(s, font) {
+  if (!/[\uF020-\uF0FF]/.test(s)) return s;
+  const f = String(font || "");
+  const tabell = /wingding|webding|zapf|dingbat/i.test(f) ? WINGDINGS_PUA : /symbol/i.test(f) ? SYMBOL_PUA : null;
+  if (!tabell) return s;
+  return s.replace(/[\uF020-\uF0FF]/g, ch => tabell[ch.charCodeAt(0) - 0xF000] || ch);
 }
 
 /* ---------- är det en Inspera-tenta? ---------- */
@@ -19268,7 +19340,7 @@ function byggInsperaFraga(seg, tpRad, k, C) {
   }
   const JONER = { Nat: "Na⁺", Kt: "K⁺", "K+": "K⁺", "Na+": "Na⁺", "Cl-": "Cl⁻", Clt: "Cl⁻", Ht: "H⁺" };
   if (C.ocr) altLista.forEach((a, j) => {
-    a = a.replace(/^['‘’"«»©®°•·|]+\s*/, "");
+    a = a.replace(/^['‘’"«»©®°•·|]+\s*/, "").replace(/^[()+.,:;]{1,2}\s+(?=\p{L})/u, "");
     altLista[j] = JONER[a.trim()] || a;
   });
   const arFlerval = flersvar || valda.length >= 2;
@@ -19992,7 +20064,66 @@ async function ocrSidData(sida, worker, mask) {
     rader.push(r);
   })));
   rader.sort((a, b) => (b.y - a.y) || (a.x0 - b.x0));
+  ocrStadaRader(rader);
   return { rader, markeringar, bilder: [], overstrykningar: [] };
+}
+
+/* Efterarbete på en inskannad sida:
+   · skanningens kant läses som "|" eller "!" först eller sist på raden ("| Totalpoäng: 1"),
+   · en upphöjd eller liten siffra i frågenumret tappas ("1 Fråga 11") – numret efter
+     "Fråga" är det säkra,
+   · radioknappen framför ett alternativ läses som "0", ")", "+", "OO", "(0" … Den står en bit
+     till vänster om alternativens kolumn, så bara korta tecken på den platsen tas bort. */
+const RE_OCR_SKRAP = /^[()[\]{}<>+.,:;|!'"`´°©®«»~*•·=\-–—0OoQCcDAUV]{1,3}$/;
+function ocrStadaRader(rader) {
+  rader.forEach(r => {
+    r.text = r.text.replace(/^[|!¦‖]+\s*/, "").replace(/\s*[|¦‖]+$/, "").trim();
+    r.text = r.text.replace(/^[:;]+\s*(?=\p{L})/u, "");   // ": Totalpoäng: 1"
+    const m = r.text.match(/^\s*\d{0,3}\s*(fråga|question|uppgift)\s+(\d{1,3})\s*$/i);
+    if (m) r.text = m[2] + " " + m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase() + " " + m[2];
+  });
+  /* Varje fråga för sig (frågenumret och "Totalpoäng" skiljer dem åt): stammens
+     vänsterkant och alternativens kolumn ligger olika på olika frågor. */
+  let seg = [];
+  const segment = [seg];
+  rader.forEach(r => {
+    if (/^\d{0,3}\s*(fråga|question|uppgift)\s+\d{1,3}$/i.test(r.text) || /^totalpo/i.test(r.text)) { seg = []; segment.push(seg); }
+    else seg.push(r);
+  });
+  segment.forEach(ocrStadaSegment);
+}
+function ocrStadaSegment(rader) {
+  const bokst = rader.filter(r => /^\p{L}/u.test(r.text) && !/^totalpo/i.test(r.text));
+  if (!bokst.length) return;
+  const valj = bokst.find(r => /^(välj|select)\b/i.test(r.text));
+  const stam = valj ? valj.x0 : Math.min(...bokst.map(r => r.x0));
+  /* alternativens kolumn: den största gruppen vänsterkanter (±4 pt) till höger om stammen */
+  const hoger = bokst.filter(r => r.x0 > stam + 12).map(r => r.x0).sort((a, b) => a - b);
+  let bast = null;
+  for (let i = 0; i < hoger.length; i++) {
+    let n = 0; while (i + n < hoger.length && hoger[i + n] - hoger[i] <= 4) n++;
+    if (n >= 2 && (!bast || n > bast.n)) bast = { x: hoger[i], n };
+  }
+  const alt = bast ? bast.x : Infinity;
+  /* Efter "Välj ett alternativ" är varje indragen rad ett alternativ. Har alla
+     alternativen fått radioknappen framför sig finns ingen ren kolumn att mäta mot. */
+  const efterValj = valj ? rader.slice(rader.indexOf(valj) + 1).filter(r => r.x0 > stam + 3) : [];
+  const skrapForst = r => { const m = r.text.match(/^(\S{1,3})\s+(?=\p{L})/u); return m && RE_OCR_SKRAP.test(m[1]) ? m : null; };
+  const mangaSkrap = efterValj.length >= 2 && efterValj.filter(skrapForst).length * 2 >= efterValj.length;
+  rader.forEach(r => {
+    if (r.x0 <= stam + 3) return;
+    const m = skrapForst(r);
+    if (!m) return;
+    const iAltLista = efterValj.includes(r);
+    const vanster = r.x0 < alt - 0.5;
+    if (!vanster && !iAltLista) return;
+    /* en ensam bokstav kan vara ett ord – bara när den står tätt intill alternativen
+       eller när de flesta alternativen bär samma slags skräp */
+    if (/^\p{L}+$/u.test(m[1]) && !(mangaSkrap || (vanster && r.x0 >= alt - 16))) return;
+    if (!vanster && !mangaSkrap && !/^[^\p{L}\p{N}]+$/u.test(m[1])) return;
+    r.text = r.text.slice(m[0].length);
+    if (vanster && isFinite(alt)) { r.x0 = alt; if (r.x1 < alt) r.x1 = alt; }
+  });
 }
 
 /* ---------- textigenkänning: flera arbetare parallellt ----------
@@ -20044,6 +20175,10 @@ async function ocrAllaSidor(doc, sidor, onProgress) {
          igenkänningen: figurerna klipps ut separat, och knappar och bockar
          läses annars som bokstäver ("O", "Vv"). */
       const glyfSida = (gammal.smaVagar || 0) > 250;
+      const sidyta = Math.max(1, (gammal.bredd || 595) * (gammal.hojd || 842));
+      const arSkanning = b => Math.abs((b.x1 - b.x0) * (b.y1 - b.y0)) > sidyta * 0.45;
+      /* skanningen är ingen figur: den tas bort ur sidans bilder, så att den varken maskas eller klipps ut som figur */
+      if (gammal.bilder) gammal.bilder = gammal.bilder.filter(b => !arSkanning(b));
       const mask = (gammal.bilder || []).concat(gammal.lagaBilder || []).concat(gammal.smaBilder || [])
         .concat((gammal.markeringar || []).filter(m => m.fargad ||
           (!glyfSida && (m.x1 - m.x0) >= 5.5 && (m.x1 - m.x0) <= 14 && Math.abs((m.x1 - m.x0) - (m.y1 - m.y0)) < 3)));
@@ -20061,6 +20196,9 @@ async function ocrAllaSidor(doc, sidor, onProgress) {
    kan betyda något annat rättas. */
 function ocrRatta(t) {
   return String(t || "")
+    .replace(/\bNat(?=\s+\p{Ll}|[-–]|$)/gu, "Na⁺").replace(/\bKt(?=\s+\p{Ll}|[-–]|$)/gu, "K⁺")
+    .replace(/\b(Na|K|H|Li)\s?["”'’]{1,2}(?=[\s),.;:]|$)/g, "$1⁺")
+    .replace(/\bCI\s?[-–]?\s?(?=(kanal|jon|transport|ström))/g, "Cl⁻-")
     .replace(/(\d)\s?(?:Yo|9o|°o|0\/0)(?=\s|$|[.,)])/g, "$1 %")
     .replace(/\b(Pa|P|p|pa|a)?(CO|O)[>»](?=[\s\-)–,.:;]|$)/g, (m, a, b) => (a || "") + b + "₂")
     .replace(/\b(Pa|P|p|pa)(CO|O)[,;:z2](?=\s*[\d<>=≈]|\s*-|\))/g, "$1$2₂")
@@ -20697,6 +20835,14 @@ function parsaBokstavsläge(rader, sidor) {
   const facitrader = [];
 
   const stang = () => {
+    /* skrivfråga: inga alternativ, men ett svar eller en tydlig frågeform */
+    if (nu && nu.alternativ.length < 2 && nu.q && nu.q.length > 12 &&
+        (nu.svartext || /\?|\(\s*\d+(?:[.,]\d+)?\s*p\w*\s*\)|\b(beskriv|förklara|redogör|nämn|ange|resonera|diskutera|rita|motivera)\b/i.test(nu.q))) {
+      nu.text = true; nu.alternativ = [];
+      fragor.push(nu);
+      nu = null; sistaAlt = null;
+      return;
+    }
     if (nu && nu.alternativ.length >= 2 && nu.q) {
       const xs = nu.alternativ.map(a => a.x0).filter(x => isFinite(x)).sort((a, b) => a - b);
       if (xs.length >= 3) {
@@ -20724,6 +20870,17 @@ function parsaBokstavsläge(rader, sidor) {
     }
     if (iFacitblock) return;
 
+    /* svarstext till en skrivfråga: allt efter "Svar:" fram till nästa fråga */
+    if (nu && nu.alternativ.length === 0) {
+      const sv = t.match(/^\s*(?:svar|facit|svarsförslag|förslag till svar|answer|modellsvar)\s*[:：]\s*(.*)$/i);
+      if (sv && !RE_RATTSVAR.test(t)) { nu.svartext = sv[1].trim(); nu.iSvar = true; return; }
+      if (nu.iSvar) {
+        const nf2 = t.match(RE_FRAGA_PUNKT);
+        /* en numrerad rad i svaret ("1. Lamina lucida") är inte nästa fråga, om numret inte passar */
+        const nasta = nf2 && nf2[2] && nf2[2].length > 8 && +nf2[1] > nu.nr && +nf2[1] <= nu.nr + 3;
+        if (!nasta) { nu.svartext = (nu.svartext ? nu.svartext + "\n" : "") + t.trim(); return; }
+      }
+    }
     const rs = t.match(RE_RATTSVAR);
     if (rs && nu) { nu.explicit = rs[1].toUpperCase().charCodeAt(0) - 65; sistaAlt = null; return; }
 
@@ -20734,7 +20891,7 @@ function parsaBokstavsläge(rader, sidor) {
         nu.alternativ.push({
           text: alt[3].trim(),
           textmark: !!(alt[1] && alt[1].trim()),
-          grafisk: harGrafiskMarkering(rad),
+          grafisk: harGrafiskMarkering(rad), gul: !!rad.markerad,
           fet: rad.fet, x0: rad.x0
         });
         sistaAlt = nu.alternativ[nu.alternativ.length - 1];
@@ -20742,6 +20899,21 @@ function parsaBokstavsläge(rader, sidor) {
       }
     }
 
+    /* rubrik "Fråga 3 (1 p)" på egen rad */
+    const rb = t.match(RE_FRAGA_RUBRIK);
+    if (rb && (!nu || nu.alternativ.length >= 2 || nu.alternativ.length === 0 || nu.svartext) && !(rb[3] && rb[3].length > 0 && rb[3].length < 4)) {
+      stang();
+      nu = { nr: +rb[1], q: (rb[3] || "").trim(), alternativ: [], explicit: null, sida: rad.sida, y: rad.y, rubrikPoang: rb[2] || null, tabell: [] };
+      sistaAlt = null;
+      return;
+    }
+    /* alternativ som bara är en bokstav (svaret står i en tabell ovanför) */
+    const ensam = t.match(/^\s*[(\[]?\s*([a-hA-H])\s*[.)\]:]?\s*$/);
+    if (ensam && nu && ensam[1].toUpperCase().charCodeAt(0) - 65 === nu.alternativ.length && (nu.alternativ.length > 0 || /^[aA]$/.test(ensam[1]))) {
+      nu.alternativ.push({ text: ensam[1].toUpperCase(), bara: true, textmark: false, grafisk: harGrafiskMarkering(rad), gul: !!rad.markerad, fet: rad.fet, x0: rad.x0 });
+      sistaAlt = null;
+      return;
+    }
     const nf = t.match(RE_FRAGA_PUNKT);
     if (nf && nf[2] && nf[2].length > 8 && (!nu || nu.alternativ.length >= 2 || nu.alternativ.length === 0)) {
       stang();
@@ -20751,15 +20923,54 @@ function parsaBokstavsläge(rader, sidor) {
     }
     if (nu) {
       if (sistaAlt) sistaAlt.text += " " + t;
-      else if (nu.q.length < 400) nu.q = (nu.q ? nu.q + " " : "") + t;
+      else {
+        /* tabellrader sparas för sig, så att de kan bli alternativ eller en egen rad i texten */
+        const cel = tabellCeller(rad);
+        if (cel) { (nu.tabell = nu.tabell || []).push(cel); return; }
+        if (nu.q.length < 1200) nu.q = (nu.q ? nu.q + " " : "") + t;
+      }
     }
   });
   stang();
+  /* Tabellen: rader som börjar med alternativets bokstav blir alternativets text, med kolumnrubrikerna
+     framför ("ICV: fosfat · Plasma: protein"). Resten av tabellen står kvar i frågan, en rad per rad. */
+  fragor.forEach(f => {
+    const tab = f.tabell || [];
+    if (!tab.length) return;
+    const bokstavsrad = c => /^[A-Ha-h][.)]?$/.test(c[0]) ? c[0][0].toUpperCase() : null;
+    const forsta = tab.findIndex(c => bokstavsrad(c));
+    const rubrik = forsta > 0 && !bokstavsrad(tab[forsta - 1]) ? tab[forsta - 1] : null;
+    const anvanda = new Set();
+    if (f.alternativ.length >= 2 && f.alternativ.every(a => a.bara)) {
+      f.alternativ.forEach(a => {
+        const i = tab.findIndex((c, j) => !anvanda.has(j) && bokstavsrad(c) === a.text);
+        if (i < 0) return;
+        anvanda.add(i);
+        const celler = tab[i].slice(1);
+        const rub = rubrik && rubrik.length === celler.length ? rubrik : rubrik && rubrik.length === celler.length + 1 ? rubrik.slice(1) : null;
+        a.text = rub ? celler.map((c, k) => `${rub[k]}: ${c}`).join(" · ") : celler.join(" · ");
+        a.bara = false;
+      });
+      if (rubrik && anvanda.size) anvanda.add(forsta - 1);
+    }
+    const kvar = tab.filter((c, j) => !anvanda.has(j));
+    if (kvar.length) f.q = (f.q ? f.q + "\n" : "") + kvar.map(c => c.join(" · ")).join("\n");
+  });
 
   const facitkarta = {};
   facitrader.forEach(f => { facitkarta[f.nr] = f.bokstav.charCodeAt(0) - 65; });
 
   const ut = fragor.map((f, i) => {
+    if (f.text) {
+      const pm = f.q.match(/^\s*\(\s*(\d+(?:[.,]\d+)?)\s*p\w*\s*\)\s*/i) || f.q.match(/\(\s*(\d+(?:[.,]\d+)?)\s*p\w*\s*\)\s*$/i) ||
+        (f.rubrikPoang ? ["", f.rubrikPoang] : null);
+      return {
+        id: "f" + (i + 1), nr: f.nr, q: pm ? f.q.replace(pm[0], " ").replace(/\s+/g, " ").trim() : f.q,
+        options: [], svar: null, typ: "text", poang: pm ? Number(pm[1].replace(",", ".")) || 1 : 1,
+        facit: (f.svartext || "").trim(), facitrubrik: "Svar", hur: f.svartext ? "svarblock" : null,
+        oense: false, sida: f.sida, y: f.y, flersvar: false, mal: null, konf: null
+      };
+    }
     const kand = [];
     const textmark = f.alternativ.findIndex(a => a.textmark);
     const grafisk = f.alternativ.findIndex(a => a.grafisk);
@@ -20767,6 +20978,8 @@ function parsaBokstavsläge(rader, sidor) {
     if (f.explicit !== null && f.explicit < f.alternativ.length) kand.push({ i: f.explicit, k: 100, hur: "textrad" });
     if (textmark >= 0) kand.push({ i: textmark, k: 90, hur: "kryss" });
     if (grafisk >= 0) kand.push({ i: grafisk, k: 80, hur: "markering" });
+    const gula = f.alternativ.map((a, j) => a.gul ? j : -1).filter(j => j >= 0);
+    if (gula.length === 1) kand.push({ i: gula[0], k: 85, hur: "överstrykning" });
     if (feta.length === 1) kand.push({ i: feta[0], k: 70, hur: "fetstil" });
     if (facitkarta[f.nr] !== undefined && facitkarta[f.nr] < f.alternativ.length)
       kand.push({ i: facitkarta[f.nr], k: 60, hur: "facitlista" });
@@ -20896,11 +21109,12 @@ async function fangaFigurer(doc, fragor, sidor, onProgress) {
           f.y <= ruta.y1 - 6 && f.y > ruta.y1 - 45 && f.xslut < ruta.x0 + 4)
         .sort((a, b) => b.y - a.y)[0];
       const nedanfor = pasidan
-        .filter(f => typeof f.xslut === "number" && typeof f.y === "number" && f.y < ruta.y0 + 6)
+        .filter(f => typeof f.y === "number" && f.y < ruta.y0 + 6)
         .sort((a, b) => b.y - a.y)[0];
       if (bredvid) agare = bredvid;
       else if (nedanfor && ruta.y0 - nedanfor.y < 45 && RE_PEKAR.test(String(nedanfor.q || "")) &&
-          !(agare && RE_PEKAR.test(String(agare.q || "")))) agare = nedanfor;
+          (!(agare && RE_PEKAR.test(String(agare.q || ""))) || /\b(ovan|ovanstående|ovanför|above)\b/i.test(String(nedanfor.q || "")) ||
+           (agare && typeof agare.y === "number" && agare.y - ruta.y1 > 120))) agare = nedanfor;
       if (!agare) {
         /* Inget frågehuvud ovanför figuren på den här sidan: figuren hör
            till frågan som löper in från föregående sida. */
@@ -21290,6 +21504,7 @@ function snyggText(s, opt) {
     const ren = b.replace(/[.,;:?!)\]”"]+$/, "");
     if (SNYGG_BINDEORD.has(ren.toLowerCase())) return m;
     if (/^\p{Lu}\p{Ll}{2,}/u.test(ren)) return m;            // ny mening eller kolumn
+    if (/\p{N}$/u.test(a) && /^\p{N}/u.test(ren)) return m;   // "HCO3- 26": laddning och ett värde, inte ett ord
     if (!/^(?:[\p{L}\p{N}]{2,}|\p{N})/u.test(ren)) return m;   // "A." och liknande
     return a + "-" + b;
   });
@@ -21302,6 +21517,8 @@ function snyggText(s, opt) {
     (m, f, j) => f + snyggNed(j) + "⁺");
   t = t.replace(/(^|[^\p{L}\p{N}])(HCO3|H2PO4|NO3|NO2|OH|Cl)-(?=$|[\s,.;:)\/=]|-[\p{L}])/gu,
     (m, f, j) => f + snyggNed(j) + "⁻");
+  /* "Fe² ⁺" och "Ca²⁺ -kanaler": laddningen hör ihop med jonen och ordet efter */
+  t = t.replace(/([¹²³⁴⁵⁶⁷⁸⁹]) ([⁺⁻])/g, "$1$2").replace(/([\p{L}\p{N}₀-₉¹²³⁴⁵⁶⁷⁸⁹][⁺⁻]) -(?=\p{L}{3})/gu, "$1-");
   /* formler och partialtryck */
   t = t.replace(RE_SNYGG_FORMEL, (m, f, x) => f + snyggNed(x));
   t = t.replace(/(^|[^\p{L}\p{N}])(Pa|PA|Pv|PV|Pc|P|Sa|SA|Sp|Sv|S|Fi|FI|Et|ET|Ca|C)?(CO|O)2(?![\p{L}\p{N}])/gu,
@@ -21335,7 +21552,10 @@ function snyggText(s, opt) {
    etiketten borttagen; simulatorn sätter sina egna. Bara när ALLA alternativ
    bär exakt nästa bokstav, så att "a. arcuata" i en anatomifråga får stå kvar. */
 function snyggAlternativ(opts) {
-  const L = (opts || []).map(o => snyggText(o));
+  let L = (opts || []).map(o => snyggText(o));
+  /* Punktlista i originalet ("- svar", "• svar"): tecknet hör till layouten, inte till svaret. */
+  const RE_PUNKT = /^(?:[-–—*]\s*(?=\p{L})|[•·▪◦●○■□➢]\s*(?=\S))/u;   // ett minustecken framför en siffra är ett tal
+  if (L.length >= 2 && L.every(o => RE_PUNKT.test(o)) && new Set(L.map(o => o[0])).size === 1) L = L.map(o => o.replace(RE_PUNKT, ""));
   if (L.length >= 2) {
     const re = /^\(?([A-Ha-h1-9])[\).:]\s+(?=\S)/;
     const etik = L.map(o => (o.match(re) || [])[1]);
@@ -37444,7 +37664,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261114-1401";
+const BYGGID = "20261116-0951";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
