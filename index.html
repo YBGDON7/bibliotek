@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="bygg" content="20261116-0951">
+<meta name="bygg" content="20261116-1042">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lärandemålsbiblioteket</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -1154,6 +1154,10 @@ body.insp-pa #fragaknapp{display:none !important}
 .matchsvar.fel{border-color:var(--err); color:var(--err)}
 .matchfacit{color:var(--ok); margin-left:4px}
 .altbild{display:block; max-width:100%; max-height:220px; margin:2px 0; background:#fff; border-radius:4px}
+/* utklippt rad ur en inskannad tenta: smälter in i bakgrunden, i mörkt läge inverterad */
+.radbild{display:block; max-width:100%; height:auto; margin:4px 0; mix-blend-mode:multiply; image-rendering:auto}
+.radbild.altrad{display:inline-block; vertical-align:middle; margin:0}
+.radbild.mork{filter:invert(1) hue-rotate(180deg); mix-blend-mode:screen}
 .insp-radio{flex:none; width:20px; height:20px; border-radius:50%; border:1.5px solid #9b9b9b; background:#fff; display:inline-flex; align-items:center; justify-content:center}
 .insp-opt.vald .insp-radio{border-color:#a8a8a8; background:#fff}
 .insp-opt.vald .insp-radio::after{content:""; width:10px; height:10px; border-radius:50%; background:#b5b5b5}
@@ -10005,7 +10009,7 @@ function felRegistrera(nyckel, ratt, extra, gissad) {
 }
 function felSnapshot(f, tenta) {
   return { q: f.q, options: (f.options || []).slice(), svar: f.svar, typ: f.typ, bilder: (f.bilder || []).slice(),
-    altBilder: (f.altBilder || []).slice(), altErsatt: (f.altErsatt || []).slice(), bildPlats: (f.bildPlats || []).map(p => ({ id: p.id, pos: p.pos })),
+    altBilder: (f.altBilder || []).slice(), altErsatt: (f.altErsatt || []).slice(), bildPlats: (f.bildPlats || []).map(p => typeof p.slut === "number" ? { id: p.id, pos: p.pos, slut: p.slut } : { id: p.id, pos: p.pos }),
     matchrader: (f.matchrader || []).slice(), visning: f.visning || "", lucktext: f.lucktext || "", poang: f.poang || 1,
     facit: f.facit || "", mal: f.mal || null, konf: f.konf || null, kalla: f.kalla || (tenta && tenta.titel) || "" };
 }
@@ -19152,6 +19156,18 @@ function byggInsperaFraga(seg, tpRad, k, C) {
 
   let q = "", forra = null;
   const platser = [];
+  /* Har stammen en osäker rad visas hela stammen rad för rad som bild, så att
+     originalets text inte blandas med appens typsnitt. */
+  let stycke = [];
+  const stangStycke = () => {
+    if (C.ocr && stycke.some(x => x.r.osaker)) {
+      stycke.forEach(x => {
+        const R = ocrRadRuta(x.r, x.t);
+        platser.push({ pos: x.pos, slut: x.slut, fg: { sida: x.r.sida, ruta: { ...R, typ: "rad" } } });
+      });
+    }
+    stycke = [];
+  };
   const RE_LISTA = /^\s*(?:\d{1,2}\s*[.)]|[a-hA-H]\s*[.)]|[•▪◦‣·–\-*])\s+/;
   element.forEach(e => {
     if (e.typ === "fig") {
@@ -19162,7 +19178,7 @@ function byggInsperaFraga(seg, tpRad, k, C) {
     }
     const r = e.r, t = r.text.trim();
     if (!t) return;
-    if (!q) { q = t; forra = r; return; }
+    if (!q) { stycke.push({ r, t, pos: 0, slut: t.length }); q = t; forra = r; return; }
     let ny = false;
     if (forra.bryt) ny = true;
     else {
@@ -19172,13 +19188,16 @@ function byggInsperaFraga(seg, tpRad, k, C) {
       if (RE_LISTA.test(t)) ny = true;
       if (/[:]$/.test(forra.text.trim()) && gap > h * 1.25) ny = true;
     }
-    q += (ny ? "\n" : " ") + t;
+    q += (ny ? "\n" : " ");
+    stycke.push({ r, t, pos: q.length, slut: q.length + t.length });
+    q += t;
     forra = r;
   });
+  stangStycke();
   q = q.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 
   if (special) {
-    const figurer2 = platser.map(p => ({ pos: p.pos, sida: p.fg.sida, ruta: p.fg.ruta }));
+    const figurer2 = platser.map(p => ({ pos: p.pos, slut: p.slut, sida: p.fg.sida, ruta: p.fg.ruta }));
     const bas = {
       id: "f" + (k + 1), nr, q,
       avsnitt: /^(fråga|uppgift|question)\s*\d+\s*$/i.test(rubrik.trim()) ? "" : rubrik.replace(/\s+/g, " ").trim(),
@@ -19215,6 +19234,7 @@ function byggInsperaFraga(seg, tpRad, k, C) {
   radios.sort((a, b) => a.sida - b.sida || b.yc - a.yc);
 
   const altText = radios.map(() => []);
+  let altGrupper = null;
   const textRader = altRader.filter(r => !iFigur(r));
   let alternativ = [];
   if (radios.length >= 2) {
@@ -19241,8 +19261,9 @@ function byggInsperaFraga(seg, tpRad, k, C) {
     textRader.forEach(r => {
       const gap = forraR && forraR.sida === r.sida ? forraR.y - r.y : 99;
       if (!nu || gap > Math.max(r.h, forraR.h) * 1.7) { nu = []; alternativ.push(nu); }
-      nu.push(r.text.trim()); forraR = r;
+      nu.push(r.text.trim()); nu.rader = (nu.rader || []).concat([r]); forraR = r;
     });
+    altGrupper = alternativ.map(l => l.rader || []);
     alternativ = alternativ.map(l => l.join(" ").replace(/\s+/g, " ").trim());
   }
 
@@ -19288,8 +19309,24 @@ function byggInsperaFraga(seg, tpRad, k, C) {
     });
   }
 
+  /* inskannat: ett alternativ med en osäker rad klipps ut ur originalet */
+  if (C.ocr) {
+    const grupper = radios.length >= 2 ? altText : (altGrupper || []);
+    /* är ett alternativ osäkert visas alla som bilder – samma utseende rakt igenom */
+    const nagon = grupper.some(lista => lista && lista.some(r => r.osaker));
+    grupper.forEach((lista, j) => {
+      if (!nagon || !lista || !lista.length || !alternativ[j]) return;
+      if (altFig.some(fg => fg.altIndex === j)) return;
+      const sida = lista[0].sida;
+      const R = lista.filter(r => r.sida === sida).map(r => ocrRadRuta(r, r.text)).reduce((a, b) => rutaUnion(a, b));
+      altFig.push({ sida, ruta: { ...R, typ: "rad" }, altIndex: j });
+      altErsatt[j] = true;
+    });
+    for (let i = 0; i < alternativ.length; i++) altErsatt[i] = !!altErsatt[i];
+  }
   /* figurer bland alternativen hör till närmaste alternativ */
   const altBild = altFig.map(fg => {
+    if (typeof fg.altIndex === "number") return { fg, alt: fg.altIndex };
     let bast = -1, d = Infinity;
     const mitt = (fg.ruta.y0 + fg.ruta.y1) / 2;
     radios.forEach((x, j) => { if (x.sida === fg.sida && Math.abs(x.yc - mitt) < d) { d = Math.abs(x.yc - mitt); bast = j; } });
@@ -19358,7 +19395,7 @@ function byggInsperaFraga(seg, tpRad, k, C) {
     sida: forsta.sida, y: forsta.y, flersvar: arFlerval,
     mal: null, konf: null, facit: "",
     altErsatt: altErsatt.some(Boolean) ? altErsatt : undefined,
-    _figurer: platser.map(p => ({ pos: p.pos, sida: p.fg.sida, ruta: p.fg.ruta }))
+    _figurer: platser.map(p => ({ pos: p.pos, slut: p.slut, sida: p.fg.sida, ruta: p.fg.ruta }))
       .concat(altBild.map(ab => ({ pos: null, alt: ab.alt, sida: ab.fg.sida, ruta: ab.fg.ruta })))
   };
   if (ut.typ === "text" && !ut.q && !ut._figurer.length) return null;
@@ -19387,7 +19424,7 @@ async function fangaInsperaFigurer(doc, fragor, onProgress) {
     for (const { f, fg } of perSida[sn]) {
       klara++;
       if (onProgress) onProgress(klara, jobb.length, "figurer");
-      const R = fg.ruta, marg = 1.5;
+      const R = fg.ruta, marg = R.typ === "rad" ? 0.2 : 1.5;
       const cx = Math.max(0, (R.x0 - marg) * SK), cy = Math.max(0, (hojd - R.y1 - marg) * SK);
       const cb = Math.min(duk.width - cx, (R.x1 - R.x0 + marg * 2) * SK);
       const ch = Math.min(duk.height - cy, (R.y1 - R.y0 + marg * 2) * SK);
@@ -19400,8 +19437,9 @@ async function fangaInsperaFigurer(doc, fragor, onProgress) {
       kt.fillStyle = "#fff"; kt.fillRect(0, 0, ut.width, ut.height);
       kt.drawImage(duk, cx, cy, cb, ch, 0, 0, ut.width, ut.height);
       try { ut = trimmaKanter(ut); } catch (e) {}
-      const url = fg.ruta.typ === "vektor" ? ut.toDataURL("image/png") : ut.toDataURL("image/jpeg", 0.85);
-      const id = "m" + frohash(url).toString(36) + "-" + sn;
+      const rad = fg.ruta.typ === "rad";
+      const url = fg.ruta.typ === "vektor" ? ut.toDataURL("image/png") : ut.toDataURL("image/jpeg", rad ? 0.9 : 0.85);
+      const id = (rad ? "rad" : "m") + frohash(url).toString(36) + "-" + sn;
       try {
         await mediaSpara({ id, kalla: "", dokument: "", sida: sn, data: url, bredd: ut.width, hojd: ut.height });
       } catch (e) { continue; }
@@ -19414,7 +19452,7 @@ async function fangaInsperaFigurer(doc, fragor, onProgress) {
       if (f.bilder.indexOf(id) === -1) f.bilder.push(id);
       if (fg.pos !== null && fg.pos !== undefined) {
         f.bildPlats = f.bildPlats || [];
-        f.bildPlats.push({ id, pos: fg.pos });
+        f.bildPlats.push(typeof fg.slut === "number" && fg.slut > fg.pos ? { id, pos: fg.pos, slut: fg.slut } : { id, pos: fg.pos });
       }
     }
     try { sida.cleanup(); } catch (e) {}
@@ -19430,7 +19468,7 @@ function stamMedBilder(f, klass, stil, alt) {
     .filter(p => p && bilder.includes(p.id) && typeof p.pos === "number")
     .sort((a, b) => a.pos - b.pos);
   const q = String(f.q || "");
-  const img = (b, i) => `<img class="fragebild" data-media="${esc(b)}"
+  const img = (b, i) => arRadbild(b) ? `<img class="radbild" data-media="${esc(b)}" alt=""${arDataUrl(b) ? ` src="${b}"` : ""}>` : `<img class="fragebild" data-media="${esc(b)}"
     alt="${esc(alt || "Figur till frågan")}${bilder.length > 1 ? " (" + (i + 1) + " av " + bilder.length + ")" : ""}"
     ${arDataUrl(b) ? `src="${b}"` : ""}>`;
   if (!platser.length) return `<div class="${klass}"${stil ? ` style="${stil}"` : ""}>${esc(q)}</div>${bildplatser(f, alt)}`;
@@ -19441,11 +19479,12 @@ function stamMedBilder(f, klass, stil, alt) {
     if (del.trim()) html += `<div class="${klass}"${stil ? ` style="${stil}"` : ""}>${esc(del)}</div>`;
     html += img(p.id, bilder.indexOf(p.id));
     anvanda.add(p.id);
-    fran = Math.max(fran, p.pos);
+    /* en radbild ersätter textraden: texten under den visas inte */
+    fran = Math.max(fran, p.pos, arRadbild(p.id) && typeof p.slut === "number" ? Math.min(q.length, p.slut) : 0);
   });
   const rest = q.slice(fran).replace(/^\n+/, "");
   if (rest.trim()) html += `<div class="${klass}"${stil ? ` style="${stil}"` : ""}>${esc(rest)}</div>`;
-  bilder.forEach((b, i) => { if (!anvanda.has(b)) html += img(b, i); });
+  bilder.forEach((b, i) => { if (!anvanda.has(b) && !arRadbild(b)) html += img(b, i); });
   return html;
 }
 
@@ -19455,6 +19494,7 @@ function altHtml(f, oi, o) {
   const b = Array.isArray(f.altBilder) ? f.altBilder[oi] : "";
   if (!b) return esc(o);
   const auto = /^Alternativ [A-H]$/.test(String(o || "").trim()) || !!(Array.isArray(f.altErsatt) && f.altErsatt[oi]);
+  if (arRadbild(b)) return `<img class="radbild altrad" data-media="${esc(b)}" alt="${esc(o || "")}"${arDataUrl(b) ? ` src="${b}"` : ""}>`;
   return `${auto ? "" : esc(o) + " "}<img class="altbild" data-media="${esc(b)}" alt="${esc(o || "Bild")}"${arDataUrl(b) ? ` src="${b}"` : ""}>`;
 }
 
@@ -20045,8 +20085,19 @@ async function ocrSidData(sida, worker, mask) {
       if (sista.bbox.x0 - fore.bbox.x1 > 45 * OCR_SKALA && String(sista.text).trim().length <= 3) ord = ord.slice(0, -1);
       else break;
     }
+    /* procenttecknet efter ett tal läses som "Yo", "9o", "%o", "0/0" … */
+    ord = ord.map((w, i) => {
+      const s = String(w.text || ""), fore = i ? String(ord[i - 1].text || "") : "";
+      if (!i || !/^[-–]?\d+(?:[.,]\d+)?$/.test(fore)) return w;
+      if (/^(?:Yo|yo|9o|%o|°o|o\/o|0\/0|°\/o|%\.)$/.test(s) || (/^(?:96|2\/6|9\/6)$/.test(s) && (w.confidence || 0) < 80))
+        return Object.assign({}, w, { text: "%", confidence: 99 });
+      return w;
+    });
     const t = ocrRatta((ord.length ? ord.map(w => w.text).join(" ") : String(li.text || "")).replace(/\s+/g, " ").trim());
-    if (!t || (li.confidence !== undefined && li.confidence < 35 && t.length < 4)) return;
+    const svag = li.confidence !== undefined && li.confidence < 35 && t.length < 4;
+    /* en formel läses ofta som ett par tecken med låg säkerhet – den är bred, och får stå kvar (som bild) */
+    const bredd = ord.length ? (Math.max(...ord.map(w => w.bbox.x1)) - Math.min(...ord.map(w => w.bbox.x0))) / OCR_SKALA : 0;
+    if (!t || (svag && bredd < 25)) return;
     const b = ord.length ? { x0: Math.min(...ord.map(w => w.bbox.x0)), x1: Math.max(...ord.map(w => w.bbox.x1)),
       y0: li.bbox.y0, y1: li.bbox.y1 } : li.bbox;
     const h = (b.y1 - b.y0) / OCR_SKALA;
@@ -20061,8 +20112,37 @@ async function ocrSidData(sida, worker, mask) {
       if (px[i] > 200 && px[i + 1] > 190 && px[i + 2] < 140) gula++;
     }
     r.markerad = r.struken = alla > 0 && gula / alla > 0.12;
+    /* Osäker rad: något ord (utom frågenumret och ordet direkt efter det, som ofta
+       får låg säkerhet för att det står tätt intill numret) under gränsen. */
+    const nrForst = ord.length > 1 && /^\d{1,3}$/.test(String(ord[0].text || ""));
+    r.osaker = svag || ord.some((w, i) => !(nrForst && i <= 1) && /[\p{L}\p{N}]/u.test(String(w.text || "")) &&
+      typeof w.confidence === "number" && w.confidence < OCR_OSAKER) || ocrHarIndex(ord);
+    /* Radens bläck: rutan växer uppåt och nedåt så länge det finns mörka bildpunkter
+       inom radens bredd – ett bråkstreck med täljare och nämnare kommer med, men
+       inte grannraden (det finns alltid en ljus bildpunktsrad emellan). */
+    const tom = y => {
+      if (y < 0 || y >= H) return true;
+      for (let x = Math.max(0, b.x0 | 0); x < Math.min(W, b.x1 | 0); x++) {
+        const i = (y * W + x) * 4;
+        if (px[i] + px[i + 1] + px[i + 2] < 480) return false;
+      }
+      return true;
+    };
+    const lh = b.y1 - b.y0, maxV = lh * 0.9;
+    let iy0 = b.y0 | 0, iy1 = b.y1 | 0;
+    while (iy0 > b.y0 - maxV && !tom(iy0 - 1)) iy0--;
+    while (iy1 < b.y1 + maxV && !tom(iy1 + 1)) iy1++;
+    /* en ljus rad till på var sida, om den finns, så att bläcket inte skärs av */
+    if (tom(iy0 - 1)) iy0--;
+    if (tom(iy1 + 1)) iy1++;
+    r.ruta = { x0: b.x0 / OCR_SKALA, x1: b.x1 / OCR_SKALA, y0: hojd - iy1 / OCR_SKALA, y1: hojd - iy0 / OCR_SKALA };
+    r.ord = ord.map(w => ({ t: String(w.text || ""), x0: w.bbox.x0 / OCR_SKALA }));
     rader.push(r);
   })));
+  /* en rad som är mycket högre än brödtexten är en formel (bråk, index) */
+  const hs = rader.map(r => r.h).sort((a, b) => a - b);
+  const medH = hs.length ? hs[Math.floor(hs.length / 2)] : 0;
+  if (medH) rader.forEach(r => { if (r.h > medH * 1.5 && r.text.length < 120) r.osaker = true; });
   rader.sort((a, b) => (b.y - a.y) || (a.x0 - b.x0));
   ocrStadaRader(rader);
   return { rader, markeringar, bilder: [], overstrykningar: [] };
@@ -20075,6 +20155,40 @@ async function ocrSidData(sida, worker, mask) {
    · radioknappen framför ett alternativ läses som "0", ")", "+", "OO", "(0" … Den står en bit
      till vänster om alternativens kolumn, så bara korta tecken på den platsen tas bort. */
 const RE_OCR_SKRAP = /^[()[\]{}<>+.,:;|!'"`´°©®«»~*•·=\-–—0OoQCcDAUV]{1,3}$/;
+/* ord under den här säkerheten (0–100) gör raden osäker */
+const OCR_OSAKER = 72;
+/* Index och exponenter (C_ss, V_d, Ca²⁺) läses som vanliga tecken ("Css"). Tecknens
+   rutor avslöjar dem: ett litet tecken som står under eller över radens baslinje. */
+const RE_OCR_LAG = /^[acemnorsuvwxz]$/;   // gemener utan över- och underhäng
+function ocrHarIndex(ord) {
+  const sym = [];
+  (ord || []).forEach(w => (w.symbols || []).forEach(s => { if (s && s.bbox && s.text && String(s.text).length === 1) sym.push(s); }));
+  const med = a => a.slice().sort((x, y) => x - y)[Math.floor(a.length / 2)];
+  const laga = sym.filter(s => RE_OCR_LAG.test(s.text));
+  if (laga.length < 4) return false;
+  const xh = med(laga.map(s => s.bbox.y1 - s.bbox.y0)), bas = med(laga.map(s => s.bbox.y1));
+  const stora = sym.filter(s => /^[A-ZÅÄÖ0-9]$/.test(s.text));
+  const ch = stora.length >= 3 ? med(stora.map(s => s.bbox.y1 - s.bbox.y0)) : xh * 1.4;
+  return sym.some(s => {
+    const h = s.bbox.y1 - s.bbox.y0, y1 = s.bbox.y1;
+    if (RE_OCR_LAG.test(s.text)) return h < xh * 0.82 && (y1 > bas + xh * 0.25 || y1 < bas - xh * 0.45);
+    if (/^[A-Z0-9]$/.test(s.text)) return h < ch * 0.72 && (y1 > bas + ch * 0.18 || y1 < bas - ch * 0.3);
+    return false;
+  });
+}
+/* Radens ruta på sidan för en utklippt bild. Står frågenumret eller rester av
+   radioknappen först på raden (och har tagits bort ur texten) börjar bilden vid
+   det första ord som texten börjar med. */
+function ocrRadRuta(r, t) {
+  const R = r.ruta || radRuta(r);
+  let x0 = R.x0;
+  const s = String(t || r.text || "").trim();
+  if (Array.isArray(r.ord) && r.ord.length > 1 && s) {
+    const k = r.ord.findIndex((w, i) => i < 4 && w.t && s.startsWith(w.t));
+    if (k > 0) x0 = r.ord[k].x0;
+  }
+  return { x0: x0 - 1, x1: R.x1 + 1, y0: R.y0, y1: R.y1 };
+}
 function ocrStadaRader(rader) {
   rader.forEach(r => {
     r.text = r.text.replace(/^[|!¦‖]+\s*/, "").replace(/\s*[|¦‖]+$/, "").trim();
@@ -21633,7 +21747,9 @@ function normaliseraTentaRa(t) {
       altBilder: Array.isArray(f.altBilder) ? f.altBilder.map(x => x ? String(x) : "") : [],
       altErsatt: Array.isArray(f.altErsatt) ? f.altErsatt.map(Boolean) : [],
       bildPlats: Array.isArray(f.bildPlats) ? f.bildPlats.filter(p => p && p.id && typeof p.pos === "number")
-        .map(p => ({ id: String(p.id), pos: Math.max(0, Math.round(p.pos)) })) : [],
+        .map(p => typeof p.slut === "number" && p.slut > p.pos
+          ? { id: String(p.id), pos: Math.max(0, Math.round(p.pos)), slut: Math.round(p.slut) }
+          : { id: String(p.id), pos: Math.max(0, Math.round(p.pos)) }) : [],
       options: (f.options || []).map(o => String(o).trim()).filter(Boolean),
       /* Flerkryssfrågor bär en lista av index; envalsfrågor ett enda tal. */
       svar: f.typ === "matchning"
@@ -35632,8 +35748,10 @@ function fragansBilder(f) {
 
 /* Ritar frågans figurer. Bilderna hämtas asynkront ur IndexedDB och
    fylls i på plats, så vyn kan ritas direkt utan att vänta. */
+/* utklippt rad ur en inskannad tenta – visas i stället för textraden, aldrig som figur */
+function arRadbild(id) { return /^rad[0-9a-z]+-\d+$/.test(String(id || "")); }
 function bildplatser(f, alt) {
-  const bilder = fragansBilder(f);
+  const bilder = fragansBilder(f).filter(b => !arRadbild(b));
   if (!bilder.length) return "";
   return bilder.map((b, i) => `<img class="fragebild" data-media="${esc(b)}"
     alt="${esc(alt || "Figur till frågan")}${bilder.length > 1 ? " (" + (i + 1) + " av " + bilder.length + ")" : ""}"
@@ -37636,6 +37754,21 @@ function nivaRuta(k, m, g, ritaOm) {
     </div>`;
 }
 
+/* Radbilder ur inskannade tentor: lika stora som texten runt omkring. */
+document.addEventListener("load", e => {
+  const n = e.target;
+  if (!n || n.tagName !== "IMG" || !n.classList.contains("radbild") || !n.naturalWidth) return;
+  /* samma storlek i stam och alternativ: frågetextens typsnitt är måttet */
+  const ref = (n.closest(".insp-fraga, .tentafraga, main") || document).querySelector(".insp-stam, .qtext") || n.parentElement || n;
+  const fs = Math.min(19, parseFloat(getComputedStyle(ref).fontSize) || 17);
+  n.style.width = Math.round(n.naturalWidth * fs / (2.4 * 8.3)) + "px";
+  /* Mörk bakgrund (mörkt tema – men simulatorn är alltid ljus): bilden inverteras. */
+  let el = n.parentElement, bg = "";
+  while (el && (!bg || /rgba\(0, 0, 0, 0\)|transparent/.test(bg))) { bg = getComputedStyle(el).backgroundColor; el = el.parentElement; }
+  const m = String(bg).match(/\d+(\.\d+)?/g);
+  const ljus = m && m.length >= 3 ? (0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]) : 255;
+  n.classList.toggle("mork", ljus < 110);
+}, true);
 /* Figurer förstoras var de än visas — tentaläge, granskning, resultat, duell. */
 document.addEventListener("click", e => {
   const bild = e.target.closest(".fragebild");
@@ -37664,7 +37797,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261116-0951";
+const BYGGID = "20261116-1042";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";

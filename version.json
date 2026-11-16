@@ -1,5 +1,5 @@
 {
-  "bygg": "20261116-0951",
-  "namn": "Uppladdade tentor: tecken från Word (%, °, ±, pilar, grekiska bokstäver) visas rätt, sidhuvud och sidfot hamnar inte i frågorna, bilder kopplas till rätt fråga, inskannade tentor läses renare (radioknappar och frågenummer) och skrivfrågor med svar tas med.",
-  "nar": "2026-11-16T10:15:04+00:00"
+  "bygg": "20261116-1042",
+  "namn": "Inskannade tentor visas som originalet: rader som textigenkänningen är osäker på (formler, index som V_d och C_ss, t½, grekiska tecken, %) visas som utklipp ur tentan i stället för feltolkad text.",
+  "nar": "2026-11-16T11:33:41+00:00"
 }
