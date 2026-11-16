@@ -1,5 +1,5 @@
 {
-  "bygg": "20261116-1042",
-  "namn": "Inskannade tentor visas som originalet: rader som textigenkänningen är osäker på (formler, index som V_d och C_ss, t½, grekiska tecken, %) visas som utklipp ur tentan i stället för feltolkad text.",
-  "nar": "2026-11-16T11:33:41+00:00"
+  "bygg": "20261116-1301",
+  "namn": "Inskannade tentor ännu närmare originalet: kursiv och understruken text, grekiska bokstäver (TNF-α, β₂), pilar (↑↓) och procent inom parentes visas som i tentan, frågetexten bryts inte mitt i meningar, facitbocken syns aldrig i ett utklipp och alternativ som slogs ihop delas rätt.",
+  "nar": "2026-11-16T13:01:23+00:00"
 }

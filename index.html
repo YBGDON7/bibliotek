@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="bygg" content="20261116-1042">
+<meta name="bygg" content="20261116-1301">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lärandemålsbiblioteket</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -19184,7 +19184,10 @@ function byggInsperaFraga(seg, tpRad, k, C) {
     else {
       const gap = forra.sida === r.sida ? forra.y - r.y : 0;
       const h = Math.max(forra.h, r.h);
-      if (gap > h * 1.62) ny = true;
+      /* inskannat: baslinjerna jämförs med sidans vanliga radavstånd */
+      if (forra.takt && r.takt && isFinite(forra.bas) && isFinite(r.bas) && forra.sida === r.sida) {
+        if (forra.bas - r.bas > forra.takt * 1.42) ny = true;
+      } else if (gap > h * 1.62) ny = true;
       if (RE_LISTA.test(t)) ny = true;
       if (/[:]$/.test(forra.text.trim()) && gap > h * 1.25) ny = true;
     }
@@ -19303,7 +19306,7 @@ function byggInsperaFraga(seg, tpRad, k, C) {
         const m = (altFig[i].ruta.y0 + altFig[i].ruta.y1) / 2;
         if (altFig[i].sida === x.sida && m > band.y0 && m < band.y1) altFig.splice(i, 1);
       }
-      altFig.push({ sida: x.sida, ruta: { ...R, typ: "vektor" } });
+      altFig.push({ sida: x.sida, ruta: { ...R, typ: C.ocr ? "rad" : "vektor" } });
       if (lucka) altErsatt[j] = true;
       else alternativ[j] = "";
     });
@@ -19436,6 +19439,25 @@ async function fangaInsperaFigurer(doc, fragor, onProgress) {
       const kt = ut.getContext("2d");
       kt.fillStyle = "#fff"; kt.fillRect(0, 0, ut.width, ut.height);
       kt.drawImage(duk, cx, cy, cb, ch, 0, 0, ut.width, ut.height);
+      if (fg.ruta.typ === "rad") {
+        /* facitbocken får aldrig följa med en utklippt rad */
+        const bd = kt.getImageData(0, 0, ut.width, ut.height), d2 = bd.data, UW = ut.width, UH = ut.height;
+        const gron = new Uint8Array(UW * UH);
+        for (let i = 0, k = 0; i < d2.length; i += 4, k++) {
+          const r = d2[i], g = d2[i + 1], b = d2[i + 2];
+          if (g > 70 && g - r > 14 && g - b > 8) gron[k] = 1;
+        }
+        /* även bockens ljusa kant (två bildpunkter runt om) */
+        for (let y = 0; y < UH; y++) for (let x = 0; x < UW; x++) {
+          let nara = false;
+          for (let dy = -2; dy <= 2 && !nara; dy++) for (let dx = -2; dx <= 2; dx++) {
+            const yy = y + dy, xx = x + dx;
+            if (yy >= 0 && yy < UH && xx >= 0 && xx < UW && gron[yy * UW + xx]) { nara = true; break; }
+          }
+          if (nara) { const i = (y * UW + x) * 4; d2[i] = d2[i + 1] = d2[i + 2] = 255; }
+        }
+        kt.putImageData(bd, 0, 0);
+      }
       try { ut = trimmaKanter(ut); } catch (e) {}
       const rad = fg.ruta.typ === "rad";
       const url = fg.ruta.typ === "vektor" ? ut.toDataURL("image/png") : ut.toDataURL("image/jpeg", rad ? 0.9 : 0.85);
@@ -20074,6 +20096,15 @@ async function ocrSidData(sida, worker, mask) {
   }
 
   /* ---- texten ---- */
+  {
+    const bd = ctx.getImageData(0, 0, W, H), d2 = bd.data;
+    let n = 0;
+    for (let i = 0; i < d2.length; i += 4) {
+      const r = d2[i], g = d2[i + 1], b = d2[i + 2];
+      if (g > 70 && g - r > 16 && g - b > 10) { d2[i] = d2[i + 1] = d2[i + 2] = 255; n++; }
+    }
+    if (n) { ctx.putImageData(bd, 0, 0); px.set(d2); }
+  }
   const res = await worker.recognize(duk, {}, { blocks: true, text: false, hocr: false, tsv: false });
   const rader = [];
   (res.data.blocks || []).forEach(bl => (bl.paragraphs || []).forEach(pa => (pa.lines || []).forEach(li => {
@@ -20105,6 +20136,9 @@ async function ocrSidData(sida, worker, mask) {
       text: t, x0: b.x0 / OCR_SKALA, x1: b.x0 / OCR_SKALA, xe: b.x1 / OCR_SKALA,
       y: hojd - b.y1 / OCR_SKALA + h * 0.22, h: Math.max(6, h * 0.8), fet: false
     };
+    const bl = li.baseline;
+    r.bas = bl && bl.has_baseline !== false && isFinite(bl.y0) && isFinite(bl.y1) && bl.y0 > b.y0 && bl.y0 <= b.y1 + 2
+      ? hojd - ((bl.y0 + bl.y1) / 2) / OCR_SKALA : hojd - b.y1 / OCR_SKALA + h * 0.22;
     /* gul överstrykning: andel gula pixlar i radens ruta */
     let gula = 0, alla = 0;
     for (let y = b.y0; y < b.y1; y += 3) for (let x = b.x0; x < b.x1; x += 3) {
@@ -20116,7 +20150,9 @@ async function ocrSidData(sida, worker, mask) {
        får låg säkerhet för att det står tätt intill numret) under gränsen. */
     const nrForst = ord.length > 1 && /^\d{1,3}$/.test(String(ord[0].text || ""));
     r.osaker = svag || ord.some((w, i) => !(nrForst && i <= 1) && /[\p{L}\p{N}]/u.test(String(w.text || "")) &&
-      typeof w.confidence === "number" && w.confidence < OCR_OSAKER) || ocrHarIndex(ord);
+      typeof w.confidence === "number" && w.confidence < OCR_OSAKER) || ocrHarIndex(ord) ||
+      /* tecken som textigenkänningen gissar på: kursiv, understruken, grekiska, pilar … */
+      ocrMisstankt(ord, t) || ord.some(w => ocrKursivOrd(w, px, W) || ocrUnderstruken(w, px, W, H));
     /* Radens bläck: rutan växer uppåt och nedåt så länge det finns mörka bildpunkter
        inom radens bredd – ett bråkstreck med täljare och nämnare kommer med, men
        inte grannraden (det finns alltid en ljus bildpunktsrad emellan). */
@@ -20143,6 +20179,13 @@ async function ocrSidData(sida, worker, mask) {
   const hs = rader.map(r => r.h).sort((a, b) => a - b);
   const medH = hs.length ? hs[Math.floor(hs.length / 2)] : 0;
   if (medH) rader.forEach(r => { if (r.h > medH * 1.5 && r.text.length < 120) r.osaker = true; });
+  /* sidans vanliga radavstånd (baslinje till baslinje) inom ett stycke */
+  const basar = rader.map(r => r.bas).filter(isFinite).sort((a, b) => b - a);
+  const steg = [];
+  for (let i = 1; i < basar.length; i++) { const g = basar[i - 1] - basar[i]; if (g > medH * 0.9 && g < medH * 2.4) steg.push(g); }
+  steg.sort((a, b) => a - b);
+  const takt = steg.length >= 3 ? steg[Math.floor(steg.length * 0.3)] : medH * 1.3;
+  if (takt) rader.forEach(r => { r.takt = takt; });
   rader.sort((a, b) => (b.y - a.y) || (a.x0 - b.x0));
   ocrStadaRader(rader);
   return { rader, markeringar, bilder: [], overstrykningar: [] };
@@ -20155,6 +20198,63 @@ async function ocrSidData(sida, worker, mask) {
    · radioknappen framför ett alternativ läses som "0", ")", "+", "OO", "(0" … Den står en bit
      till vänster om alternativens kolumn, så bara korta tecken på den platsen tas bort. */
 const RE_OCR_SKRAP = /^[()[\]{}<>+.,:;|!'"`´°©®«»~*•·=\-–—0OoQCcDAUV]{1,3}$/;
+/* Text som textigenkänningen läser "säkert" men fel:
+   · grekiska bokstäver blir latinska: TNF-a (α), IFN-y (γ), TGF-B/ß (β), NF-kB (κ), Ba-agonist (β₂)
+   · pilar ↑ ↓ blir "|", "1", "J"; ett frågetecken eller citattecken mitt i ett ord ("Fe?"-brist")
+   · procenttecknet inom parentes blir "(26)" eller "(96)" */
+const RE_OCR_GREKISK = /\b(?:TNF|IFN|TGF|IL-?\d{1,2}|HIF-?\d|PPAR|ER|RAR|NF|PDGFR|TCR)-?\d?(?:a|y|B|ß|k|kB)\b|\b(?:a|B|ß|y)[12]?[.-]?(?:agonist|antagonist|receptor|blockerare|adrenerg|medierad|subenhet|kedja|globulin)|\bBa-agonist/;
+function ocrMisstankt(ord, t) {
+  if (RE_OCR_GREKISK.test(t)) return true;
+  const n = (ord || []).length;
+  return (ord || []).some((w, i) => {
+    const s = String(w.text || "");
+    /* pilar ("|:" mitt i raden); ett streck först eller sist är skanningens kant */
+    if (/\|/.test(s) && i > 0 && i < n - 1) return true;
+    if (/\p{L}\?["”'’]|\?["”'’]-|\p{L}\?\p{L}/u.test(s)) return true;   // Fe?"-brist, a?b
+    if (/["”“][<>]|^["”“]\p{L}{1,2}$|^[<>]{1,2}$/u.test(s)) return true;      // '">', '”a' – bocken läst som text
+    if (/^\((?:26|96|9o|Yo|%o)\)[.,;:]?$/.test(s) && (w.confidence || 0) < 92) return true;
+    return false;
+  });
+}
+/* Kursiv stil: lutar man ordets bildpunkter ~12° blir de lodräta stapeldragen skarpare
+   (fler bildpunkter i samma kolumn) – för upprätt text blir de suddigare. */
+function ocrKursiv(bb, px, W) {
+  if (!bb || bb.x1 - bb.x0 < 12) return false;
+  const sc = lut => {
+    const hist = new Map();
+    for (let y = bb.y0; y < bb.y1; y++) for (let x = bb.x0; x < bb.x1; x++) {
+      const i = (y * W + x) * 4;
+      if (px[i] + px[i + 1] + px[i + 2] < 400) { const k = Math.round(x + lut * (y - bb.y1)); hist.set(k, (hist.get(k) || 0) + 1); }
+    }
+    let t = 0; hist.forEach(v => { t += v * v; }); return t;
+  };
+  const a = sc(0);
+  return a > 0 && sc(0.22) / a > 1.08;
+}
+function ocrKursivOrd(w, px, W) {
+  return ((String(w.text || "").match(/\p{L}/gu) || []).length >= 4) && ocrKursiv(w.bbox, px, W);
+}
+/* Understrykning: en sammanhängande mörk linje under ordet, nästan hela dess bredd */
+function ocrUnderstruken(w, px, W, H) {
+  const bb = w.bbox, s = String(w.text || "");
+  if (!bb || s.length < 3 || bb.x1 - bb.x0 < 15) return false;
+  const morka = y => {
+    if (y < 0 || y >= H) return 0;
+    let n = 0;
+    for (let x = bb.x0; x < bb.x1; x++) { const i = (y * W + x) * 4; if (px[i] + px[i + 1] + px[i + 2] < 600) n++; }
+    return n;
+  };
+  const b = bb.x1 - bb.x0;
+  /* en tunn linje (högst ett par bildpunkter) med ljust ovanför – inte bokstävernas nederkant */
+  for (let y = bb.y1 - 6; y <= bb.y1 + 8; y++) {
+    if (morka(y) < b * 0.75) continue;
+    let t = y; while (t - y < 3 && morka(t + 1) >= b * 0.75) t++;
+    const ovan = morka(y - 2), tunn = t - y <= 2 && morka(t + 1) < b * 0.15;
+    if (tunn && (ovan < b * 0.45 || morka(y) >= b * 0.9)) return true;
+    y = t;
+  }
+  return false;
+}
 /* ord under den här säkerheten (0–100) gör raden osäker */
 const OCR_OSAKER = 72;
 /* Index och exponenter (C_ss, V_d, Ca²⁺) läses som vanliga tecken ("Css"). Tecknens
@@ -20184,7 +20284,7 @@ function ocrRadRuta(r, t) {
   let x0 = R.x0;
   const s = String(t || r.text || "").trim();
   if (Array.isArray(r.ord) && r.ord.length > 1 && s) {
-    const k = r.ord.findIndex((w, i) => i < 4 && w.t && s.startsWith(w.t));
+    const k = r.ord.findIndex((w, i) => i < 4 && String(w.t || "").trim() && s.startsWith(String(w.t).trim()));
     if (k > 0) x0 = r.ord[k].x0;
   }
   return { x0: x0 - 1, x1: R.x1 + 1, y0: R.y0, y1: R.y1 };
@@ -20193,6 +20293,12 @@ function ocrStadaRader(rader) {
   rader.forEach(r => {
     r.text = r.text.replace(/^[|!¦‖]+\s*/, "").replace(/\s*[|¦‖]+$/, "").trim();
     r.text = r.text.replace(/^[:;]+\s*(?=\p{L})/u, "");   // ": Totalpoäng: 1"
+    r.text = r.text.replace(/^(\d{1,3}\s+)[-–—~_'"`´]+\s*(?=\p{Lu})/u, "$1");   // "32 -Mykofenolat", "4 - Gör"
+    /* skanningens kant läst som en bokstav långt till vänster om resten ("i      Totalpoäng: 1") */
+    if (Array.isArray(r.ord) && r.ord.length > 1 && String(r.ord[0].t).trim().length <= 2 && r.ord[1].x0 - r.ord[0].x0 > 120) {
+      const forsta = String(r.ord[0].t).trim();
+      if (r.text.startsWith(forsta)) { r.text = r.text.slice(forsta.length).trim(); r.ord = r.ord.slice(1); r.x0 = r.x1 = r.ord[0].x0; }
+    }
     const m = r.text.match(/^\s*\d{0,3}\s*(fråga|question|uppgift)\s+(\d{1,3})\s*$/i);
     if (m) r.text = m[2] + " " + m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase() + " " + m[2];
   });
@@ -37797,7 +37903,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261116-1042";
+const BYGGID = "20261116-1301";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
