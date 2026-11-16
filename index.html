@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="bygg" content="20261116-1301">
+<meta name="bygg" content="20261116-1322">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lärandemålsbiblioteket</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -9728,7 +9728,7 @@ function appSwStarta() {
     } else if (d.typ === "klar") {
       _swKlarBygg = d.bygg; _swBegard = "";
       if (d.bygg === BYGGID) return;
-      if (_swVantarKlick) { location.reload(); return; }
+      if (_swVantarKlick || autoUppdateraNu()) { location.reload(); return; }
       if (!_nyttBygg) _nyttBygg = d.bygg;
       visaVersionsband(_versionsdata);
     } else if (d.typ === "fel") {
@@ -37903,15 +37903,37 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261116-1301";
+const BYGGID = "20261116-1322";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
 let _versionSenast = 0;
 
-/* Ett pågående försök får aldrig avbrytas av ett omladdningsband. */
+/* Vyer där en omladdning skulle avbryta något: tentan som pågår, en uppladdning,
+   ett prov, en duell, AI-chatten. Och ett textfält man skriver i. */
+const VYER_UPPTAGEN = ["tentakor", "tentany", "tentatest", "provkor", "duellmatch", "duelllive", "chatt", "chattny", "ai", "egenny", "egenmaterial"];
 function versionUpptagen() {
-  return !!(tstore && tstore.aktivt);
+  let namn = "";
+  try { namn = parse().name; } catch (e) {}
+  if (VYER_UPPTAGEN.includes(namn)) return true;
+  const a = document.activeElement;
+  if (a && (/^(TEXTAREA|SELECT)$/.test(a.tagName) || (a.tagName === "INPUT" && !/^(button|checkbox|radio|range|submit)$/i.test(a.type || "")) || a.isContentEditable) && String(a.value || a.textContent || "").trim()) return true;
+  if (document.querySelector("dialog[open]")) return true;
+  return false;
+}
+/* Appen startade nyss och man har inte börjat använda den: bytet märks inte. */
+const _appStart = Date.now();
+let _harInteragerat = false;
+["pointerdown", "keydown", "touchstart"].forEach(t => window.addEventListener(t, () => { _harInteragerat = true; }, { capture: true, passive: true }));
+function autoUppdateraNu() {
+  if (versionUpptagen()) return false;
+  if (document.hidden) return true;
+  return !_harInteragerat && Date.now() - _appStart < 90000;
+}
+function bytVersionNu() {
+  if (_swKlarBygg && _swKlarBygg === _nyttBygg) { location.reload(); return true; }
+  if (!swAktiv() && _nyttBygg) { location.replace(location.pathname + "?v=" + encodeURIComponent(_nyttBygg) + location.hash); return true; }
+  return false;
 }
 
 async function kollaVersion() {
@@ -37926,7 +37948,9 @@ async function kollaVersion() {
     const bygg = String(data && data.bygg || "");
     if (!bygg || bygg === BYGGID) return;
     _nyttBygg = bygg;
+    if (_swKlarBygg === bygg && autoUppdateraNu()) { location.reload(); return; }
     if (appSwHamtar(data)) return;
+    if (autoUppdateraNu() && bytVersionNu()) return;
     visaVersionsband(data);
   } catch (e) {
     /* Offline, fel adress eller ingen version.json — strunt samma. */
@@ -37978,12 +38002,17 @@ function startaVersionskoll() {
   /* Den som haft fliken liggande i bakgrunden i en vecka ska få veta det
      när den kommer tillbaka, inte först tjugo minuter senare. */
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) kollaVersion();
+    if (!document.hidden) { kollaVersion(); return; }
+    /* appen läggs undan: byt version nu, så är den ny när man kommer tillbaka */
+    if (_nyttBygg && !versionUpptagen()) bytVersionNu();
   });
   /* Bandet kan ha hållits tillbaka för att en tenta var igång. När den är
      inlämnad tas nästa chans. */
   window.addEventListener("hashchange", () => {
-    if (_nyttBygg && !versionUpptagen()) visaVersionsband(null);
+    if (!_nyttBygg || versionUpptagen()) return;
+    /* man har lämnat vyn där man var upptagen: byt om den nya versionen redan ligger klar */
+    if (_swKlarBygg === _nyttBygg) { location.reload(); return; }
+    visaVersionsband(null);
   });
 }
 

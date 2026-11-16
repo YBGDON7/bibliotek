@@ -15,12 +15,35 @@ const SKAL = self.registration.scope;                 // t.ex. https://…/bibli
 const META = SKAL + "__meta";
 const CDN = /^https:\/\/(www\.gstatic\.com\/firebasejs\/|fonts\.googleapis\.com\/|fonts\.gstatic\.com\/|cdn\.jsdelivr\.net\/|cdnjs\.cloudflare\.com\/|unpkg\.com\/|tessdata\.projectnaptha\.com\/)/;
 
-self.addEventListener("install", () => { self.skipWaiting(); });
+/* SW_VERSION ändras när service workern själv ändras – då installeras den på nytt. */
+const SW_VERSION = "2026-11-16-auto";
+/* Vyer där en omladdning skulle avbryta något (tenta, uppladdning, prov, duell, chatt) */
+const UPPTAGEN = /#\/(tenta\/(kor|ny|test)|prov\/kor|duell\/(m|live)\/|chatt|ai\b)/;
+
+self.addEventListener("install", e => {
+  self.skipWaiting();
+  /* En uppdatering (det fanns en äldre service worker) – inte en första installation. */
+  if (self.registration.active) e.waitUntil(caches.open(SIDCACHE).then(c => c.put(SKAL + "__uppdatering", new Response("1"))).catch(() => {}));
+});
 self.addEventListener("activate", e => {
   e.waitUntil((async () => {
     const namn = await caches.keys();
     await Promise.all(namn.filter(n => n.startsWith("bib-") && n !== SIDCACHE && n !== CDNCACHE).map(n => caches.delete(n)));
+    /* Hämta senaste bygget till cachen innan något annat: annars visas den sparade,
+       gamla kopian igen nästa gång appen öppnas. */
+    let nytt = "";
+    try { nytt = await hamtaOchSpara(SKAL + "?v=" + Date.now(), "reload", ""); } catch (err) {}
     await self.clients.claim();
+    /* Öppna fönster med en äldre version laddas om en gång – utom mitt i något. */
+    let uppdatering = false;
+    try { const c = await caches.open(SIDCACHE); uppdatering = !!(await c.match(SKAL + "__uppdatering")); await c.delete(SKAL + "__uppdatering"); } catch (err) {}
+    if (nytt && uppdatering) {
+      const alla = await self.clients.matchAll({ type: "window" });
+      for (const k of alla) {
+        if (!k.url || k.url.indexOf(SKAL) !== 0 || UPPTAGEN.test(k.url)) continue;
+        try { await k.navigate(k.url); } catch (err) {}
+      }
+    }
   })());
 });
 

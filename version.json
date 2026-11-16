@@ -1,5 +1,5 @@
 {
-  "bygg": "20261116-1301",
-  "namn": "Inskannade tentor ännu närmare originalet: kursiv och understruken text, grekiska bokstäver (TNF-α, β₂), pilar (↑↓) och procent inom parentes visas som i tentan, frågetexten bryts inte mitt i meningar, facitbocken syns aldrig i ett utklipp och alternativ som slogs ihop delas rätt.",
-  "nar": "2026-11-16T13:01:23+00:00"
+  "bygg": "20261116-1322",
+  "namn": "Appen uppdaterar sig själv: en ny version laddas direkt när appen öppnas, eller när den läggs undan – aldrig mitt i en tenta eller uppladdning.",
+  "nar": "2026-11-16T14:02:01+00:00"
 }
