@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="bygg" content="20261116-1322">
+<meta name="bygg" content="20261116-2153">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lärandemålsbiblioteket</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -1158,6 +1158,183 @@ body.insp-pa #fragaknapp{display:none !important}
 .radbild{display:block; max-width:100%; height:auto; margin:4px 0; mix-blend-mode:multiply; image-rendering:auto}
 .radbild.altrad{display:inline-block; vertical-align:middle; margin:0}
 .radbild.mork{filter:invert(1) hue-rotate(180deg); mix-blend-mode:screen}
+/* tentasimulatorn i mörkt tema */
+
+:root[data-theme="dark"] .insp{--i-bg:#15171b; --i-yta:#1f2227; --i-text:#e9e9ea; --i-text2:#a8adb4; --i-linje:#3a3e45;
+  --i-val:#2a4a6f; --i-bla:#4f86c2; --i-marin:#a9c8f2; --i-gra:#6b7079; --i-band:#1c3f7b;
+  --i-ok:#5fb24f; --i-fel:#e27070; --i-flagg:#e39a4b; color-scheme:dark}
+:root[data-theme="dark"] .insp .insp-top{background:#1f2227; box-shadow:0 2px 6px rgba(0,0,0,.5)}
+:root[data-theme="dark"] .insp .insp-tophoger, :root[data-theme="dark"] .insp .insp-tid, :root[data-theme="dark"] .insp .insp-wifi, :root[data-theme="dark"] .insp .insp-ikonknapp{color:#e9e9ea}
+:root[data-theme="dark"] .insp .insp-ikonknapp:hover{background:#2c3036}
+:root[data-theme="dark"] .insp .insp-pausknapp.pa, :root[data-theme="dark"] .insp .insp-pausikon{background:#24364b; color:#a9c8f2}
+:root[data-theme="dark"] .insp .insp-paus{background:rgba(21,23,27,.97)}
+:root[data-theme="dark"] .insp .insp-pauskort{background:#1f2227; border-color:#3a3e45; color:#e9e9ea}
+:root[data-theme="dark"] .insp .insp-pauskort p{color:#c5c8cd}
+:root[data-theme="dark"] .insp .insp-paustid{color:#e9e9ea !important}
+:root[data-theme="dark"] .insp .insp-paustips{color:#9aa0a8 !important}
+:root[data-theme="dark"] .insp .insp-paustips kbd{background:#2a2d33; border-color:#555; color:#ddd}
+:root[data-theme="dark"] .insp .insp-brytare{background:#3a3e45; color:#ddd}
+:root[data-theme="dark"] .insp .insp-menypanel{background:#1f2227; border-color:#3a3e45; box-shadow:0 8px 24px rgba(0,0,0,.6)}
+:root[data-theme="dark"] .insp .insp-menyrad{color:#e9e9ea}
+:root[data-theme="dark"] .insp .insp-menyrad:hover, :root[data-theme="dark"] .insp .insp-ovlista button:hover, :root[data-theme="dark"] .insp .insp-ovlista button.nu{background:#26303c}
+:root[data-theme="dark"] .insp .insp-menyrad kbd{border-color:#555}
+:root[data-theme="dark"] .insp .insp-menyinfo{border-color:#33363c}
+:root[data-theme="dark"] .insp .insp-live{background:#1f2227; border-color:#33363c}
+:root[data-theme="dark"] .insp .insp-opt:hover{background:#262a30}
+:root[data-theme="dark"] .insp .insp-radio, :root[data-theme="dark"] .insp .insp-ruta, :root[data-theme="dark"] .insp .insp-opt.vald .insp-radio, :root[data-theme="dark"] .insp .matchruta .ring,
+:root[data-theme="dark"] .insp .matchruta.vald .ring, :root[data-theme="dark"] .insp .matchruta.correct .ring, :root[data-theme="dark"] .insp .matchruta.wrong .ring{background:#15171b; border-color:#7a7f87}
+:root[data-theme="dark"] .insp .insp-opt.vald .insp-radio::after, :root[data-theme="dark"] .insp .matchruta.vald .ring::after, :root[data-theme="dark"] .insp .matchruta.correct .ring::after{background:#a3acb6}
+:root[data-theme="dark"] .insp .insp-linje{background:#5a5f66}
+:root[data-theme="dark"] .insp .insp-flaggknapp{color:#8b9097}
+:root[data-theme="dark"] .insp .matchsel{background:#1f2227; color:#e9e9ea; border-color:#666}
+:root[data-theme="dark"] .insp .ordbank span{background:#1f2227; color:#e9e9ea; border-color:#555}
+:root[data-theme="dark"] .insp .gx-forkl.gx-insp{background:#1f2227; color:#e2e2e3; border-color:#3a3e45; border-left-color:var(--i-bla)}
+:root[data-theme="dark"] .insp .gx-insp .gx-kalla, :root[data-theme="dark"] .insp .gx-insp .gx-ls, :root[data-theme="dark"] .insp .gx-insp .gx-alttext{color:#a8adb4}
+:root[data-theme="dark"] .insp .gx-insp .gx-rakna{background:#1b2a25; border-color:#2f4a40}
+:root[data-theme="dark"] .insp .gx-insp .gx-altfel li.du{background:#3a2424}
+:root[data-theme="dark"] .insp .gx-insp .gx-lankar{border-top-color:#3a3e45}
+:root[data-theme="dark"] .insp .gx-insp .gx-lank{background:#222b36; border-color:#34465c; color:#a9c8f2}
+:root[data-theme="dark"] .insp .insp-forkl{background:#1f2227; border-color:#3a3e45}
+:root[data-theme="dark"] .insp .insp-facit{background:#1f2227; border-color:#2f4a2f}
+:root[data-theme="dark"] .insp .matchwrap{background:#1f2227; border-color:#666}
+:root[data-theme="dark"] .insp .matchtabell tbody td{border-color:#888}
+:root[data-theme="dark"] .insp .matchtabell td:has(.matchruta.wrong){background:#4a2626}
+:root[data-theme="dark"] .insp .insp-editor{background:#1f2227; border-color:#666}
+:root[data-theme="dark"] .insp .insp-verktyg{background:#24272c; border-color:#3a3e45; color:#aaa}
+:root[data-theme="dark"] .insp .insp-verktyg button{color:#c2c5ca}
+:root[data-theme="dark"] .insp .insp-verktyg button:hover{background:#30343a; color:#fff}
+:root[data-theme="dark"] .insp .insp-vsep{background:#444}
+:root[data-theme="dark"] .insp .insp-tecken{background:#22252a; border-color:#3a3e45}
+:root[data-theme="dark"] .insp .insp-tecken button{background:#1f2227; border-color:#3a3e45; color:#e9e9ea}
+:root[data-theme="dark"] .insp .insp-editor textarea{background:#1f2227; color:#e9e9ea}
+:root[data-theme="dark"] .insp .insp-pilar{border-top-color:#2c2f35}
+:root[data-theme="dark"] .insp .insp-nav{background:#1b1d21; border-top-color:#2c2f35}
+:root[data-theme="dark"] .insp .insp-navknapp{background:#24272c; color:#ddd}
+:root[data-theme="dark"] .insp .insp-flik, :root[data-theme="dark"] .insp .insp-flik.svarad{background:#24272c; color:#ddd; border-left-color:#15171b}
+:root[data-theme="dark"] .insp .insp-flik:hover{background:#2c3540; border-color:#15171b}
+:root[data-theme="dark"] .insp .insp-flik.nu{background:var(--i-bla); color:#fff; border-top-color:var(--i-bla)}
+:root[data-theme="dark"] .insp .insp-flik.nu.ratt{background:var(--i-ok); border-top-color:var(--i-ok)}
+:root[data-theme="dark"] .insp .insp-flik.nu.fel{background:#b03a2e; border-top-color:#b03a2e}
+:root[data-theme="dark"] .insp .insp-navknapp.lamna{background:var(--i-bla); color:#fff}
+:root[data-theme="dark"] .insp .insp-saker{color:#a8adb4}
+:root[data-theme="dark"] .insp .insp-saker button{background:#1f2227; border-color:#4a4f57; color:#e2e2e3}
+:root[data-theme="dark"] .insp .insp-saker button.pa{background:var(--i-bla); border-color:var(--i-bla); color:#fff}
+:root[data-theme="dark"] .insp .ovn-besked{color:#c5c8cd}
+:root[data-theme="dark"] .insp .ovn-besked.ratt{color:#6cc35c} :root[data-theme="dark"] .insp .ovn-besked.fel{color:#e27070}
+:root[data-theme="dark"] .insp .insp-oversikt{background:#1f2227; border-top-color:#3a3e45; box-shadow:0 -10px 30px rgba(0,0,0,.6)}
+:root[data-theme="dark"] .insp .insp-ovq{color:#ddd}
+:root[data-theme="dark"] .insp .insp-ovst{color:#8b9097}
+:root[data-theme="dark"] .insp .fm-ruta .fm-svar{background:#1f2227; color:#e2e2e3}
+@media (prefers-color-scheme: dark){
+
+:root:not([data-theme="light"]) .insp{--i-bg:#15171b; --i-yta:#1f2227; --i-text:#e9e9ea; --i-text2:#a8adb4; --i-linje:#3a3e45;
+  --i-val:#2a4a6f; --i-bla:#4f86c2; --i-marin:#a9c8f2; --i-gra:#6b7079; --i-band:#1c3f7b;
+  --i-ok:#5fb24f; --i-fel:#e27070; --i-flagg:#e39a4b; color-scheme:dark}
+:root:not([data-theme="light"]) .insp .insp-top{background:#1f2227; box-shadow:0 2px 6px rgba(0,0,0,.5)}
+:root:not([data-theme="light"]) .insp .insp-tophoger, :root:not([data-theme="light"]) .insp .insp-tid, :root:not([data-theme="light"]) .insp .insp-wifi, :root:not([data-theme="light"]) .insp .insp-ikonknapp{color:#e9e9ea}
+:root:not([data-theme="light"]) .insp .insp-ikonknapp:hover{background:#2c3036}
+:root:not([data-theme="light"]) .insp .insp-pausknapp.pa, :root:not([data-theme="light"]) .insp .insp-pausikon{background:#24364b; color:#a9c8f2}
+:root:not([data-theme="light"]) .insp .insp-paus{background:rgba(21,23,27,.97)}
+:root:not([data-theme="light"]) .insp .insp-pauskort{background:#1f2227; border-color:#3a3e45; color:#e9e9ea}
+:root:not([data-theme="light"]) .insp .insp-pauskort p{color:#c5c8cd}
+:root:not([data-theme="light"]) .insp .insp-paustid{color:#e9e9ea !important}
+:root:not([data-theme="light"]) .insp .insp-paustips{color:#9aa0a8 !important}
+:root:not([data-theme="light"]) .insp .insp-paustips kbd{background:#2a2d33; border-color:#555; color:#ddd}
+:root:not([data-theme="light"]) .insp .insp-brytare{background:#3a3e45; color:#ddd}
+:root:not([data-theme="light"]) .insp .insp-menypanel{background:#1f2227; border-color:#3a3e45; box-shadow:0 8px 24px rgba(0,0,0,.6)}
+:root:not([data-theme="light"]) .insp .insp-menyrad{color:#e9e9ea}
+:root:not([data-theme="light"]) .insp .insp-menyrad:hover, :root:not([data-theme="light"]) .insp .insp-ovlista button:hover, :root:not([data-theme="light"]) .insp .insp-ovlista button.nu{background:#26303c}
+:root:not([data-theme="light"]) .insp .insp-menyrad kbd{border-color:#555}
+:root:not([data-theme="light"]) .insp .insp-menyinfo{border-color:#33363c}
+:root:not([data-theme="light"]) .insp .insp-live{background:#1f2227; border-color:#33363c}
+:root:not([data-theme="light"]) .insp .insp-opt:hover{background:#262a30}
+:root:not([data-theme="light"]) .insp .insp-radio, :root:not([data-theme="light"]) .insp .insp-ruta, :root:not([data-theme="light"]) .insp .insp-opt.vald .insp-radio, :root:not([data-theme="light"]) .insp .matchruta .ring,
+:root:not([data-theme="light"]) .insp .matchruta.vald .ring, :root:not([data-theme="light"]) .insp .matchruta.correct .ring, :root:not([data-theme="light"]) .insp .matchruta.wrong .ring{background:#15171b; border-color:#7a7f87}
+:root:not([data-theme="light"]) .insp .insp-opt.vald .insp-radio::after, :root:not([data-theme="light"]) .insp .matchruta.vald .ring::after, :root:not([data-theme="light"]) .insp .matchruta.correct .ring::after{background:#a3acb6}
+:root:not([data-theme="light"]) .insp .insp-linje{background:#5a5f66}
+:root:not([data-theme="light"]) .insp .insp-flaggknapp{color:#8b9097}
+:root:not([data-theme="light"]) .insp .matchsel{background:#1f2227; color:#e9e9ea; border-color:#666}
+:root:not([data-theme="light"]) .insp .ordbank span{background:#1f2227; color:#e9e9ea; border-color:#555}
+:root:not([data-theme="light"]) .insp .gx-forkl.gx-insp{background:#1f2227; color:#e2e2e3; border-color:#3a3e45; border-left-color:var(--i-bla)}
+:root:not([data-theme="light"]) .insp .gx-insp .gx-kalla, :root:not([data-theme="light"]) .insp .gx-insp .gx-ls, :root:not([data-theme="light"]) .insp .gx-insp .gx-alttext{color:#a8adb4}
+:root:not([data-theme="light"]) .insp .gx-insp .gx-rakna{background:#1b2a25; border-color:#2f4a40}
+:root:not([data-theme="light"]) .insp .gx-insp .gx-altfel li.du{background:#3a2424}
+:root:not([data-theme="light"]) .insp .gx-insp .gx-lankar{border-top-color:#3a3e45}
+:root:not([data-theme="light"]) .insp .gx-insp .gx-lank{background:#222b36; border-color:#34465c; color:#a9c8f2}
+:root:not([data-theme="light"]) .insp .insp-forkl{background:#1f2227; border-color:#3a3e45}
+:root:not([data-theme="light"]) .insp .insp-facit{background:#1f2227; border-color:#2f4a2f}
+:root:not([data-theme="light"]) .insp .matchwrap{background:#1f2227; border-color:#666}
+:root:not([data-theme="light"]) .insp .matchtabell tbody td{border-color:#888}
+:root:not([data-theme="light"]) .insp .matchtabell td:has(.matchruta.wrong){background:#4a2626}
+:root:not([data-theme="light"]) .insp .insp-editor{background:#1f2227; border-color:#666}
+:root:not([data-theme="light"]) .insp .insp-verktyg{background:#24272c; border-color:#3a3e45; color:#aaa}
+:root:not([data-theme="light"]) .insp .insp-verktyg button{color:#c2c5ca}
+:root:not([data-theme="light"]) .insp .insp-verktyg button:hover{background:#30343a; color:#fff}
+:root:not([data-theme="light"]) .insp .insp-vsep{background:#444}
+:root:not([data-theme="light"]) .insp .insp-tecken{background:#22252a; border-color:#3a3e45}
+:root:not([data-theme="light"]) .insp .insp-tecken button{background:#1f2227; border-color:#3a3e45; color:#e9e9ea}
+:root:not([data-theme="light"]) .insp .insp-editor textarea{background:#1f2227; color:#e9e9ea}
+:root:not([data-theme="light"]) .insp .insp-pilar{border-top-color:#2c2f35}
+:root:not([data-theme="light"]) .insp .insp-nav{background:#1b1d21; border-top-color:#2c2f35}
+:root:not([data-theme="light"]) .insp .insp-navknapp{background:#24272c; color:#ddd}
+:root:not([data-theme="light"]) .insp .insp-flik, :root:not([data-theme="light"]) .insp .insp-flik.svarad{background:#24272c; color:#ddd; border-left-color:#15171b}
+:root:not([data-theme="light"]) .insp .insp-flik:hover{background:#2c3540; border-color:#15171b}
+:root:not([data-theme="light"]) .insp .insp-flik.nu{background:var(--i-bla); color:#fff; border-top-color:var(--i-bla)}
+:root:not([data-theme="light"]) .insp .insp-flik.nu.ratt{background:var(--i-ok); border-top-color:var(--i-ok)}
+:root:not([data-theme="light"]) .insp .insp-flik.nu.fel{background:#b03a2e; border-top-color:#b03a2e}
+:root:not([data-theme="light"]) .insp .insp-navknapp.lamna{background:var(--i-bla); color:#fff}
+:root:not([data-theme="light"]) .insp .insp-saker{color:#a8adb4}
+:root:not([data-theme="light"]) .insp .insp-saker button{background:#1f2227; border-color:#4a4f57; color:#e2e2e3}
+:root:not([data-theme="light"]) .insp .insp-saker button.pa{background:var(--i-bla); border-color:var(--i-bla); color:#fff}
+:root:not([data-theme="light"]) .insp .ovn-besked{color:#c5c8cd}
+:root:not([data-theme="light"]) .insp .ovn-besked.ratt{color:#6cc35c} :root:not([data-theme="light"]) .insp .ovn-besked.fel{color:#e27070}
+:root:not([data-theme="light"]) .insp .insp-oversikt{background:#1f2227; border-top-color:#3a3e45; box-shadow:0 -10px 30px rgba(0,0,0,.6)}
+:root:not([data-theme="light"]) .insp .insp-ovq{color:#ddd}
+:root:not([data-theme="light"]) .insp .insp-ovst{color:#8b9097}
+:root:not([data-theme="light"]) .insp .fm-ruta .fm-svar{background:#1f2227; color:#e2e2e3}
+}
+
+/* historik */
+.hist-filter{display:flex; gap:8px; flex-wrap:wrap; margin:20px 0 6px}
+.hist-chip{font:inherit; font-size:14px; padding:6px 14px; border-radius:99px; border:1px solid var(--line); background:var(--surface); color:var(--ink-2); cursor:pointer}
+.hist-chip.nu{background:var(--accent); border-color:var(--accent); color:#fff}
+.hist-lista{list-style:none; margin:14px 0 0; padding:0; display:flex; flex-direction:column; gap:10px}
+.hist-rad{border:1px solid var(--line); border-radius:12px; background:var(--surface); padding:14px 16px; display:flex; flex-direction:column; gap:8px}
+.hist-huvud{display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 12px}
+.hist-typ{font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:2px 8px; border-radius:6px; background:var(--surface-2); color:var(--ink-2)}
+.hist-duell, .hist-live{background:color-mix(in srgb, var(--accent) 16%, transparent); color:var(--accent)}
+.hist-ranked{background:color-mix(in srgb, var(--warn) 18%, transparent); color:var(--warn)}
+.hist-titel{flex:1 1 220px; min-width:0}
+.hist-datum{font-size:13px; color:var(--ink-3); font-variant-numeric:tabular-nums}
+.hist-mitt{display:flex; flex-wrap:wrap; gap:4px 14px; font-size:14.5px}
+.hist-status{font-weight:700}
+.hist-proc{font-variant-numeric:tabular-nums}
+.hist-not{color:var(--ink-3); font-size:13.5px}
+.hist-knappar{display:flex; flex-wrap:wrap; gap:8px}
+.hist-knappar .btn{font-size:14px; padding:6px 12px}
+.hist-radera{margin-left:auto; color:var(--err)}
+.lagringfull{position:fixed; left:50%; bottom:calc(84px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); z-index:200;
+  width:min(560px, calc(100vw - 32px)); background:var(--surface); color:var(--ink); border:1px solid var(--err); border-left-width:5px;
+  border-radius:10px; padding:12px 14px; box-shadow:0 10px 30px -10px rgba(0,0,0,.4); font-size:14.5px}
+.lagringfull .btn{margin-left:8px; font-size:13px; padding:4px 10px}
+/* utökad förklaring */
+.fm-ruta{margin-top:12px}
+.fm-knapp{font:inherit; font-size:14.5px; font-weight:600; padding:8px 14px; border-radius:8px; cursor:pointer;
+  border:1px solid color-mix(in srgb, var(--teal) 45%, transparent); background:color-mix(in srgb, var(--teal) 10%, transparent); color:var(--teal)}
+.fm-knapp:disabled{opacity:.6; cursor:default}
+.insp .fm-knapp{border-radius:3px; border-color:#9fb6d0; background:#eef3f9; color:var(--i-marin)}
+:root[data-theme="dark"] .insp .fm-knapp{background:#222b36; border-color:#34465c; color:#a9c8f2}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .insp .fm-knapp{background:#222b36; border-color:#34465c; color:#a9c8f2} }
+.fm-svar{margin-top:10px; border:1px solid var(--line); border-left:4px solid var(--teal); border-radius:10px; padding:12px 16px; background:var(--surface); font-size:15.5px; line-height:1.55}
+.insp .fm-svar{background:#fff; color:#222; border-color:#d8d8d8; border-left-color:var(--i-bla); border-radius:0}
+.fm-svar p{margin:6px 0}
+.fm-del{margin-top:10px}
+.fm-traff{display:block; width:100%; text-align:left; font:inherit; background:none; border:0; border-top:1px solid var(--line); padding:8px 0; cursor:pointer; color:inherit}
+.fm-tt{display:block; font-weight:600; font-size:14.5px}
+.fm-ut{display:block; font-size:13.5px; color:var(--ink-3)}
+.fm-tips{font-size:13.5px; color:var(--ink-3)}
+.fm-laddar{color:var(--ink-3)}
+.fm-fel{color:var(--err)}
 .insp-radio{flex:none; width:20px; height:20px; border-radius:50%; border:1.5px solid #9b9b9b; background:#fff; display:inline-flex; align-items:center; justify-content:center}
 .insp-opt.vald .insp-radio{border-color:#a8a8a8; background:#fff}
 .insp-opt.vald .insp-radio::after{content:""; width:10px; height:10px; border-radius:50%; background:#b5b5b5}
@@ -9406,6 +9583,7 @@ function parse() {
   if (!h) return { name: "hem" };
   const p = h.split("/");
   if (p[0] === "installningar") return { name: "installningar" };
+  if (p[0] === "historik") return { name: "historik" };
   if (p[0] === "pass") return { name: "pass" };
   if (p[0] === "felbank") return { name: "felbank" };
   if (p[0] === "laget" || p[0] === "plan") return { name: "laget" };
@@ -9545,6 +9723,7 @@ function merOppna() {
     ${rad("/delat", I.katalog, "Katalog", "Kurser och tentor som andra delat")}
     ${rad("/ai", I.ai, "AI-rättning", "Koppla in en egen API-nyckel")}
     ${inst !== "installerad" ? rad("", I.ladda, "Installera appen", "Egen ikon, startar direkt och fungerar utan nät", 'id="merinstall"') : ""}
+    ${rad("/historik", I.tenta, "Historik", "Alla tentor och dueller – resultat, förlorade och radera")}
     ${rad("/installningar", I.kugg, "Inställningar", "Synk mellan enheter, notiser och appen")}
     ${rad("", I.tema, "Ljust eller mörkt läge", "Byt utseende", 'id="mertema"')}`;
   a.hidden = false;
@@ -10756,7 +10935,7 @@ function psStatus() {
 function psRitaOm() {
   try {
     const n = parse().name;
-    if (["hem", "kurs", "modul", "sub", "laget", "felbank", "installningar"].includes(n) || (n === "pass" && !PASSKO)) render();
+    if (["hem", "kurs", "modul", "sub", "laget", "felbank", "installningar", "historik"].includes(n) || (n === "pass" && !PASSKO)) render();
   } catch (e) {}
 }
 /* Tar emot det som ligger på kontot och för in det lokalt. */
@@ -22173,7 +22352,7 @@ function lamnaIn(auto) {
      det finns ingen resultatsida att trycka på innan de andra är klara. */
   if (forsok.duell || forsok.live) {
     tstore.forsok.unshift(forsok);
-    if (tstore.forsok.length > 40) tstore.forsok.length = 40;
+    if (tstore.forsok.length > 150) tstore.forsok.length = 150;
     tstore.senaste = null;
   } else {
     tstore.senaste = forsok;
@@ -22214,7 +22393,7 @@ function sparaForsok(id) {
   const f = tstore.senaste && tstore.senaste.id === id ? tstore.senaste : null;
   if (!f) return false;
   tstore.forsok.unshift(f);
-  if (tstore.forsok.length > 40) tstore.forsok.length = 40;
+  if (tstore.forsok.length > 150) tstore.forsok.length = 150;
   tstore.senaste = null;
   tsave();
   return true;
@@ -23948,6 +24127,7 @@ function viewTentaKor() {
       Tangentbord: <b>A–H</b> väljer alternativ, <b>←/→</b> byter fråga, <b>F</b> flaggar, <b>N</b> nästa flaggade${kanPausa(a) ? ", <b>P</b> pausar" : ""}.</div>
     ${kanPausa(a) ? `<button class="insp-menyrad" id="pausmeny">${pausad ? "Fortsätt tentan" : "Pausa tentan"}<kbd>P</kbd></button>` : ""}
     ${kanPausa(a) ? `<button class="insp-menyrad" id="autopaus" role="switch" aria-checked="${autoPausPa()}">Pausa automatiskt när jag lämnar appen<b class="insp-brytare${autoPausPa() ? " pa" : ""}">${autoPausPa() ? "På" : "Av"}</b></button>` : ""}
+    <button class="insp-menyrad" id="inspmork" role="switch" aria-checked="${document.documentElement.dataset.theme === "dark"}">Mörkt läge<b class="insp-brytare${document.documentElement.dataset.theme === "dark" ? " pa" : ""}">${document.documentElement.dataset.theme === "dark" ? "På" : "Av"}</b></button>
     <button class="insp-menyrad" data-go="/tenta" id="lamnalage">Lämna tentaläget (svaren sparas${kanPausa(a) ? ", klockan pausas" : ""})</button>
     <button class="insp-menyrad stark" data-meny="lamna">Lämna in</button>`;
 
@@ -24047,6 +24227,11 @@ function viewTentaKor() {
   if (ovnS) ovnS.addEventListener("click", () => { ovnLas(a, t, fi); tsave(); meddelaFramsteg(); render(); });
   const ovnN = document.getElementById("ovnNasta");
   if (ovnN) ovnN.addEventListener("click", () => { if (pos < n - 1) gaTill(pos + 1); else document.getElementById("lamna").click(); });
+  const im = document.getElementById("inspmork"); if (im) im.addEventListener("click", () => {
+    const tk = document.getElementById("theme"); if (tk) tk.click();
+    render();
+    setTimeout(() => { const m = document.getElementById("inspmenypanel"); if (m) m.hidden = false; }, 0);
+  });
   const ap = document.getElementById("autopaus"); if (ap) ap.addEventListener("click", () => {
     tstore.autoPaus = !autoPausPa(); tsave(); render();
     setTimeout(() => { const m = document.getElementById("inspmenypanel"); if (m) m.hidden = false; }, 0);
@@ -24162,7 +24347,7 @@ function viewTentaGranska(fid, posArg) {
   const t = fo ? forsokTenta(fo) : null;
   if (!fo || !t) {
     view.innerHTML = `${tentaCrumbs([{ t: "Saknas" }])}<h1>Försöket hittades inte</h1>
-      <div class="empty"><b>Svaren finns inte kvar</b>Endast de 40 senaste försöken sparas.</div>`;
+      <div class="empty"><b>Svaren finns inte kvar</b>De 150 senaste försöken sparas. Sammanfattningen finns under <a href="#/historik">Historik</a>.</div>`;
     return;
   }
   const r = ratta(fo, t);
@@ -24858,7 +25043,7 @@ async function gxFelTillAnki(fid, vad, knapp) {
 function viewTentaResultat(fid) {
   const f = forsokById(fid);
   if (!f) { view.innerHTML = `${tentaCrumbs([{ t: "Saknas" }])}<h1>Försöket hittades inte</h1>
-    <div class="empty"><b>Resultatet finns inte kvar</b>Endast de 40 senaste försöken sparas.</div>`; return; }
+    <div class="empty"><b>Resultatet finns inte kvar</b>De 150 senaste försöken sparas. Sammanfattningen finns under <a href="#/historik">Historik</a>.</div>`; return; }
   const t = forsokTenta(f);
   if (!t) { view.innerHTML = `${tentaCrumbs([{ t: "Saknas" }])}<h1>Tentan finns inte kvar</h1>
     <div class="empty"><b>Underlaget är borttaget</b>Resultatet kan inte visas i detalj.</div>`; return; }
@@ -31521,7 +31706,8 @@ function render() {
     if (_duellAvStatus) { try { _duellAvStatus(); } catch (e) {} _duellAvStatus = null; }
   }
   if (r.name !== "chatt") chattSluta();
-  if (r.name === "installningar") viewInstallningar();
+  if (r.name === "historik") viewHistorik();
+  else if (r.name === "installningar") viewInstallningar();
   else if (r.name === "pass") viewPass();
   else if (r.name === "felbank") viewFelbank();
   else if (r.name === "laget") viewPlan();
@@ -37903,7 +38089,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261116-1322";
+const BYGGID = "20261116-2153";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
@@ -38015,6 +38201,550 @@ function startaVersionskoll() {
     visaVersionsband(null);
   });
 }
+
+/* =====================================================================
+   HISTORIK, SÄKER LAGRING OCH INLÄMNING SOM ALLTID KOMMER FRAM
+   · Varje tenta och duell som startas skrivs in i en egen, liten historik
+     (lmb.hist.v1) som synkas mellan enheterna. Där syns om ett försök
+     lämnades in, om resultatet nådde de andra, eller om det försvann.
+   · tsave klarar en full lagring: när webbläsarens utrymme tar slut tas
+     kopior av tentor bort ur gamla försök (tentan finns ju kvar), i stället
+     för att hela sparningen tyst misslyckas och försöket försvinner.
+   · En livematch som lämnas in efter ett avbrott eller utan nät skickar sitt
+     resultat så fort det går, och startar aldrig om matchen för den som
+     redan lämnat in.
+   ===================================================================== */
+const HIST_KEY = "lmb.hist.v1";
+const HIST_MAX = 400;
+let hstore = { poster: {}, importerad: false };
+try { const r = localStorage.getItem(HIST_KEY); if (r) hstore = Object.assign(hstore, JSON.parse(r)); } catch (e) {}
+if (!hstore.poster || typeof hstore.poster !== "object") hstore.poster = {};
+function hsave() { try { localStorage.setItem(HIST_KEY, JSON.stringify(hstore)); } catch (e) {} }
+
+function histTyp(a) {
+  if (a && a.live) return arSnabb(a.live.id) ? "ranked" : "live";
+  if (a && a.duell) return "duell";
+  if (a && a.ovning) return "ovning";
+  return "solo";
+}
+const HIST_TYPNAMN = { solo: "Tenta", ovning: "Övning", duell: "Duell", live: "Livematch", ranked: "Rankad" };
+
+function histSatt(id, patch) {
+  if (!id) return;
+  const gammal = hstore.poster[id] || {};
+  hstore.poster[id] = Object.assign({}, gammal, patch, { id });
+  const ids = Object.keys(hstore.poster);
+  if (ids.length > HIST_MAX) {
+    ids.sort((a, b) => (hstore.poster[a].startad || 0) - (hstore.poster[b].startad || 0))
+      .slice(0, ids.length - HIST_MAX).forEach(x => { delete hstore.poster[x]; });
+  }
+  hsave();
+}
+function histFranForsok(f, extra) {
+  if (!f || !f.id) return;
+  const s = f.sammanfattning || {};
+  histSatt(f.id, Object.assign({
+    typ: histTyp(f), titel: f.titel || "Tenta", tentaId: f.tentaId || "",
+    startad: f.startad || f.slutad || Date.now(), slutad: f.slutad || Date.now(),
+    status: "inlamnad", procent: typeof s.procent === "number" ? s.procent : null,
+    ratt: s.ratt, antal: s.antal, godkand: !!s.godkand, auto: !!f.auto,
+    matchId: (f.live && f.live.id) || "", seed: (f.duell && f.duell.seed) || "",
+    sparad: forsokSparat(f.id)
+  }, extra || {}));
+}
+
+/* Allt som fanns innan historiken: sparade försök och egna duellresultat. */
+function histImportera() {
+  if (hstore.importerad) return;
+  try {
+    (tstore.forsok || []).forEach(f => histFranForsok(f));
+    if (tstore.senaste) histFranForsok(tstore.senaste, { sparad: false });
+    const medSeed = new Set(Object.values(hstore.poster).map(p => p.seed).filter(Boolean));
+    (dstore.resultat || []).forEach(r => {
+      if (!r || !r.jagsjalv || !r.seed || medSeed.has(r.seed)) return;
+      histSatt("d:" + r.seed, { typ: "duell", titel: r.titel || "Duell", startad: r.nar || Date.now(), slutad: r.nar || Date.now(),
+        status: "inlamnad", procent: r.procent, ratt: r.ratt, antal: r.av, seed: r.seed, sparad: false });
+    });
+  } catch (e) {}
+  hstore.importerad = true;
+  hsave();
+}
+histImportera();
+
+/* ---------- start, inlämning, spara och ta bort skriver i historiken ---------- */
+/* Livematchens sluttid sätts av värdens klocka. Går telefonens klocka före blir
+   tentan avslutad i förtid (man "kastas ut" och lämnas in automatiskt), går den
+   efter blir den längre. Har man sett matchen gå från lobby till start räknas
+   sluttiden i stället från det ögonblicket, på den egna klockan. */
+let _histForraLage = "", _histKorSedd = null;
+function histNoteraLage() {
+  const m = LIVE.match;
+  const lage = m ? m.lage : "";
+  if (m && lage === "kor" && _histForraLage === "lobby") _histKorSedd = { id: LIVE.id, t: Date.now(), minuter: Number(m.minuter) || 0 };
+  _histForraLage = lage;
+}
+const _histStarta = startaForsok;
+startaForsok = function () {
+  const r = _histStarta.apply(this, arguments);
+  try {
+    const a = tstore.aktivt;
+    if (a && a.live && _histKorSedd && _histKorSedd.id === a.live.id && Date.now() - _histKorSedd.t < 120000) {
+      const min = _histKorSedd.minuter || a.minuter || 10;
+      const lokal = _histKorSedd.t + 3000 + min * 60000;
+      if (Math.abs(lokal - a.slutar) > 5000) { a.slutar = lokal; tsave(); }
+    }
+  } catch (e) {}
+  try {
+    const a = tstore.aktivt, t = aktivTenta();
+    if (a) histSatt(a.id, { typ: histTyp(a), titel: a.titel || "Tenta", tentaId: a.tentaId || "", startad: a.startad,
+      status: "pagar", antal: t ? t.fragor.length : 0, matchId: (a.live && a.live.id) || "", seed: (a.duell && a.duell.seed) || "" });
+  } catch (e) {}
+  return r;
+};
+const _histLamna = lamnaIn;
+lamnaIn = function () {
+  const a = tstore.aktivt, id = a && a.id;
+  const r = _histLamna.apply(this, arguments);
+  try { const f = id ? forsokById(id) : null; if (f) histFranForsok(f); } catch (e) {}
+  return r;
+};
+const _histSpara = sparaForsok;
+sparaForsok = function (id) {
+  const r = _histSpara.apply(this, arguments);
+  if (r && hstore.poster[id]) histSatt(id, { sparad: true });
+  return r;
+};
+const _histTaBort = taBortForsok;
+taBortForsok = function (id) {
+  const r = _histTaBort.apply(this, arguments);
+  if (hstore.poster[id]) { delete hstore.poster[id]; hsave(); }
+  return r;
+};
+
+/* Synk mellan enheterna: en post per försök, borttagningar följer med. */
+try {
+  PS_DOK.hist = {
+    las() { const m = {}; Object.keys(hstore.poster).forEach(id => { m["h:" + id] = hstore.poster[id]; }); return m; },
+    skriv(m) {
+      const p = {};
+      Object.keys(m).forEach(n => { if (n.indexOf("h:") === 0 && m[n] && typeof m[n] === "object") p[n.slice(2)] = m[n]; });
+      hstore.poster = p; hsave();
+    }
+  };
+} catch (e) {}
+
+/* ---------- tentalagret: tål full lagring ---------- */
+let _lagringFullVisad = false;
+function tsaveBanta(steg) {
+  const lista = (tstore.forsok || []).slice().reverse();          // äldst först
+  if (steg === 1) {
+    /* kopian av tentan behövs inte så länge tentan själv finns kvar */
+    let n = 0;
+    lista.forEach(f => { if (f.snapshot && f.tentaId && tentaById(f.tentaId)) { delete f.snapshot; n++; } });
+    return n > 0;
+  }
+  if (steg === 2) {
+    let n = 0;
+    lista.slice(0, Math.max(0, lista.length - 5)).forEach(f => { if (f.snapshot) { delete f.snapshot; n++; } });
+    return n > 0;
+  }
+  if (steg === 3 && (tstore.forsok || []).length > 20) { tstore.forsok.length = 20; return true; }
+  return false;
+}
+tsave = function () {
+  const skriv = () => { localStorage.setItem(TSTORE_KEY, JSON.stringify(tstore)); return true; };
+  try { return skriv(); } catch (e) {}
+  for (let steg = 1; steg <= 3; steg++) {
+    if (!tsaveBanta(steg)) continue;
+    try { return skriv(); } catch (e) {}
+  }
+  if (!_lagringFullVisad) {
+    _lagringFullVisad = true;
+    setTimeout(() => { try { alertaLagring(); } catch (e) {} }, 0);
+  }
+  return false;
+};
+function alertaLagring() {
+  if (document.getElementById("lagringfull")) return;
+  const d = document.createElement("div");
+  d.id = "lagringfull"; d.className = "lagringfull"; d.setAttribute("role", "alert");
+  d.innerHTML = `<b>Webbläsarens lagring är full.</b> Det senaste kunde inte sparas. Ta bort gamla tentor eller
+    resultat under <a href="#/historik">Historik</a> och <a href="#/tenta">Tentor</a>.
+    <button class="btn" type="button">Stäng</button>`;
+  d.querySelector("button").addEventListener("click", () => d.remove());
+  document.body.appendChild(d);
+}
+/* Fler försök sparas – utrymmet hålls nere av bantningen ovan. */
+const FORSOK_MAX = 150;
+
+/* ---------- livematch: resultatet kommer alltid fram ---------- */
+const LKO_KEY = "lmb.liveko.v1";
+let liveKo = [];
+try { const r = localStorage.getItem(LKO_KEY); if (r) liveKo = JSON.parse(r) || []; } catch (e) {}
+if (!Array.isArray(liveKo)) liveKo = [];
+function liveKoSpara() { try { localStorage.setItem(LKO_KEY, JSON.stringify(liveKo)); } catch (e) {} }
+function liveKoLagg(matchId, forsokId, data) {
+  liveKo = liveKo.filter(p => p.id !== matchId);
+  liveKo.push({ id: matchId, forsokId, data, nar: Date.now() });
+  liveKoSpara();
+  if (forsokId) histSatt(forsokId, { skickad: false });
+}
+let _liveKoPagar = false;
+async function liveKoSkicka() {
+  if (_liveKoPagar || !liveKo.length) return;
+  if (!(typeof SYNK !== "undefined" && SYNK.lage === "pa" && SYNK.db && SYNK.uid)) return;
+  _liveKoPagar = true;
+  try {
+    for (const p of liveKo.slice()) {
+      /* äldre än två dygn: matchen är avslutad sedan länge */
+      if (Date.now() - (p.nar || 0) > 2 * 86400000) { liveKo = liveKo.filter(x => x !== p); continue; }
+      const rot = liveRot(p.id);
+      if (!rot) continue;
+      const ref = rot.doc(p.id).collection("spelare").doc(SYNK.uid);
+      try {
+        try { await ref.update(p.data); }
+        catch (e) {
+          /* spelarraden saknas (man kom in utan att lobbyn hann skriva den) */
+          const jag = jagId();
+          await ref.set(Object.assign({ namn: (jag && jag.namn) || "Okänd", avatar: minAvatar() }, p.data), { merge: true });
+        }
+        liveKo = liveKo.filter(x => x !== p);
+        if (p.forsokId) histSatt(p.forsokId, { skickad: true });
+      } catch (e) {
+        p.fel = String(e && (e.code || e.message) || e); p.forsok = (p.forsok || 0) + 1;
+      }
+    }
+  } finally {
+    liveKoSpara();
+    _liveKoPagar = false;
+  }
+}
+/* Ersätter den gamla: den läste matchens id ur LIVE, som är tomt efter en
+   omladdning – då gick inlämningen aldrig fram, och matchen erbjöd en ny start. */
+liveSkrivKlar = async function (res, tidSek, matchId) {
+  const f0 = tstore.forsok && tstore.forsok[0];
+  const id = matchId || (f0 && f0.live && f0.live.id) || LIVE.id;
+  if (!id) return false;
+  const data = {
+    klar: true, pos: Number(res.antalFragor) || 0, av: Number(res.antalFragor) || 0,
+    ratt: Number(res.antalRatt) || 0, procent: Number(res.totalProcent) || 0,
+    tid: Number(tidSek) || 0, klient: Date.now()
+  };
+  liveKoLagg(id, f0 && f0.live && f0.live.id === id ? f0.id : "", data);
+  await liveKoSkicka();
+  return !liveKo.some(p => p.id === id);
+};
+function liveLokaltForsok(matchId) {
+  return (tstore.forsok || []).find(f => f.live && f.live.id === matchId) || null;
+}
+/* Har man lämnat in här men raden i databasen inte hunnit uppdateras, visas man
+   som klar och resultatet skickas igen – matchen startar aldrig om. */
+const _histLiveAndrad = liveAndrad;
+liveAndrad = function () {
+  try { histNoteraLage(); } catch (e) {}
+  try {
+    if (LIVE.id && typeof SYNK !== "undefined" && SYNK.uid) {
+      const f = liveLokaltForsok(LIVE.id);
+      if (f) {
+        const s = f.sammanfattning || {};
+        let min = LIVE.spelare.find(x => x.uid === SYNK.uid);
+        if (!min) {
+          const jag = jagId();
+          min = { uid: SYNK.uid, namn: (jag && jag.namn) || "Jag", avatar: minAvatar() };
+          LIVE.spelare.push(min);
+        }
+        if (!min.klar) {
+          Object.assign(min, { klar: true, procent: s.procent || 0, ratt: s.ratt || 0, av: s.antal || 0, pos: s.antal || 0,
+            tid: Math.round((f.anvandTid || 0) / 1000), vantar: true });
+          if (!liveKo.some(p => p.id === LIVE.id)) liveKoLagg(LIVE.id, f.id, { klar: true, pos: s.antal || 0, av: s.antal || 0,
+            ratt: s.ratt || 0, procent: s.procent || 0, tid: Math.round((f.anvandTid || 0) / 1000), klient: Date.now() });
+          setTimeout(liveKoSkicka, 0);
+        }
+      }
+    }
+  } catch (e) {}
+  return _histLiveAndrad.apply(this, arguments);
+};
+const _histLiveStarta = liveKanskeStarta;
+liveKanskeStarta = function () {
+  if (LIVE.id && liveLokaltForsok(LIVE.id)) return;     // redan inlämnad här
+  return _histLiveStarta.apply(this, arguments);
+};
+
+/* ---------- duellresultat som inte kom fram skickas igen ---------- */
+let _duellKoPagar = false;
+async function duellKoSkicka() {
+  if (_duellKoPagar || typeof SYNK === "undefined" || SYNK.lage !== "pa" || !SYNK.uid || !SYNK.grupp) return;
+  const grupp = String(SYNK.grupp || "").toUpperCase();
+  const att = (dstore.resultat || []).filter(r => r && r.jagsjalv && r.delad === false && r.seed &&
+    String(r.grupp || "").toUpperCase() === grupp && Date.now() - (r.nar || 0) < 30 * 86400000);
+  if (!att.length) return;
+  _duellKoPagar = true;
+  try {
+    for (const r of att) {
+      const gick = await synkSkrivResultat(r);
+      if (gick) { r.delad = true; dsave(); }
+    }
+  } finally { _duellKoPagar = false; }
+}
+function koSkickaAllt() { try { liveKoSkicka(); } catch (e) {} try { duellKoSkicka(); } catch (e) {} }
+setInterval(koSkickaAllt, 20000);
+setTimeout(koSkickaAllt, 6000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) koSkickaAllt(); });
+window.addEventListener("online", koSkickaAllt);
+
+/* ---------- vyn: historik ---------- */
+let _histFilter = "alla";
+function histStatus(p) {
+  const a = tstore.aktivt;
+  if (p.status === "pagar") {
+    if (a && a.id === p.id) return { kod: "pagar", text: "Pågår", farg: "var(--accent)" };
+    return { kod: "forlorad", text: "Lämnades aldrig in", farg: "var(--err)" };
+  }
+  if ((p.typ === "live" || p.typ === "ranked") && p.skickad === false) {
+    const ko = liveKo.find(x => x.id === p.matchId);
+    return { kod: "skickas", text: ko && ko.fel ? "Resultatet har inte nått matchen – försöker igen" : "Resultatet skickas…", farg: "var(--warn)" };
+  }
+  if (p.typ === "duell") {
+    const r = (dstore.resultat || []).find(x => x.seed === p.seed && x.jagsjalv);
+    if (r && r.delad === false) return { kod: "skickas", text: "Ej uppladdat till topplistan – försöker igen", farg: "var(--warn)" };
+  }
+  return { kod: "inlamnad", text: p.auto ? "Inlämnad när tiden tog slut" : "Inlämnad", farg: "var(--ok)" };
+}
+function histRader() {
+  return Object.values(hstore.poster)
+    .filter(p => p && p.id)
+    .filter(p => _histFilter === "alla" ? true : _histFilter === "tentor" ? (p.typ === "solo" || p.typ === "ovning") : !(p.typ === "solo" || p.typ === "ovning"))
+    .sort((a, b) => (b.slutad || b.startad || 0) - (a.slutad || a.startad || 0));
+}
+function viewHistorik() {
+  const rader = histRader();
+  const alla = Object.values(hstore.poster);
+  const forlorade = alla.filter(p => histStatus(p).kod === "forlorad").length;
+  const skickas = alla.filter(p => histStatus(p).kod === "skickas").length;
+  const chip = (k, t) => `<button class="hist-chip${_histFilter === k ? " nu" : ""}" data-histfilter="${k}">${t}</button>`;
+  const rad = p => {
+    const st = histStatus(p);
+    const f = forsokById(p.id);
+    const knappar = [];
+    if (st.kod === "pagar") knappar.push(`<button class="btn primary" data-go="/tenta/kor">Fortsätt</button>`);
+    if (f && (p.typ === "solo" || p.typ === "ovning")) knappar.push(`<button class="btn" data-go="/tenta/resultat/${encodeURIComponent(p.id)}">Resultat</button>`);
+    if (f) knappar.push(`<button class="btn" data-go="/tenta/granska/${encodeURIComponent(p.id)}/0">Inlämnade svar</button>`);
+    if ((p.typ === "live" || p.typ === "ranked") && p.matchId) knappar.push(`<button class="btn" data-go="/duell/live/${encodeURIComponent(p.matchId)}">Matchen</button>`);
+    if (p.typ === "duell" && p.seed) knappar.push(`<button class="btn" data-go="/duell/m/${encodeURIComponent(p.seed)}">Duellen</button>`);
+    if (f && !forsokSparat(p.id) && (p.typ === "solo" || p.typ === "ovning")) knappar.push(`<button class="btn" data-histspara="${esc(p.id)}">Spara</button>`);
+    if (st.kod !== "pagar") knappar.push(`<button class="btn hist-radera" data-histradera="${esc(p.id)}" aria-label="Radera ${esc(p.titel || "")}">Radera</button>`);
+    const detalj = st.kod === "inlamnad" && !f && !(p.typ === "duell" || p.typ === "live" || p.typ === "ranked")
+      ? `<span class="hist-not">Svaren finns inte på den här enheten${p.sparad === false ? " (resultatet sparades inte)" : ""}.</span>` : "";
+    return `<li class="hist-rad">
+      <div class="hist-huvud">
+        <span class="hist-typ hist-${esc(p.typ || "solo")}">${esc(HIST_TYPNAMN[p.typ] || "Tenta")}</span>
+        <b class="hist-titel">${esc(p.titel || "Tenta")}</b>
+        <span class="hist-datum">${fmtDatum(p.slutad || p.startad || Date.now())}</span>
+      </div>
+      <div class="hist-mitt">
+        <span class="hist-status" style="color:${st.farg}">${esc(st.text)}</span>
+        ${typeof p.procent === "number" && st.kod !== "pagar" && st.kod !== "forlorad"
+          ? `<span class="hist-proc">${p.procent} %${typeof p.ratt === "number" && p.antal ? ` · ${p.ratt}/${p.antal} rätt` : ""}</span>` : ""}
+        ${detalj}
+      </div>
+      <div class="hist-knappar">${knappar.join("")}</div>
+    </li>`;
+  };
+  view.innerHTML = `
+    ${crumbs([{ t: "Översikt", href: "/" }, { t: "Historik" }])}
+    <p class="eyebrow">Historik</p>
+    <h1>Dina tentor och dueller</h1>
+    <p class="lede">Allt du startat, även det som aldrig lämnades in. Historiken följer med mellan dina enheter
+      när synk är på. Att radera tar bort resultatet ur din historik och statistik – topplistor och andras
+      resultat påverkas inte.</p>
+    ${forlorade || skickas ? `<div class="note" style="margin-top:14px">
+      ${forlorade ? `<b>${forlorade} ${forlorade === 1 ? "försök" : "försök"} lämnades aldrig in.</b> Svaren försvann när appen stängdes eller tentan avbröts. ` : ""}
+      ${skickas ? `<b>${skickas} ${skickas === 1 ? "resultat har" : "resultat har"} inte nått fram ännu.</b> De skickas av sig själva när du är uppkopplad.` : ""}
+    </div>` : ""}
+    <div class="hist-filter" role="group" aria-label="Visa">${chip("alla", "Alla")}${chip("tentor", "Tentor")}${chip("dueller", "Dueller och matcher")}</div>
+    ${rader.length ? `<ol class="hist-lista">${rader.map(rad).join("")}</ol>`
+      : `<div class="empty" style="margin-top:18px"><b>Ingenting här ännu</b>När du gör en tenta eller duell hamnar den här.</div>`}`;
+  view.querySelectorAll("[data-histfilter]").forEach(b => b.addEventListener("click", () => { _histFilter = b.dataset.histfilter; viewHistorik(); }));
+  view.querySelectorAll("[data-histspara]").forEach(b => b.addEventListener("click", () => { sparaForsok(b.dataset.histspara); viewHistorik(); }));
+  view.querySelectorAll("[data-histradera]").forEach(b => b.addEventListener("click", async () => {
+    const id = b.dataset.histradera, p = hstore.poster[id];
+    if (!p) return;
+    if (!await bekrafta(`Radera "${p.titel || "resultatet"}" från ${fmtDatum(p.slutad || p.startad)}? Det försvinner ur din historik och statistik på alla dina enheter.`, "Radera")) return;
+    histRadera(id);
+    viewHistorik();
+  }));
+}
+function histRadera(id) {
+  const p = hstore.poster[id];
+  if (!p) return;
+  try { if (forsokById(id)) _histTaBort(id); } catch (e) {}
+  if (p.seed) {
+    /* Eget duellresultat: matchen göms hos dig (som "Ta bort match", men utan att
+       raden i gruppens databas tas bort – topplistan och de andra rörs inte). */
+    const jag = jagId();
+    dstore.resultat = (dstore.resultat || []).filter(r => !(r.seed === p.seed && (r.jagsjalv || r.pid === jag.id)));
+    if (!arDold(p.seed)) dolda().push({ seed: p.seed, titel: p.titel || "Match", nar: Date.now() });
+    dsave();
+  }
+  if (p.matchId) { liveKo = liveKo.filter(x => x.id !== p.matchId); liveKoSpara(); }
+  delete hstore.poster[id];
+  hsave();
+}
+
+/* Ett resultat som inte finns kvar i detalj visas ur historiken i stället för "hittades inte". */
+const _histVisaRes = viewTentaResultat;
+viewTentaResultat = function (fid) {
+  if (forsokById(fid)) return _histVisaRes.apply(this, arguments);
+  const p = hstore.poster[fid];
+  if (!p) return _histVisaRes.apply(this, arguments);
+  const st = histStatus(p);
+  view.innerHTML = `${tentaCrumbs([{ t: "Resultat" }])}
+    <p class="eyebrow">${esc(HIST_TYPNAMN[p.typ] || "Tenta")} · ${fmtDatum(p.slutad || p.startad)}</p>
+    <h1>${esc(p.titel || "Tenta")}</h1>
+    <div class="note" style="margin-top:16px">
+      <b style="color:${st.farg}">${esc(st.text)}${typeof p.procent === "number" && st.kod !== "forlorad" ? ` · ${p.procent} %` : ""}</b>
+      ${typeof p.ratt === "number" && p.antal ? ` – ${p.ratt} av ${p.antal} rätt.` : ""}
+      Svaren och rättningen finns inte på den här enheten${p.sparad === false ? " – resultatet sparades aldrig" : ""}, så bara sammanfattningen kan visas.
+    </div>
+    <p style="margin-top:16px"><button class="btn" data-go="/historik">Till historiken</button></p>`;
+};
+
+/* =====================================================================
+   UTÖKAD FÖRKLARING
+   Under varje rättad fråga: "Förklara mer". Med en AI-nyckel skrivs en
+   förklaring för just den frågan (och sparas, så att den inte kostar igen).
+   Utan nyckel visas det biblioteket har om ämnet: lärandemålet, sökträffar
+   i kurstexten och rätt svar med motivering.
+   ===================================================================== */
+const FM_KEY = "lmb.forklara.v1";
+const FM_KONTEXT = new Map();
+let _fmNr = 0;
+function fmCacheLas() { try { return JSON.parse(localStorage.getItem(FM_KEY) || "{}") || {}; } catch (e) { return {}; } }
+function fmCacheSkriv(nyckel, text) {
+  const c = fmCacheLas();
+  c[nyckel] = { t: text, n: Date.now() };
+  const k = Object.keys(c);
+  if (k.length > 150) k.sort((a, b) => c[a].n - c[b].n).slice(0, k.length - 150).forEach(x => delete c[x]);
+  try { localStorage.setItem(FM_KEY, JSON.stringify(c)); } catch (e) {}
+}
+function fmNyckel(f) { return felHash(String(f.q || "") + "|" + (f.options || []).join("|") + "|" + JSON.stringify(f.svar)); }
+function fmBokstav(i) { return String.fromCharCode(65 + Number(i)); }
+function fmSvarText(f, v) {
+  if (v === undefined || v === null || v === "") return "";
+  if (Array.isArray(v)) return v.filter(x => x !== null && x !== undefined).map(i => `${fmBokstav(i)}. ${(f.options || [])[i] || ""}`).join("; ");
+  if (typeof v === "number") return `${fmBokstav(v)}. ${(f.options || [])[v] || ""}`;
+  return String(v);
+}
+function forklaraMerHtml(rad, tenta) {
+  if (!rad || !rad.fraga) return "";
+  const nr = "fm" + (++_fmNr);
+  FM_KONTEXT.set(nr, { rad, tenta });
+  if (FM_KONTEXT.size > 600) FM_KONTEXT.delete(FM_KONTEXT.keys().next().value);
+  return `<div class="fm-ruta" data-fm="${nr}">
+      <button type="button" class="fm-knapp" data-fm-knapp>Förstår du inte? Förklara mer</button>
+      <div class="fm-svar" hidden aria-live="polite"></div>
+    </div>`;
+}
+const _fmGx = gxForklaringHtml;
+gxForklaringHtml = function (rad, tenta, hor, stil) {
+  return _fmGx.apply(this, arguments) + forklaraMerHtml(rad, tenta);
+};
+
+function fmPrompt(rad, tenta) {
+  const f = rad.fraga;
+  const alt = (f.options || []).map((o, i) => `${fmBokstav(i)}. ${o}`).join("\n");
+  const ratt = f.typ === "text" ? (f.facit || "") : fmSvarText(f, f.svar);
+  const mitt = rad.harSvar ? fmSvarText(f, rad.svarat) : "(obesvarad)";
+  let bef = "";
+  try { const x = gxForklaring(rad, tenta, true); if (x) bef = x.kalla === "ta" ? [x.text].concat(x.punkter || []).join("\n") : (x.block || []).map(b => String(b.html || "").replace(/<[^>]+>/g, "")).join("\n"); } catch (e) {}
+  const sys = `Du är en tålmodig handledare för läkarstudenter. Svara på svenska, enkelt och konkret, utan att hitta på fakta.
+Struktur (använd **fetstil** för rubrikerna):
+**Vad frågan egentligen frågar** – en eller två meningar.
+**Varför rätt svar är rätt** – mekanismen steg för steg, gärna med en vardaglig liknelse.
+**Varför de andra är fel** – en rad per alternativ, med bokstaven först.
+**Kom ihåg** – en kort minnesregel.
+Högst 300 ord. Om frågan eller facit verkar felaktigt: säg det kort i stället för att gissa.`;
+  const user = `Fråga${tenta && tenta.titel ? ` (ur ${tenta.titel})` : ""}:
+${f.q || ""}
+${alt ? `\nAlternativ:\n${alt}\n` : ""}
+Rätt svar enligt facit: ${ratt || "(saknas)"}
+Studentens svar: ${mitt}${rad.harSvar && rad.bedombar ? (rad.ratt ? " (rätt)" : " (fel)") : ""}
+${bef ? `\nBibliotekets text om ämnet:\n${bef.slice(0, 2500)}` : ""}`;
+  return [{ role: "system", content: sys }, { role: "user", content: user }];
+}
+
+function fmUtanAI(rad, tenta) {
+  const f = rad.fraga;
+  const delar = [];
+  const ratt = f.typ === "text" ? (f.facit || "") : fmSvarText(f, f.svar);
+  if (ratt) delar.push(`<p><b>Rätt svar:</b> ${esc(ratt)}</p>`);
+  if (rad.harSvar && rad.bedombar && !rad.ratt) delar.push(`<p><b>Ditt svar:</b> ${esc(fmSvarText(f, rad.svarat))}</p>`);
+  /* lärandemålet även när matchningen är osäker */
+  try {
+    const x = gxForklaring(rad, tenta, true);
+    if (x && x.kalla === "bv5" && x.block && x.block.length)
+      delar.push(`<div class="fm-del"><b>${esc(x.etikett)}</b>${x.block.map(b => b.typ === "formel" ? `<div class="formula">${b.html}</div>` : `<p>${b.html}</p>`).join("")}</div>`);
+  } catch (e) {}
+  /* sökträffar i kurstexten på frågans mest specifika ord */
+  try {
+    const stopp = new Set(("vilken vilket vilka följande alternativ stämmer korrekt främst under efter mellan genom varför detta denna dessa " +
+      "ingen inget patient patienten producerar påverkar orsakar beskriver innebär används vanligaste viktigaste " +
+      "kommer finns ökar minskar sker leder sådan sådana olika andra något några").split(" "));
+    const fraga = String(f.q || "").toLowerCase(), svar = typeof f.svar === "number" ? String((f.options || [])[f.svar] || "").toLowerCase() : "";
+    const kand = [...new Set(((svar + " " + fraga).match(/[a-zåäöéü][a-zåäöéü\-]{4,}/g) || []).filter(o => !stopp.has(o)))];
+    /* ovanliga ord först: de säger mest om ämnet */
+    const vagt = kand.map(o => { let n = 0; try { n = sokMatcha(o, false).text.length; } catch (e) {} return { o, n, svar: svar.includes(o) }; })
+      .filter(x => x.n > 0 && x.n <= 40)
+      .sort((a, b) => (b.svar - a.svar) || (a.n - b.n));
+    const sett = new Set(), traffar = [];
+    for (const { o } of vagt.slice(0, 5)) {
+      const { text } = sokMatcha(o, false);
+      for (const t of text.slice(0, 2)) {
+        if (sett.has(t.post.href)) continue;
+        sett.add(t.post.href); traffar.push(t);
+        if (traffar.length >= 4) break;
+      }
+      if (traffar.length >= 4) break;
+    }
+    if (traffar.length) delar.push(`<div class="fm-del"><b>I kurstexten</b>${traffar.map(t => `
+      <button class="fm-traff" data-go="${t.post.href}"><span class="fm-tt">${esc(t.post.g.id)} ${esc(t.post.g.titel)}</span>
+        <span class="fm-ut">${t.utdrag}</span></button>`).join("")}</div>`);
+  } catch (e) {}
+  delar.push(`<p class="fm-tips">Vill du ha en förklaring skriven för just den här frågan – varför varje alternativ är rätt eller fel?
+    Koppla in en egen AI-nyckel under <a href="#/ai">Mer → AI-rättning</a>.</p>`);
+  return delar.join("");
+}
+
+document.addEventListener("click", async e => {
+  const k = e.target.closest("[data-fm-knapp]");
+  if (!k) return;
+  const ruta = k.closest(".fm-ruta"), ut = ruta && ruta.querySelector(".fm-svar");
+  const ktx = ruta && FM_KONTEXT.get(ruta.dataset.fm);
+  if (!ut || !ktx) return;
+  if (!ut.hidden && ut.dataset.klar) { ut.hidden = true; k.textContent = "Förstår du inte? Förklara mer"; return; }
+  ut.hidden = false;
+  k.textContent = "Dölj förklaringen";
+  if (ut.dataset.klar) return;
+  const f = ktx.rad.fraga, nyckel = fmNyckel(f);
+  const sparad = fmCacheLas()[nyckel];
+  if (sparad) { ut.innerHTML = `<div class="fm-ai">${mdlite(sparad.t)}</div>`; ut.dataset.klar = "1"; return; }
+  if (!(typeof aiAktiv === "function" && aiAktiv())) { ut.innerHTML = fmUtanAI(ktx.rad, ktx.tenta); ut.dataset.klar = "1"; return; }
+  ut.innerHTML = `<div class="fm-ai"><span class="fm-laddar">Skriver en förklaring…</span></div>`;
+  const yta = ut.querySelector(".fm-ai");
+  k.disabled = true;
+  try {
+    const r = await fragaAI(fmPrompt(ktx.rad, ktx.tenta), { onText: t => { yta.innerHTML = mdlite(t); } });
+    const text = (r && r.text) || "";
+    if (!text.trim()) throw { code: "tomt" };
+    yta.innerHTML = mdlite(text);
+    fmCacheSkriv(nyckel, text);
+    ut.dataset.klar = "1";
+  } catch (err) {
+    ut.innerHTML = `<p class="fm-fel">AI:n svarade inte (${esc(String(err && (err.code || err.message) || err))}). Här är det biblioteket har:</p>` + fmUtanAI(ktx.rad, ktx.tenta);
+    ut.dataset.klar = "1";
+  } finally { k.disabled = false; }
+});
 
 window.addEventListener("hashchange", render);
 appMenyStarta();

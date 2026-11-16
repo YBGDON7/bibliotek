@@ -1,5 +1,5 @@
 {
-  "bygg": "20261116-1322",
-  "namn": "Appen uppdaterar sig själv: en ny version laddas direkt när appen öppnas, eller när den läggs undan – aldrig mitt i en tenta eller uppladdning.",
-  "nar": "2026-11-16T14:02:01+00:00"
+  "bygg": "20261116-2153",
+  "namn": "Historik över alla tentor och dueller (även förlorade) med radera, livematcher som inte startar om och resultat som alltid kommer fram, mörkt läge i tentasimulatorn och knappen 'Förklara mer' under rättade frågor.",
+  "nar": "2026-11-16T21:55:53+00:00"
 }
