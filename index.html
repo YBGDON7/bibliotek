@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="bygg" content="20261116-2153">
+<meta name="bygg" content="20261121-2118">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lärandemålsbiblioteket</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -1294,6 +1294,24 @@ body.insp-pa #fragaknapp{display:none !important}
 :root:not([data-theme="light"]) .insp .fm-ruta .fm-svar{background:#1f2227; color:#e2e2e3}
 }
 
+/* rättning av skrivfrågor på servern */
+.srvratt{position:fixed; inset:0; z-index:300; display:flex; align-items:center; justify-content:center; padding:24px;
+  background:rgba(20,22,26,.55); backdrop-filter:blur(2px)}
+.srvratt-kort{background:var(--surface, #fff); color:var(--ink, #222); border-radius:12px; padding:28px 26px; max-width:420px; width:100%;
+  text-align:center; box-shadow:0 18px 50px -18px rgba(0,0,0,.55); display:flex; flex-direction:column; align-items:center; gap:8px}
+.srvratt-kort b{font-size:19px}
+.srvratt-kort p{margin:0; color:var(--ink-2, #555); font-size:15px; line-height:1.5}
+.srvratt-tid{font-size:13px; color:var(--ink-3, #888); font-variant-numeric:tabular-nums}
+.srvratt-snurra{width:30px; height:30px; border-radius:50%; border:3px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-top-color:var(--accent, #3b6894); animation:srvSnurr .8s linear infinite; flex:none}
+@keyframes srvSnurr{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.srvratt-snurra{animation-duration:2.4s}}
+.srvbanner{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:0 0 22px; padding:14px 18px; border-radius:10px;
+  border:1px solid var(--line); background:var(--surface); font-size:15px; line-height:1.5}
+.srvbanner > span{flex:1 1 260px}
+.srvbanner .srvratt-snurra{width:22px; height:22px; border-width:2.5px}
+.srvbanner.fel{border-color:color-mix(in srgb, var(--err) 45%, transparent); background:color-mix(in srgb, var(--err) 8%, var(--surface))}
+.srvbanner.ok{border-color:color-mix(in srgb, var(--ok) 45%, transparent); background:color-mix(in srgb, var(--ok) 8%, var(--surface))}
 /* historik */
 .hist-filter{display:flex; gap:8px; flex-wrap:wrap; margin:20px 0 6px}
 .hist-chip{font:inherit; font-size:14px; padding:6px 14px; border-radius:99px; border:1px solid var(--line); background:var(--surface); color:var(--ink-2); cursor:pointer}
@@ -22622,7 +22640,7 @@ function bedomForsokLokalt(forsok, tenta) {
 const _aiBedomd = {};
 async function bedomForsokMedAI(forsokId, ritaOm) {
   if (!aiAktiv() || _aiBedomd[forsokId] === "kör" || _aiBedomd[forsokId] === "klar") return;
-  const post = tstore.forsok.find(x => x.id === forsokId);
+  const post = forsokById(forsokId);
   if (!post) return;
   const tenta = forsokTenta(post);
   if (!tenta) return;
@@ -22644,7 +22662,8 @@ async function bedomForsokMedAI(forsokId, ritaOm) {
     const svar = post.svar[fi];
     return f && f.typ === "text" && f.facit && f.facit.trim() &&
       typeof svar === "string" && svar.trim() &&
-      (post.bedomning || {})[fi]?.kalla !== "ai" && (post.bedomning || {})[fi]?.kalla !== "jag";
+      (post.bedomning || {})[fi]?.kalla !== "ai" && (post.bedomning || {})[fi]?.kalla !== "jag" &&
+      (post.bedomning || {})[fi]?.kalla !== "server" && !(typeof serverAktiv === "function" && serverAktiv() && !post.duell);
   });
   if (!kvar.length) {
     _aiBedomd[forsokId] = "kör";
@@ -22771,7 +22790,7 @@ function uppdateraSammanfattning(post, tenta) {
 function skrivsvarKort(rad, forsokId) {
   const f = rad.fraga;
   const svar = typeof rad.svarat === "string" ? rad.svarat : "";
-  const post = tstore.forsok.find(x => x.id === forsokId);
+  const post = forsokById(forsokId);
   const bed = ((post && post.bedomning) || {})[rad.fi] || null;
   const vantar = !!motor && !!(f.facit && f.facit.trim()) && !!svar.trim()
     && (!bed || (bed.kalla !== "ai" && bed.kalla !== "jag" && !bed.aiFel));
@@ -22801,7 +22820,8 @@ function bedomningsPanel(rad, bed, vantar) {
       ${poangRad(rad, satt, true)}`;
   }
   const kalla = bed ? bed.kalla : null;
-  const etikett = kalla === "ai" ? "bedömd mot facit"
+  const etikett = kalla === "server" ? "bedömd av AI-examinator"
+    : kalla === "ai" ? "bedömd mot facit"
     : kalla === "host" ? `rättad av ${bed.hostNamn ? bed.hostNamn : "matchens värd"}`
     : kalla === "nod" ? "facit saknades, bestämt av AI"
     : kalla === "jag" ? "din poäng"
@@ -22817,7 +22837,7 @@ function bedomningsPanel(rad, bed, vantar) {
       ${bed && bed.aiFel ? `<p style="font-size:12.5px; color:var(--ink-3); margin:0 0 4px">
         Den utförliga bedömningen gick inte att hämta (${esc(bed.aiFel)}), så poängen kommer från
         ordjämförelsen.</p>` : ""}
-      ${kalla === "lokal" && !motor ? `<p style="font-size:12.5px; color:var(--ink-3); margin:6px 0 0">
+      ${kalla === "lokal" && !motor && !(typeof serverAktiv === "function" && serverAktiv()) ? `<p style="font-size:12.5px; color:var(--ink-3); margin:6px 0 0">
         Poängen är satt genom att jämföra orden i ditt svar med facit. Den ser ord, inte resonemang —
         lägg in en API-nyckel på sidan <a href="#/ai">AI-rättning</a> så bedöms svaren på innehåll i stället.</p>` : ""}
       <details style="margin-top:10px">
@@ -31672,6 +31692,7 @@ let _aiAvKo = null;
 function aiRattningsPanel(tenta) {
   const skriv = (tenta.fragor || []).filter(f => f.typ === "text" && (f.facit || "").trim()).length;
   if (!skriv) return "";
+  if (typeof serverAktiv === "function" && serverAktiv()) return "";
   if (aiAktiv()) {
     const lev = motor.typ === "claude" ? "Claude" : (LEV[motor.lev] || {}).namn || motor.lev;
     return `<div class="note" style="margin-top:18px">
@@ -38089,7 +38110,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261116-2153";
+const BYGGID = "20261121-2118";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
@@ -38744,6 +38765,222 @@ document.addEventListener("click", async e => {
     ut.innerHTML = `<p class="fm-fel">AI:n svarade inte (${esc(String(err && (err.code || err.message) || err))}). Här är det biblioteket har:</p>` + fmUtanAI(ktx.rad, ktx.tenta);
     ut.dataset.klar = "1";
   } finally { k.disabled = false; }
+});
+/* =====================================================================
+   SKRIVFRÅGOR RÄTTAS AV SERVERN (/api/grade)
+   Bara skrivfrågor med svar och facit skickas – SBA, flerval och matchning
+   rättas som förut, helt lokalt. Alla skrivfrågor i tentan går i ett och
+   samma anrop. Servern håller API-nyckeln; användaren behöver inget konto
+   eller någon egen nyckel.
+   Adressen till servern står i rattning.json bredvid appen:
+     { "endpoint": "https://<projekt>.vercel.app/api/grade" }
+   Körs appen själv på Vercel räcker "/api/grade". Saknas adressen fungerar
+   allt som förut (ordjämförelse, eller egen nyckel under AI-rättning).
+   ===================================================================== */
+const RATT = { endpoint: "", laddad: false, laddar: null };
+const SRV_TIMEOUT_MS = 65000;
+const _srvStatus = {};            // forsokId → "kor" | "klar"
+
+function rattEndpoint() {
+  if (RATT.laddad) return Promise.resolve(RATT.endpoint);
+  if (RATT.laddar) return RATT.laddar;
+  RATT.laddar = (async () => {
+    let ep = "";
+    try { ep = String(localStorage.getItem("lmb.rattning.endpoint") || ""); } catch (e) {}
+    if (!ep && /^https?:$/.test(location.protocol)) {
+      try {
+        const r = await fetch("rattning.json?t=" + Date.now(), { cache: "no-store" });
+        if (r.ok) { const j = await r.json(); ep = String((j && j.endpoint) || "").trim(); }
+        RATT.laddad = true;
+      } catch (e) { /* offline: försök igen nästa gång */ }
+      if (!ep && /\.vercel\.app$/i.test(location.hostname)) ep = "/api/grade";
+    } else RATT.laddad = true;
+    RATT.endpoint = ep;
+    RATT.laddar = null;
+    return ep;
+  })();
+  return RATT.laddar;
+}
+function serverAktiv() { return !!RATT.endpoint; }
+setTimeout(() => { rattEndpoint(); }, 1500);
+
+/* Skrivfrågor i försöket som servern ska bedöma. */
+function skrivAttRatta(post, tenta) {
+  if (!post || !tenta) return [];
+  const bed = post.bedomning || {};
+  return (post.ordning || []).filter(fi => {
+    const f = tenta.fragor[fi], svar = (post.svar || {})[fi];
+    const k = bed[fi] && bed[fi].kalla;
+    return f && f.typ === "text" && f.facit && String(f.facit).trim() &&
+      typeof svar === "string" && svar.trim() && k !== "server" && k !== "jag" && k !== "host";
+  });
+}
+
+async function serverRattaForsok(post, tenta) {
+  const lista = skrivAttRatta(post, tenta);
+  if (!lista.length) return 0;                   // ingen skrivfråga: inget anrop alls
+  const ep = await rattEndpoint();
+  if (!ep) throw { message: "ingen rättningsserver" };
+  if (navigator.onLine === false) throw { message: "ingen uppkoppling" };
+  const questions = lista.map(fi => {
+    const f = tenta.fragor[fi];
+    return { id: String(fi), question: String(f.q || ""), studentAnswer: String(post.svar[fi]),
+      rubric: String(f.facit), maxScore: Number(f.poang) > 0 ? Number(f.poang) : 1 };
+  });
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), SRV_TIMEOUT_MS);
+  let svar, j = null;
+  try {
+    svar = await fetch(ep, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ questions }), signal: ctl.signal });
+    try { j = await svar.json(); } catch (e) { j = null; }
+  } catch (e) {
+    throw { message: e && e.name === "AbortError" ? "rättningen tog för lång tid" : "servern gick inte att nå" };
+  } finally { clearTimeout(timer); }
+  if (!svar.ok || !j || !Array.isArray(j.results)) {
+    throw { status: svar.status, message: (j && j.error) || ("servern svarade " + svar.status) };
+  }
+  post.poang = post.poang || {};
+  post.bedomning = post.bedomning || {};
+  let n = 0;
+  j.results.forEach(r => {
+    const fi = Number(r && r.id);
+    if (!lista.includes(fi)) return;
+    const max = Number(tenta.fragor[fi].poang) > 0 ? Number(tenta.fragor[fi].poang) : 1;
+    const p = Math.max(0, Math.min(max, Math.round(Number(r.score) * 2) / 2));
+    if (!isFinite(p)) return;
+    post.poang[fi] = p;
+    post.bedomning[fi] = { kalla: "server", motiv: String(r.feedback || "").slice(0, 500), modell: String(j.model || "") };
+    n++;
+  });
+  delete post.serverFel;
+  return n;
+}
+
+/* ---------- inlämning: rätta skrivfrågorna först, med låst knapp ---------- */
+function srvOverlay(antal) {
+  srvOverlayBort();
+  document.querySelectorAll("#lamna, [data-meny='lamna'], .insp-navknapp.lamna").forEach(b => { b.disabled = true; b.setAttribute("aria-busy", "true"); });
+  const d = document.createElement("div");
+  d.id = "srvratt"; d.className = "srvratt"; d.setAttribute("role", "status"); d.setAttribute("aria-live", "polite");
+  const t0 = Date.now();
+  d.innerHTML = `<div class="srvratt-kort">
+      <span class="srvratt-snurra" aria-hidden="true"></span>
+      <b>Rättar skrivfrågor…</b>
+      <p>${antal} ${antal === 1 ? "skrivfråga bedöms" : "skrivfrågor bedöms"} mot facit. Kryssfrågorna är redan rättade.
+        Dina svar är sparade.</p>
+      <span class="srvratt-tid">0 s</span>
+    </div>`;
+  document.body.appendChild(d);
+  const tid = d.querySelector(".srvratt-tid");
+  d._timer = setInterval(() => { tid.textContent = Math.round((Date.now() - t0) / 1000) + " s"; }, 1000);
+}
+function srvOverlayBort() {
+  const d = document.getElementById("srvratt");
+  if (d) { clearInterval(d._timer); d.remove(); }
+  document.querySelectorAll("#lamna, [data-meny='lamna'], .insp-navknapp.lamna").forEach(b => { b.disabled = false; b.removeAttribute("aria-busy"); });
+}
+
+const _srvLamna = lamnaIn;
+let _srvPagar = false;
+lamnaIn = function (auto) {
+  if (_srvPagar) return;                         // en inlämning åt gången (även tidsgränsen)
+  const a = tstore.aktivt;
+  if (!a || a.duell || a.live) return _srvLamna.apply(this, arguments);
+  let t = null;
+  try { t = aktivTenta(); } catch (e) {}
+  /* Ingen server, eller inga skrivsvar att rätta: inlämningen sker direkt, som förut. */
+  if (RATT.laddad && (!RATT.endpoint || !t || !skrivAttRatta(a, t).length)) return _srvLamna.apply(this, arguments);
+  return srvLamnaMedRattning(this, arguments, a, t);
+};
+async function srvLamnaMedRattning(self, args, a, t) {
+  _srvPagar = true;
+  try {
+    tsave();                                     // skrivsvaren ligger säkert innan något skickas
+    await rattEndpoint();
+    const lista = serverAktiv() && t ? skrivAttRatta(a, t) : [];
+    if (lista.length) {
+      srvOverlay(lista.length);
+      _srvStatus[a.id] = "kor";
+      try { await serverRattaForsok(a, t); _srvStatus[a.id] = "klar"; }
+      catch (e) { a.serverFel = String((e && e.message) || e).slice(0, 160); delete _srvStatus[a.id]; }
+      tsave();
+    }
+  } finally {
+    _srvPagar = false;
+    srvOverlayBort();
+  }
+  if (tstore.aktivt !== a) return;               // något annat hann lämna in
+  const ut = _srvLamna.apply(self, args);
+  try { const f = forsokById(a.id); if (f && a.serverFel) { f.serverFel = a.serverFel; tsave(); } } catch (e) {}
+  return ut;
+}
+
+/* ---------- resultatsidan: status, fel och "Försök igen" ---------- */
+async function srvRattaOm(fid) {
+  const post = forsokById(fid);
+  if (!post) return;
+  const t = forsokTenta(post);
+  if (!t) return;
+  _srvStatus[fid] = "kor";
+  srvRitaBanner(fid);
+  try { await serverRattaForsok(post, t); _srvStatus[fid] = "klar"; }
+  catch (e) { post.serverFel = String((e && e.message) || e).slice(0, 160); delete _srvStatus[fid]; }
+  try { uppdateraSammanfattning(post, t); } catch (e) {}
+  try { if (typeof histFranForsok === "function") histFranForsok(post); } catch (e) {}
+  tsave();
+  const r = parse();
+  if (r.name === "tentares" && r.id === fid) render();
+}
+function srvBannerHtml(fid) {
+  const post = forsokById(fid);
+  if (!post || post.duell || post.live || !serverAktiv()) return "";
+  const t = forsokTenta(post);
+  const kvar = skrivAttRatta(post, t);
+  if (_srvStatus[fid] === "kor") return `<div class="srvbanner kor" id="srvbanner" role="status">
+      <span class="srvratt-snurra" aria-hidden="true"></span>
+      <span><b>Rättar skrivfrågor…</b> Kryssfrågornas resultat nedan är klart. Totalen uppdateras när skrivfrågorna är bedömda.</span></div>`;
+  if (kvar.length && post.serverFel) return `<div class="srvbanner fel" id="srvbanner" role="alert">
+      <span><b>Skrivfrågorna kunde inte rättas just nu</b> (${esc(post.serverFel)}). Dina svar finns kvar.
+        Kryssfrågorna är rättade, och skrivfrågorna har tills vidare en preliminär poäng från ordjämförelse.</span>
+      <button class="btn primary" type="button" data-srvigen="${esc(fid)}">Försök igen</button></div>`;
+  const server = (post.ordning || []).filter(fi => ((post.bedomning || {})[fi] || {}).kalla === "server").length;
+  if (server && _srvStatus[fid] === "klar") return `<div class="srvbanner ok" id="srvbanner" role="status">
+      <span><b>${server} ${server === 1 ? "skrivfråga är bedömd" : "skrivfrågor är bedömda"}</b> mot facit. Poäng och kommentar står under varje fråga, och totalen räknar med dem.</span></div>`;
+  return "";
+}
+function srvRitaBanner(fid) {
+  const html = srvBannerHtml(fid);
+  const gammal = document.getElementById("srvbanner");
+  if (gammal) gammal.remove();
+  if (!html) return;
+  const band = view.querySelector(".insp-band");
+  if (band) band.insertAdjacentHTML("afterend", html);
+  else view.insertAdjacentHTML("afterbegin", html);
+}
+const _srvVisaRes = viewTentaResultat;
+viewTentaResultat = function (fid) {
+  const r = _srvVisaRes.apply(this, arguments);
+  try {
+    const post = forsokById(fid);
+    if (post && !post.duell && !post.live) {
+      rattEndpoint().then(() => {
+        const rr = parse();
+        if (rr.name !== "tentares" || rr.id !== fid) return;
+        const t = forsokTenta(post);
+        /* inlämnad utan att rättas (t.ex. offline när tiden tog slut): rätta nu */
+        if (serverAktiv() && !post.serverFel && _srvStatus[fid] !== "kor" && skrivAttRatta(post, t).length) { srvRattaOm(fid); return; }
+        srvRitaBanner(fid);
+      });
+    }
+  } catch (e) {}
+  return r;
+};
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-srvigen]");
+  if (!b) return;
+  b.disabled = true; b.textContent = "Rättar…";
+  srvRattaOm(b.dataset.srvigen);
 });
 
 window.addEventListener("hashchange", render);
