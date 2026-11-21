@@ -9,8 +9,8 @@
                         t.ex. "https://ybgdon7.github.io" (valfri; standard nedan)
 
    Hela tentans skrivfrågor rättas i ETT anrop. Modellerna provas i
-   ordning; 429 → nästa modell direkt, 503/timeout → en ny chans efter
-   1,2–1,8 s, sedan nästa modell.
+   ordning; 429 eller timeout (15 s) → nästa modell direkt, 503 → en ny
+   chans efter 1,2–1,8 s, sedan nästa modell.
    ===================================================================== */
 const MODELLER = [
   "gemini-3.8-flash",
@@ -20,7 +20,7 @@ const MODELLER = [
   "gemma-4-31b-it"            // sista reserv
 ];
 const API_BAS = process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta";
-const FORSOK_TIMEOUT_MS = 8500;
+const FORSOK_TIMEOUT_MS = 15000;   // en hel tenta ska hinna skrivas klart
 const TOTAL_BUDGET_MS = 55000;   // Vercel-funktionen får 60 s (vercel.json)
 const STANDARD_URSPRUNG = ["https://ybgdon7.github.io"];
 
@@ -200,7 +200,9 @@ async function ratta(fragor, nyckel, logg) {
       }
       if (r.status === 429) { spar.push(`${modell}: 429`); break; }      // kvoten slut → nästa direkt
       if (r.status === 400 && medThinking && /thinking/i.test(r.fel || "")) { medThinking = false; continue; }
-      const tillfalligt = r.status === 503 || r.status === "timeout" || r.status === 500 || r.status === 502 || r.status === 504 || r.status === "natverk";
+      /* En modell som inte svarat på 15 s är överbelastad: nästa modell direkt i stället
+         för att vänta 15 s till. 503 kommer snabbt och får en ny chans efter en kort paus. */
+      const tillfalligt = r.status === 503 || r.status === 500 || r.status === 502 || r.status === 504 || r.status === "natverk";
       if (tillfalligt && omforsok < 1 && kvar() > FORSOK_TIMEOUT_MS + 2000) {
         omforsok++;
         await vanta(jitter());
