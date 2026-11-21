@@ -185,15 +185,17 @@ async function anropa(modell, fragor, nyckel, medThinking) {
 async function ratta(fragor, nyckel, logg) {
   const start = Date.now();
   const kvar = () => TOTAL_BUDGET_MS - (Date.now() - start);
-  const spar = [];
+  const spar = [], forlopp = [];
   for (const modell of MODELLER) {
     let medThinking = true, omforsok = 0;
     while (true) {
-      if (kvar() < FORSOK_TIMEOUT_MS + 300) { spar.push(`${modell}: tiden slut`); return { fel: spar }; }
+      if (kvar() < FORSOK_TIMEOUT_MS + 300) { spar.push(`${modell}: tiden slut`); return { fel: spar, forlopp }; }
+      const t0 = Date.now();
       const r = await anropa(modell, fragor, nyckel, medThinking);
+      forlopp.push({ modell, status: r.status, ms: Date.now() - t0, fel: r.status === 200 ? undefined : String(r.fel || "").slice(0, 160) });
       if (logg) logg(modell, r.status);
       if (r.status === 200) {
-        try { return { resultat: tolka(r.text, fragor), modell }; }
+        try { return { resultat: tolka(r.text, fragor), modell, forlopp }; }
         catch (e) { spar.push(`${modell}: ${e.message}`); break; }       // ogiltig JSON → nästa modell
       }
       if (r.status === 429) { spar.push(`${modell}: 429`); break; }      // kvoten slut → nästa direkt
@@ -208,7 +210,7 @@ async function ratta(fragor, nyckel, logg) {
       break;                                                              // 404, 400, 403 … → nästa modell
     }
   }
-  return { fel: spar };
+  return { fel: spar, forlopp };
 }
 
 async function lasBody(req) {
@@ -242,8 +244,8 @@ async function handler(req, res) {
   if (v.fel) return skicka(400, { error: v.fel });
 
   const r = await ratta(v.fragor, nyckel);
-  if (r.resultat) return skicka(200, { results: r.resultat, model: r.modell });
-  return skicka(503, { error: "AI-rättningen är tillfälligt överbelastad. Försök igen om en stund.", details: r.fel });
+  if (r.resultat) return skicka(200, { results: r.resultat, model: r.modell, attempts: r.forlopp });
+  return skicka(503, { error: "AI-rättningen är tillfälligt överbelastad. Försök igen om en stund.", details: r.fel, attempts: r.forlopp });
 }
 
 module.exports = handler;
