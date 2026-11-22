@@ -1,5 +1,5 @@
 {
-  "bygg": "20261122-1334",
-  "namn": "Inläsningen klarar fler upplägg (Moodle, Canvas, kryssrutor, a)-alternativ, facitlista sist), formler och bildalternativ, sneda och svartvita skanningar. Nytt Arkiv med valbar färg, och kommentar under skrivfrågorna.",
-  "nar": "2026-11-22T14:00:34+00:00"
+  "bygg": "20261122-1535",
+  "namn": "Kurser BV1–BV6 på startsidan, med tentasimulator, arkiv och dueller per kurs. Bilderna laddas per kurs och sparas för offline, så appen startar snabbare.",
+  "nar": "2026-11-22T15:45:48+00:00"
 }

@@ -11,12 +11,13 @@
    ===================================================================== */
 const SIDCACHE = "bib-sida-v2";      // v1 kunde spara en föråldrad kopia av sidan
 const CDNCACHE = "bib-cdn-v1";
+const KURSCACHE = "bib-kurs-v1";   // kursernas bilder: filnamnen bär en hash, så en sparad fil ändras aldrig
 const SKAL = self.registration.scope;                 // t.ex. https://…/bibliotek/
 const META = SKAL + "__meta";
 const CDN = /^https:\/\/(www\.gstatic\.com\/firebasejs\/|fonts\.googleapis\.com\/|fonts\.gstatic\.com\/|cdn\.jsdelivr\.net\/|cdnjs\.cloudflare\.com\/|unpkg\.com\/|tessdata\.projectnaptha\.com\/)/;
 
 /* SW_VERSION ändras när service workern själv ändras – då installeras den på nytt. */
-const SW_VERSION = "2026-11-16-auto";
+const SW_VERSION = "2026-11-22-kurser";
 /* Vyer där en omladdning skulle avbryta något (tenta, uppladdning, prov, duell, chatt) */
 const UPPTAGEN = /#\/(tenta\/(kor|ny|test)|prov\/kor|duell\/(m|live)\/|chatt|ai\b)/;
 
@@ -28,7 +29,7 @@ self.addEventListener("install", e => {
 self.addEventListener("activate", e => {
   e.waitUntil((async () => {
     const namn = await caches.keys();
-    await Promise.all(namn.filter(n => n.startsWith("bib-") && n !== SIDCACHE && n !== CDNCACHE).map(n => caches.delete(n)));
+    await Promise.all(namn.filter(n => n.startsWith("bib-") && n !== SIDCACHE && n !== CDNCACHE && n !== KURSCACHE).map(n => caches.delete(n)));
     /* Hämta senaste bygget till cachen innan något annat: annars visas den sparade,
        gamla kopian igen nästa gång appen öppnas. */
     let nytt = "";
@@ -172,6 +173,18 @@ async function sparatForst(e, namn) {
   return s || new Response("", { status: 504, statusText: "Offline" });
 }
 
+/* Kursernas filer: sparad kopia först, annars nätet (och spara). */
+async function kursFil(e) {
+  const c = await caches.open(KURSCACHE);
+  const traff = await c.match(e.request, { ignoreSearch: true });
+  if (traff) return traff;
+  try {
+    const s = await fetch(e.request);
+    if (s && s.ok) c.put(e.request, s.clone()).catch(() => {});
+    return s;
+  } catch (err) { return new Response("", { status: 504, statusText: "Offline" }); }
+}
+
 /* Klick på en notis: lyft fram appen och gå till rätt sida. */
 self.addEventListener("notificationclick", e => {
   e.notification.close();
@@ -192,6 +205,7 @@ self.addEventListener("fetch", e => {
   if (arSidan(url)) { e.respondWith(sidan(e)); return; }
   if (url.origin === location.origin) {
     if (!url.href.startsWith(SKAL)) return;
+    if (url.pathname.indexOf("/kurser/") >= 0) { e.respondWith(kursFil(e)); return; }
     if (/\/version\.json$/.test(url.pathname) || /\/sw\.js$/.test(url.pathname)) return;
     e.respondWith(sparatForst(e, SIDCACHE));
     return;
