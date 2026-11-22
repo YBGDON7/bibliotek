@@ -1,5 +1,5 @@
 {
-  "bygg": "20261121-2118",
-  "namn": "Skrivfrågor kan rättas av en AI-examinator på servern (poäng och kommentar under varje fråga, totalen räknar med dem). Kryssfrågor rättas som förut, i webbläsaren.",
-  "nar": "2026-11-21T21:20:47+00:00"
+  "bygg": "20261122-1334",
+  "namn": "Inläsningen klarar fler upplägg (Moodle, Canvas, kryssrutor, a)-alternativ, facitlista sist), formler och bildalternativ, sneda och svartvita skanningar. Nytt Arkiv med valbar färg, och kommentar under skrivfrågorna.",
+  "nar": "2026-11-22T14:00:34+00:00"
 }
