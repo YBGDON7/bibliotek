@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="bygg" content="20261122-1622">
+<meta name="bygg" content="20261123-2103">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lärandemålsbiblioteket</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -18,7 +18,7 @@
 <style>
 :root{
   --paper:#f7f4f7; --surface:#ffffff; --surface-2:#f1ecf1;
-  --ink:#241b26; --ink-2:#5b4f5e; --ink-3:#8b7f8c;
+  --ink:#241b26; --ink-2:#5b4f5e; --ink-3:#716573;
   --line:#e4dbe4; --line-strong:#cfc2cf;
   --accent:#9c1f66; --accent-soft:#f7e7f0; --accent-ink:#7a1550;
   --teal:#2f6f6b; --teal-soft:#e2efee;
@@ -32,7 +32,7 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --paper:#141017; --surface:#1c1721; --surface-2:#241d2a;
-    --ink:#ede7ee; --ink-2:#b6a9b8; --ink-3:#877a89;
+    --ink:#ede7ee; --ink-2:#b6a9b8; --ink-3:#9a8e9c;
     --line:#2f2735; --line-strong:#443a4d;
     --accent:#e56ba8; --accent-soft:#331728; --accent-ink:#f2a0c8;
     --teal:#6fb8b1; --teal-soft:#16292a;
@@ -42,7 +42,7 @@
 }
 :root[data-theme="dark"]{
   --paper:#141017; --surface:#1c1721; --surface-2:#241d2a;
-  --ink:#ede7ee; --ink-2:#b6a9b8; --ink-3:#877a89;
+  --ink:#ede7ee; --ink-2:#b6a9b8; --ink-3:#9a8e9c;
   --line:#2f2735; --line-strong:#443a4d;
   --accent:#e56ba8; --accent-soft:#331728; --accent-ink:#f2a0c8;
   --teal:#6fb8b1; --teal-soft:#16292a;
@@ -81,6 +81,185 @@ button{font:inherit; color:inherit}
   background:linear-gradient(150deg, var(--accent), var(--teal));
 }
 .brand b{font-family:var(--display); font-weight:600; font-size:17px}
+/* ---------- resultatsidan, omgång 3 ---------- */
+.res-plan{margin-top:0; margin-bottom:22px}
+.res-plan-knappar{flex-direction:column; align-items:flex-end; gap:8px}
+.res-valrad{display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px 14px}
+.res-val{background:none; border:0; padding:4px 0; font:inherit; font-size:13.5px; color:var(--accent); cursor:pointer; text-decoration:underline; text-underline-offset:3px; text-decoration-color:color-mix(in srgb, var(--accent) 40%, transparent)}
+.res-val:hover{text-decoration-color:currentColor}
+@media (max-width:600px){ .res-plan-knappar{align-items:stretch; width:100%} .res-plan-knappar .btn{width:100%; justify-content:center} .res-valrad{justify-content:flex-start} }
+.res-hopp-knappar{display:flex; gap:6px; flex:none}
+.res-forra{min-height:36px; padding:0 12px}
+@media (max-width:520px){ .res-forra{padding:0 12px} }
+@media (pointer: coarse){ .res-forra{min-height:44px} .res-val{min-height:40px} }
+/* filterraden tonar ut när det finns mer att skrolla fram */
+@media (max-width:520px){ #resfilter .seg:not(.slut){-webkit-mask-image:linear-gradient(to right, #000 82%, transparent); mask-image:linear-gradient(to right, #000 82%, transparent)} }
+/* Stryk ligger i kortets meny */
+.qcard.tres .qnum{position:relative}
+.kortmeny{margin-left:auto; position:relative}
+.kortmeny > summary{list-style:none; cursor:pointer; width:32px; height:28px; display:grid; place-items:center; border-radius:8px; color:var(--ink-2);
+  font-family:var(--body); font-size:18px; letter-spacing:0; line-height:1}
+.kortmeny > summary::-webkit-details-marker{display:none}
+.kortmeny > summary:hover, .kortmeny[open] > summary{background:var(--surface-2); color:var(--ink)}
+.kortmeny > summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.kortmeny-panel{position:absolute; right:0; top:calc(100% + 6px); z-index:20; width:min(280px, calc(100vw - 48px)); padding:12px; border-radius:12px;
+  background:var(--surface); border:1px solid var(--line-strong); box-shadow:0 12px 30px -14px rgba(0,0,0,.35);
+  font-family:var(--body); font-size:13.5px; letter-spacing:0; text-transform:none; color:var(--ink)}
+.kortmeny-panel p{margin:0 0 10px; color:var(--ink-2); line-height:1.45}
+.kortmeny-panel .stryk-knapp{font-size:13px}
+@media (pointer: coarse){ .kortmeny > summary{width:44px; height:40px} }
+/* modulerna: de fyra svagaste, resten bakom en knapp */
+.gx-visaalla{margin-top:10px; background:none; border:1px solid var(--line-strong); border-radius:10px; padding:9px 14px; font:inherit; font-size:14px; color:var(--ink); cursor:pointer}
+.gx-visaalla:hover{border-color:var(--ink-2)}
+/* farlig knapp */
+.btn.fara{background:var(--err); border-color:var(--err); color:#fff}
+.btn.fara-kant{color:var(--err); border-color:color-mix(in srgb, var(--err) 45%, transparent)}
+.btn.fara-kant:hover{background:color-mix(in srgb, var(--err) 8%, transparent)}
+/* toppen på mobil: mindre metadata före beskedet */
+#view .insp-gulikon{color:var(--ink-2)}
+@media (max-width:520px){
+  #view .insp-kort .insp-kortrad{display:none}
+  #view .insp-gul{margin:0 0 6px; padding:10px 14px; font-size:15px}
+  #view .insp-resrubrik{margin:16px 0 8px; font-size:17px}
+  #view .tsum .tsum-box:nth-child(2), #view .tsum .tsum-box:nth-child(3){display:none}
+}
+/* ---------- resultatsidan, omgång 2 ---------- */
+.insp-band :focus-visible{outline:2px solid #fff; outline-offset:3px}
+.gx-intro{font-size:14px; color:var(--ink-2); max-width:70ch; margin:4px 0 0; line-height:1.55}
+.gx-intro + .gx-intro{margin-top:2px}
+.gx-teckenrad{display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:8px}
+.gx-teckn{display:inline-flex; align-items:center; gap:6px; white-space:nowrap; font-size:13px}
+.gx-teckn i{width:10px; height:10px; border-radius:50%; display:inline-block}
+.gx-teckn i.ok{background:var(--ok)} .gx-teckn i.nara{background:var(--warn)} .gx-teckn i.lagt{background:var(--err)}
+/* mobil: modulkorten två i bredd, rubrikraden i tid bryts snyggt */
+@media (max-width:520px){
+  #view .gx-grid{grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px}
+  #view .gx-kort{padding:14px 10px}
+  #view .gx-kort .gx-matare{width:64px; height:64px}
+  .insp-tidrad{flex-wrap:wrap; gap:4px 10px}
+  .insp-tidrad > span{white-space:nowrap}
+  .insp-gul{flex-wrap:nowrap; gap:12px}
+}
+/* "Visa i tentavyn" i samma form som kortets andra verktyg */
+.qcard.tres .qnum{display:flex; flex-wrap:wrap; align-items:center; gap:6px 0}
+.qcard.tres .qnum > .lankmal{display:inline-flex; align-items:center; font:inherit; font-family:var(--body); font-size:12px; letter-spacing:0; text-transform:none;
+  padding:3px 9px; border-radius:999px; border:1px solid var(--line-strong); background:transparent; color:var(--ink-2)}
+.qcard.tres .qnum > .lankmal:hover{color:var(--ink); border-color:var(--ink-2)}
+/* beskedet efter Stryk */
+.res-toast{position:fixed; left:50%; bottom:calc(24px + env(safe-area-inset-bottom, 0px)); z-index:80; display:flex; align-items:center; gap:14px;
+  max-width:calc(100vw - 32px); padding:10px 10px 10px 16px; border-radius:12px; background:var(--ink); color:var(--paper);
+  box-shadow:0 10px 30px -12px rgba(0,0,0,.45); font-size:14.5px; transform:translate(-50%, 16px); opacity:0; visibility:hidden;
+  transition:opacity .2s ease, transform .25s cubic-bezier(.2,.8,.2,1), visibility .2s}
+.res-toast.syns{opacity:1; visibility:visible; transform:translate(-50%, 0)}
+.res-toast button{font:inherit; font-weight:600; min-height:40px; padding:0 14px; border:0; border-radius:8px; background:color-mix(in srgb, var(--paper) 16%, transparent); color:var(--paper); cursor:pointer}
+@media (max-width:720px){ .res-toast{bottom:calc(84px + env(safe-area-inset-bottom, 0px))} }
+@media (prefers-reduced-motion: reduce){ .res-toast{transition:none} }
+/* filtret får plats på mobil: rullar i sidled i stället för att trängas */
+#resfilter .seg button{white-space:nowrap}
+@media (max-width:520px){
+  #resfilter .seg{overflow-x:auto; scrollbar-width:none; flex-wrap:nowrap; flex:1 1 auto; min-width:0}
+  #resfilter .seg::-webkit-scrollbar{display:none}
+  #resfilter .seg button{flex:none; padding:6px 12px}
+}
+/* figur som saknas: en rad text, ingen ruta i rutan */
+.qcard .bildsaknas{border:0; background:none; padding:0; margin:6px 0 12px; font-style:italic; color:var(--ink-2)}
+/* mörkt läge: mörk text på den ljusrosa Fråga-knappen */
+:root[data-theme="dark"] #fragaknapp{color:#1c1218}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) #fragaknapp{color:#1c1218} }
+/* kortets verktyg i samma typsnitt som resten av raden */
+.qcard.tres .qnum .fraga-verktyg button{font-family:var(--body); letter-spacing:0; text-transform:none}
+/* tryckytor */
+@media (pointer: coarse){
+  .res-plan .btn, .gx-rubrik .btn{min-height:44px}
+  .qcard.tres .qnum > .lankmal{min-height:40px}
+}
+/* ---------- resultatsidan ---------- */
+.sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0}
+.res-hopp{position:fixed; left:16px; top:-80px; z-index:60; padding:10px 14px; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; text-decoration:none}
+.res-hopp:focus{top:12px}
+#fragorna:focus{outline:none}
+.panelrubrik{font-family:var(--mono); font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); margin:0 0 12px; font-weight:500}
+/* beskedet med plan */
+.res-plan{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px 20px; margin-top:16px;
+  padding:16px 18px; border-radius:var(--r); border:1px solid var(--line); background:var(--surface)}
+.res-plan p{margin:0; font-size:15.5px; line-height:1.5; max-width:62ch; color:var(--ink-2)}
+.res-plan p b{color:var(--ink)}
+.res-plan.ok{background:var(--teal-soft); border-color:transparent}
+.res-plan-knappar{display:flex; gap:8px; flex-wrap:wrap}
+.res-otestade{font-size:13.5px; color:var(--ink-2); margin:14px 0 0; max-width:66ch}
+/* svaga moduler: utan död kryssruta, och 11/18 på en rad */
+.goal.res-svag .idx{width:auto; min-width:44px; white-space:nowrap; padding:0 8px}
+.res-felmal{padding:6px 4px 16px 12px; font-size:13px; line-height:1.9; display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline}
+.res-felmal > span{color:var(--ink-2)}
+.res-felmal .lankmal{text-align:left}
+/* filtret följer med när man scrollar */
+.res-filter{position:sticky; top:var(--topphojd, 59px); z-index:30; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px;
+  margin:10px 0 14px; padding:10px 0; background:var(--paper); border-bottom:1px solid var(--line)}
+.res-filter .seg button{display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:6px 14px; font-size:14px}
+.res-antal{font-variant-numeric:tabular-nums; font-size:12.5px; opacity:.85}
+.res-nasta{min-height:36px}
+.res-tomt{color:var(--ink-2); font-size:14.5px}
+@media (max-width:520px){
+  .res-filter{flex-wrap:nowrap; gap:8px}
+  .res-filter .seg{flex:1 1 auto; min-width:0}
+  .res-filter .seg button{flex:1 1 auto; justify-content:center; padding:6px 8px; font-size:13.5px; gap:4px}
+  .res-nasta{flex:none; padding:0 14px}
+  .res-nasta-t{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0)}
+}
+/* ditt svar och rätt svar: ett par rader som bryts, ingen tabell i kortet */
+.res-svar{margin:12px 0 0; display:grid; gap:0; border-top:1px solid var(--line)}
+.res-svar > div{display:grid; grid-template-columns:7.5em minmax(0, 1fr); gap:4px 12px; padding:8px 0; border-bottom:1px solid var(--line)}
+.res-svar dt{color:var(--ink-2); font-size:13.5px; padding-top:1px}
+.res-svar dd{margin:0; font-size:14.5px; line-height:1.45; overflow-wrap:anywhere}
+.res-svar dd.fel{color:var(--err)}
+.res-svar dd.ratt{color:var(--ok)}
+.res-svar dd i{color:var(--ink-2)}
+@media (max-width:520px){
+  .res-svar > div{grid-template-columns:1fr; gap:2px}
+  .res-svar dt{font-size:12.5px}
+}
+/* förklaringen är hopfälld: ett tryck öppnar den */
+.gx-fold{margin-top:12px}
+.gx-fold > summary{list-style:none; display:flex; align-items:center; gap:10px; min-height:44px; padding:8px 14px; cursor:pointer;
+  border:1px solid var(--line); border-radius:10px; background:var(--surface-2); color:var(--ink); font-weight:600; font-size:14.5px}
+.gx-fold > summary::-webkit-details-marker{display:none}
+.gx-fold > summary::after{content:""; margin-left:auto; flex:none; width:8px; height:8px; border-right:2px solid var(--ink-2); border-bottom:2px solid var(--ink-2);
+  transform:rotate(45deg) translateY(-2px); transition:transform .18s ease}
+.gx-fold[open] > summary::after{transform:rotate(-135deg) translateY(-2px)}
+.gx-fold[open] > summary{border-bottom-left-radius:0; border-bottom-right-radius:0}
+.gx-fold-t{flex:none; white-space:nowrap}
+.gx-fold-k{flex:1 1 0; font-weight:400; font-size:12.5px; color:var(--ink-2); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.gx-fold > .gx-forkl{margin-top:0; border-top:0; border-top-left-radius:0; border-top-right-radius:0}
+.gx-fold > .gx-forkl .gx-huvud{display:none}
+.gx-fold > summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+@media (prefers-reduced-motion: reduce){ .gx-fold > summary::after{transition:none} }
+/* förklaringsrutan: hel ram i stället för en färgad kant på ena sidan */
+section.gx-forkl{border-left-width:1px; border-left-color:var(--line)}
+section.gx-forkl.gx-insp{border-left-color:#d8d8d8}
+.gx-text{max-width:70ch}
+/* chip för obesvarad och struken: neutrala, inte fel */
+.obesvarad-chip{background:var(--surface-2); color:var(--ink-2); border-color:var(--line-strong)}
+/* mörkt läge: mörk text på de ljusrosa knapparna */
+:root[data-theme="dark"] .btn.primary, :root[data-theme="dark"] .seg button[aria-pressed="true"]{color:#1c1218}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .btn.primary, :root:not([data-theme="light"]) .seg button[aria-pressed="true"]{color:#1c1218} }
+/* tryckytor på mobil */
+@media (pointer: coarse){
+  .fraga-verktyg .orig-knapp, .fraga-verktyg .stryk-knapp, .qcard.tres .qnum .lankmal{min-height:40px}
+  .res-filter .seg button, .res-nasta{min-height:44px}
+}
+/* ---------- visa originalet / stryk frågan ---------- */
+.fraga-verktyg{display:flex; flex-wrap:wrap; gap:8px; margin:4px 0 14px}
+.fraga-verktyg.liten{display:inline-flex; margin:0 0 0 8px; vertical-align:middle}
+.orig-knapp, .stryk-knapp{display:inline-flex; align-items:center; gap:6px; font:inherit; font-size:13px; line-height:1.2; padding:5px 11px;
+  border-radius:999px; border:1px solid var(--line-strong); background:transparent; color:var(--ink-2); cursor:pointer}
+.orig-knapp:hover, .stryk-knapp:hover{color:var(--ink); border-color:var(--ink-2)}
+.orig-knapp:disabled{opacity:.6; cursor:progress}
+.stryk-knapp.pa{background:var(--surface-2); color:var(--ink); border-color:var(--ink-3)}
+.fraga-verktyg.liten .orig-knapp, .fraga-verktyg.liten .stryk-knapp{font-size:12px; padding:3px 9px}
+.orig-saknas{font-family:var(--body); font-size:13px; letter-spacing:0; text-transform:none; color:var(--ink-2); align-self:center}
+.struken-not{margin:-6px 0 14px; font-size:13.5px; color:var(--ink-2)}
+.struken-chip{background:var(--surface-2); color:var(--ink-2); border-color:var(--line-strong)}
+.qcard.tres[data-status="struken"] .qtext{opacity:.72}
 /* ---------- startskärm (alltid mörk, som en titelsida) ---------- */
 html.startvisas, html.startvisas body{overflow:hidden}
 .startskarm{position:fixed; inset:0; z-index:2000; display:flex; align-items:center; justify-content:center; overflow-y:auto;
@@ -1092,7 +1271,7 @@ span.matchruta{cursor:default}
    Medvetet ljust och neutralt i båda teman: det ska se ut som skrivsalens skärm. */
 .insp{
   --i-bg:#f1f1f1; --i-yta:#ffffff; --i-text:#111; --i-text2:#555; --i-linje:#c9c9c9;
-  --i-val:#c3d7ec; --i-bla:#3b6894; --i-marin:#22406a; --i-gra:#5a5a5a; --i-band:#1c3f7b;
+  --i-val:#c3d7ec; --i-bla:#3b6894; --i-marin:#22406a; --i-gra:#5a5a5a; --i-band:#1f3557;
   --i-ok:#3c8d2f; --i-fel:#8e1c1c; --i-flagg:#d9822b;
   position:fixed; inset:0; z-index:50; display:flex; flex-direction:column;
   background:var(--i-bg); color:var(--i-text); color-scheme:light;
@@ -1208,7 +1387,7 @@ body.insp-pa #fragaknapp{display:none !important}
 .tentakurs span{color:var(--ok)}
 .kursoffline{font-size:13px; color:var(--ink-3); margin:10px 0 0}
 /* arkiv i Inspera-stil */
-.ark-top{background:#1c3f7b; color:#fff; margin:-8px 0 0; padding:26px 40px 0; font-family:"Helvetica Neue", Helvetica, Arial, sans-serif; border-radius:6px 6px 0 0}
+.ark-top{background:#1f3557; color:#fff; margin:-8px 0 0; padding:26px 40px 0; font-family:var(--body); border-radius:6px 6px 0 0}
 .ark-kurs{font-size:13px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; opacity:.8; margin-bottom:6px}
 .ark-valkommen{font-size:clamp(24px, 3.2vw, 34px); font-weight:700; line-height:1.2; margin-bottom:22px}
 .ark-flikar{display:flex; gap:28px; flex-wrap:wrap}
@@ -1239,7 +1418,7 @@ body.insp-pa #fragaknapp{display:none !important}
 .ark-tid b{font-weight:600}
 .ark-gul{margin:16px 0 0; padding:14px 18px !important; font-size:15.5px; gap:12px; flex-wrap:nowrap}
 .ark-fot{display:flex; justify-content:flex-end; margin-top:14px}
-.ark-detalj{font:inherit; font-size:14.5px; font-weight:600; padding:8px 16px; border:1.5px solid #1c3f7b; color:#1c3f7b; background:transparent; border-radius:3px; cursor:pointer}
+.ark-detalj{font:inherit; font-size:14.5px; font-weight:600; padding:8px 16px; border:1.5px solid #1f3557; color:#1f3557; background:transparent; border-radius:3px; cursor:pointer}
 .ark-detalj:hover{background:color-mix(in srgb, currentColor 8%, transparent)}
 .ark-mer{border-top:1px dashed var(--line); margin-top:14px; padding-top:14px}
 .ark-mer dl{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px 20px; margin:0 0 12px}
@@ -1272,7 +1451,7 @@ body.insp-pa #fragaknapp{display:none !important}
 /* tentasimulatorn i mörkt tema */
 
 :root[data-theme="dark"] .insp{--i-bg:#15171b; --i-yta:#1f2227; --i-text:#e9e9ea; --i-text2:#a8adb4; --i-linje:#3a3e45;
-  --i-val:#2a4a6f; --i-bla:#4f86c2; --i-marin:#a9c8f2; --i-gra:#6b7079; --i-band:#1c3f7b;
+  --i-val:#2a4a6f; --i-bla:#4f86c2; --i-marin:#a9c8f2; --i-gra:#6b7079; --i-band:#1f3557;
   --i-ok:#5fb24f; --i-fel:#e27070; --i-flagg:#e39a4b; color-scheme:dark}
 :root[data-theme="dark"] .insp .insp-top{background:#1f2227; box-shadow:0 2px 6px rgba(0,0,0,.5)}
 :root[data-theme="dark"] .insp .insp-tophoger, :root[data-theme="dark"] .insp .insp-tid, :root[data-theme="dark"] .insp .insp-wifi, :root[data-theme="dark"] .insp .insp-ikonknapp{color:#e9e9ea}
@@ -1339,7 +1518,7 @@ body.insp-pa #fragaknapp{display:none !important}
 @media (prefers-color-scheme: dark){
 
 :root:not([data-theme="light"]) .insp{--i-bg:#15171b; --i-yta:#1f2227; --i-text:#e9e9ea; --i-text2:#a8adb4; --i-linje:#3a3e45;
-  --i-val:#2a4a6f; --i-bla:#4f86c2; --i-marin:#a9c8f2; --i-gra:#6b7079; --i-band:#1c3f7b;
+  --i-val:#2a4a6f; --i-bla:#4f86c2; --i-marin:#a9c8f2; --i-gra:#6b7079; --i-band:#1f3557;
   --i-ok:#5fb24f; --i-fel:#e27070; --i-flagg:#e39a4b; color-scheme:dark}
 :root:not([data-theme="light"]) .insp .insp-top{background:#1f2227; box-shadow:0 2px 6px rgba(0,0,0,.5)}
 :root:not([data-theme="light"]) .insp .insp-tophoger, :root:not([data-theme="light"]) .insp .insp-tid, :root:not([data-theme="light"]) .insp .insp-wifi, :root:not([data-theme="light"]) .insp .insp-ikonknapp{color:#e9e9ea}
@@ -1687,33 +1866,33 @@ span.gx-maltitel{color:var(--ink-2); cursor:default}
   .insp .matchwrap{padding:12px 8px; overflow-x:auto}
 }
 /* bandet och kortet på tentans sida */
-.insp-band{background:#1c3f7b; color:#fff; padding:18px 40px 24px; margin:0 0 30px; font-family:"Helvetica Neue", Helvetica, Arial, sans-serif}
+.insp-band{background:#1f3557; color:#fff; padding:18px 40px 24px; margin:0 0 30px; font-family:var(--body)}
 .insp-tillbaka{background:none; border:0; color:#fff; font:inherit; font-size:17px; font-weight:500; cursor:pointer; padding:4px 0}
 .insp-tillbaka:hover{text-decoration:underline}
 .insp-bandrad{display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-top:24px; padding-left:36px}
 .insp-taggar{display:flex; gap:8px; flex-wrap:wrap}
-.insp-tagg{font-size:13px; font-weight:700; letter-spacing:.14em; padding:3px 4px; border-radius:2px; border:1px solid #fff}
-.insp-tagg.ljus{background:#f2f2f2; color:#222}
-.insp-tagg.mork{background:#222; color:#fff}
+.insp-tagg{font-size:13px; font-weight:600; letter-spacing:.01em; padding:3px 11px; border-radius:999px; border:1px solid rgba(255,255,255,.5)}
+.insp-tagg.ljus{background:rgba(255,255,255,.12); color:#fff}
+.insp-tagg.mork{background:#fff; color:#1f3557; border-color:#fff}
 .insp-bandtitel{font-family:inherit; font-weight:700; color:#fff; font-size:clamp(24px, 3.4vw, 38px); line-height:1.2; margin:10px 0 0}
-.insp-betyg{flex:none; width:78px; height:78px; border:1.5px solid #fff; display:flex; align-items:center; justify-content:center; font-size:42px; font-weight:700}
-.insp-kort{background:var(--surface); border:1px solid var(--line); box-shadow:0 2px 10px rgba(0,0,0,.06); padding:26px 40px 30px; margin:0 0 30px; font-family:"Helvetica Neue", Helvetica, Arial, sans-serif; color:var(--ink)}
+.insp-betyg{flex:none; width:78px; height:78px; border:1.5px solid rgba(255,255,255,.8); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:42px; font-weight:700}
+.insp-kort{background:var(--surface); border:1px solid var(--line); box-shadow:0 2px 10px rgba(0,0,0,.06); padding:26px 40px 30px; margin:0 0 30px; font-family:var(--body); color:var(--ink)}
 .insp-kortrad{display:flex; justify-content:space-between; gap:12px 24px; flex-wrap:wrap; align-items:center}
 .insp-tidrad{display:flex; align-items:center; gap:12px; font-size:17px}
 .insp-tidrad svg{color:var(--ink-2)}
 .insp-stangd{font-size:16px; color:var(--ink-2)}
-.insp-gul{display:flex; align-items:center; gap:18px; flex-wrap:wrap; background:color-mix(in srgb, #f6efc9 70%, var(--surface)); color:#2a2a2a; padding:24px 46px; margin:24px 0 8px; font-size:17px}
-.insp-gulikon{color:#5aa85c; display:inline-flex}
+.insp-gul{display:flex; align-items:center; gap:18px; flex-wrap:wrap; background:var(--teal-soft); color:var(--ink); border-radius:10px; padding:24px 46px; margin:24px 0 8px; font-size:17px}
+.insp-gulikon{color:var(--teal); display:inline-flex}
 .insp-gulikon.pagar{color:#d9822b; font-size:22px}
 .insp-resrubrik{font-family:inherit; font-weight:700; font-size:20px; margin:30px 0 10px}
 .insp-streckad{border:1.5px dashed var(--line-strong); padding:22px 32px; display:flex; align-items:center; gap:14px 22px; flex-wrap:wrap}
-.insp-lank{background:none; border:0; padding:0; font:inherit; font-size:17px; color:#1c3f7b; cursor:pointer; display:inline-flex; align-items:center; gap:8px}
+.insp-lank{background:none; border:0; padding:0; font:inherit; font-size:17px; color:#1f3557; cursor:pointer; display:inline-flex; align-items:center; gap:8px}
 .insp-lank:hover{text-decoration:underline}
 .insp-skilj{width:2px; height:28px; background:var(--ink)}
 .insp-resprocent{margin-left:auto; font-weight:700; font-size:17px}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .insp-lank{color:#9cc0f0} :root:not([data-theme="light"]) .insp-gul{color:var(--ink); background:color-mix(in srgb, #6b5a1c 35%, var(--surface))}}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .insp-lank{color:#9cc0f0}}
 :root[data-theme="dark"] .insp-lank{color:#9cc0f0}
-:root[data-theme="dark"] .insp-gul{color:var(--ink); background:color-mix(in srgb, #6b5a1c 35%, var(--surface))}
+
 @media (max-width:720px){
   .insp-band{padding:14px 16px 18px; margin:0 0 20px}
   .insp-bandrad{padding-left:0}
@@ -9827,7 +10006,7 @@ function merOppna() {
     ${rad("/delat", I.katalog, "Katalog", "Kurser och tentor som andra delat")}
     ${rad("/ai", I.ai, "AI-rättning", "Koppla in en egen API-nyckel")}
     ${inst !== "installerad" ? rad("", I.ladda, "Installera appen", "Egen ikon, startar direkt och fungerar utan nät", 'id="merinstall"') : ""}
-    ${rad("/tenta/arkiv", I.tenta, "Arkiv", "Dina inlämnade tentor, som i Inspera")}
+    ${rad("/tenta/arkiv", I.tenta, "Arkiv", "Dina inlämnade tentor, samlade på ett ställe")}
     ${rad("/historik", I.tenta, "Historik", "Alla tentor och dueller – resultat, förlorade och radera")}
     ${rad("/installningar", I.kugg, "Inställningar", "Synk mellan enheter, notiser och appen")}
     ${rad("", I.tema, "Ljust eller mörkt läge", "Byt utseende", 'id="mertema"')}`;
@@ -10486,7 +10665,7 @@ function ovnSvarHtml(f, rad, t) {
     const facit = fler ? (Array.isArray(f.svar) ? f.svar : []) : [f.svar];
     const mina = fler ? (Array.isArray(v) ? v : []) : (v === undefined || v === null ? [] : [v]);
     svar = `<div class="insp-alt granska">${f.options.map((o, oi) => {
-      const mitt = mina.includes(oi), ratt = rad.bedombar && facit.includes(oi);
+      const mitt = mina.includes(oi), ratt = (rad.bedombar || rad.struken) && facit.includes(oi);
       return `<div class="insp-opt${mitt ? " vald" : ""}">
         <span class="${fler ? "insp-ruta" : "insp-radio"}">${fler && mitt ? INSP_IKON.bock : ""}</span>
         <span class="insp-opttext">${altHtml(f, oi, o)}</span>
@@ -11699,7 +11878,7 @@ function kopplaNiva(k, m, s, g) {
 /* ---------- quiz ---------- */
 /* Egen ja/nej-dialog. Sidor som visas i en sandlådad ram får inte öppna
    webbläsarens confirm(), och då försvinner svaret tyst — den här fungerar överallt. */
-function bekrafta(fraga, jaText) {
+function bekrafta(fraga, jaText, fara) {
   return new Promise(klar => {
     const d = document.createElement("div");
     d.className = "dlg";
@@ -11707,7 +11886,7 @@ function bekrafta(fraga, jaText) {
         <p>${esc(fraga)}</p>
         <div class="dlgknappar">
           <button class="btn" data-nej>Avbryt</button>
-          <button class="btn primary" data-ja>${esc(jaText || "Ja")}</button>
+          <button class="btn ${fara ? "fara" : "primary"}" data-ja>${esc(jaText || "Ja")}</button>
         </div>
       </div>`;
     const stang = svar => { d.remove(); document.removeEventListener("keydown", tang); klar(svar); };
@@ -11718,7 +11897,8 @@ function bekrafta(fraga, jaText) {
     });
     document.addEventListener("keydown", tang);
     document.body.appendChild(d);
-    const b = d.querySelector("[data-ja]");
+    /* en farlig åtgärd startar på Avbryt, så att Enter inte raderar */
+    const b = d.querySelector(fara ? "[data-nej]" : "[data-ja]");
     if (b) b.focus();
   });
 }
@@ -20604,7 +20784,10 @@ async function ocrSidData(sida, worker, mask) {
         return Object.assign({}, w, { text: "%", confidence: 99 });
       return w;
     });
-    const t = ocrRatta((ord.length ? ord.map(w => w.text).join(" ") : String(li.text || "")).replace(/\s+/g, " ").trim());
+    /* upphöjt och nedsänkt ur tecknens läge: Na⁺, Ca²⁺, HCO₃⁻ */
+    const radMatt = ocrRadMatt(ord);
+    ord = ord.map(w => { const x = ocrIndexOrd(w, radMatt); return x.index ? Object.assign({}, w, { text: x.text, _index: x.index }) : w; });
+    const t = ocrRattaKemi(ocrRatta((ord.length ? ord.map(w => w.text).join(" ") : String(li.text || "")).replace(/\s+/g, " ").trim()));
     const svag = li.confidence !== undefined && li.confidence < 35 && t.length < 4;
     /* en formel läses ofta som ett par tecken med låg säkerhet – den är bred, och får stå kvar (som bild) */
     const bredd = ord.length ? (Math.max(...ord.map(w => w.bbox.x1)) - Math.min(...ord.map(w => w.bbox.x0))) / OCR_SKALA : 0;
@@ -20630,7 +20813,9 @@ async function ocrSidData(sida, worker, mask) {
        får låg säkerhet för att det står tätt intill numret) under gränsen. */
     const nrForst = ord.length > 1 && /^\d{1,3}$/.test(String(ord[0].text || ""));
     r.osaker = svag || ord.some((w, i) => !(nrForst && i <= 1) && /[\p{L}\p{N}]/u.test(String(w.text || "")) &&
-      typeof w.confidence === "number" && w.confidence < OCR_OSAKER) || ocrHarIndex(ord) ||
+      typeof w.confidence === "number" && w.confidence < OCR_OSAKER) ||
+      /* index som kunde tolkas säkert gör inte raden osäker */
+      (ocrHarIndex(ord) && !(ord.some(w => w._index === "ok") && !ord.some(w => w._index === "fel"))) ||
       /* tecken som textigenkänningen gissar på: kursiv, understruken, grekiska, pilar … */
       ocrMisstankt(ord, t) || ord.some(w => ocrKursivOrd(w, px, W) || ocrUnderstruken(w, px, W, H));
     /* Radens bläck: rutan växer uppåt och nedåt så länge det finns mörka bildpunkter
@@ -22363,7 +22548,11 @@ function normaliseraTentaRa(t) {
       mal: f.mal || null,
       konf: f.konf || null,
       kalla: f.kalla || "",
-      felnyckel: f.felnyckel || ""
+      felnyckel: f.felnyckel || "",
+      orig: f.orig && f.orig.pdf && Number(f.orig.sida) > 0 ? {
+        pdf: String(f.orig.pdf), sida: Number(f.orig.sida), y: Number(f.orig.y) || 0, ...(f.orig.ocr ? { ocr: 1 } : {}),
+        ...(Number(f.orig.slutSida) > 0 ? { slutSida: Number(f.orig.slutSida), slutY: Number(f.orig.slutY) || 0 } : {}) } : null,
+      struken: !!f.struken
     }))
   };
 }
@@ -22506,14 +22695,15 @@ function ratta(forsok, tenta) {
       : (svarat !== undefined && svarat !== null);
 
     /* bedömningsbar = det finns något att jämföra mot */
-    const bedombar = text ? !!(f.facit && f.facit.trim())
+    const struken = arStruken(tenta, f);
+    const bedombar = !struken && (text ? !!(f.facit && f.facit.trim())
       : f.typ === "matchning" ? Array.isArray(f.svar) && f.svar.some(x => x !== null && x !== undefined)
       : f.typ === "flerval" ? Array.isArray(f.svar) && f.svar.length > 0
-      : (f.svar !== null && f.svar !== undefined);
+      : (f.svar !== null && f.svar !== undefined));
     const poangMax = Number(f.poang) > 0 ? Number(f.poang) : 1;
 
     let poangFatt = null, ratt = false, bedomd = false;
-    if (text) {
+    if (text && !struken) {
       const s = satta[fi];
       if (typeof s === "number" && isFinite(s)) {
         poangFatt = Math.max(0, Math.min(poangMax, s));
@@ -22549,7 +22739,8 @@ function ratta(forsok, tenta) {
       text, poangMax, poangFatt, bedomd, ta, malId,
       ref, modulNr: ref ? ref.modul.nr : (ta ? ta.f.m : null),
       avsnitt: f.avsnitt || "",
-      flaggad: !!forsok.flagg[fi]
+      flaggad: !!forsok.flagg[fi],
+      struken
     };
   });
 
@@ -22613,7 +22804,8 @@ function ratta(forsok, tenta) {
     poangFatt, poangGrund, poangMax, poangRaknad,
     totalProcent, godkand: totalProcent >= godkantGrans(),
     moduler, avsnitt, obedomda: obedomda.length, okopplade,
-    svarade: rader.filter(r => r.harSvar).length
+    svarade: rader.filter(r => r.harSvar).length,
+    strukna: rader.filter(r => r.struken).length
   };
 }
 
@@ -22654,13 +22846,11 @@ function lamnaIn(auto) {
      när man trycker Spara hamnar det i listan. En duell eller livematch sparas
      däremot direkt: där behövs försöket för rättning, facit och topplista, och
      det finns ingen resultatsida att trycka på innan de andra är klara. */
-  if (forsok.duell || forsok.live) {
-    tstore.forsok.unshift(forsok);
-    if (tstore.forsok.length > 150) tstore.forsok.length = 150;
-    tstore.senaste = null;
-  } else {
-    tstore.senaste = forsok;
-  }
+  /* Varje försök sparas direkt – också en solotenta. Den som inte vill ha kvar
+     ett resultat raderar det på resultatsidan. */
+  tstore.forsok.unshift(forsok);
+  if (tstore.forsok.length > 150) tstore.forsok.length = 150;
+  tstore.senaste = null;
   tstore.aktivt = null;
   tsave();
   if (forsok.duell) {
@@ -23197,28 +23387,36 @@ document.addEventListener("visibilitychange", () => {
   try { if (parse().name === "tentakor") render(); } catch (e) {}
 });
 /* "Öva på det du missade": en ny kort tenta med de felbesvarade och obesvarade frågorna. */
-function ovaMissade(fid) {
+function ovaMissade(fid, val) {
+  val = val || {};
   const fo = forsokById(fid);
   const t = fo ? forsokTenta(fo) : null;
   if (!t) return;
   const r = ratta(fo, t);
-  const miss = r.rader.filter(x => x.bedombar && (!x.harSvar || (x.bedomd && !x.ratt)));
+  let miss = r.rader.filter(x => x.bedombar && (!x.harSvar || (x.bedomd && !x.ratt)));
+  if (val.modul) miss = miss.filter(x => x.modulNr === Number(val.modul));
+  if (val.flaggade) miss = r.rader.filter(x => x.flaggad && x.bedombar);
   if (!miss.length) return;
   tstore.egna = (tstore.egna || []).filter(x => x.kalla !== "missade" || tstore.forsok.some(f => f.tentaId === x.id) ||
     (tstore.aktivt && tstore.aktivt.tentaId === x.id));
   const fragor = miss.map((x, i) => Object.assign(JSON.parse(JSON.stringify(x.fraga)), { nr: i + 1, plats: i + 1 }));
   const per = (t.tid || 60) / Math.max(1, t.fragor.length);
-  const ny = normaliseraTenta({ id: tid(), titel: `${t.titel} · ${miss.length} missade`, kurs: t.kurs,
+  const del = val.flaggade ? `${miss.length} flaggade` : val.modul ? `Modul ${val.modul} · ${miss.length} missade` : `${miss.length} missade`;
+  const ny = normaliseraTenta({ id: tid(), titel: `${t.titel} · ${del}`, kurs: t.kurs,
     tid: Math.max(5, Math.round(per * miss.length)), ordning: "fast", kalla: "missade", fragor });
   try { autokoppla(ny); } catch (e) {}
   ny.kalla = "missade";
   tstore.egna.unshift(ny);
   tsave();
-  go("#/tenta/" + encodeURIComponent(ny.id));
+  if (val.anpassa) { go("#/tenta/" + encodeURIComponent(ny.id)); return; }
+  startaForsok(ny, { minuter: 0, ovning: true });
 }
 document.addEventListener("click", e => {
   const b = e.target.closest && e.target.closest("[data-ova-missade]");
-  if (b) { e.preventDefault(); ovaMissade(b.dataset.ovaMissade); }
+  if (!b) return;
+  e.preventDefault();
+  let val = null; try { val = b.dataset.ovaVal ? JSON.parse(b.dataset.ovaVal) : null; } catch (err) { val = null; }
+  ovaMissade(b.dataset.ovaMissade, val);
 });
 function stoppaTimer() {
   if (_tentaTimer) { clearInterval(_tentaTimer); _tentaTimer = null; }
@@ -24198,12 +24396,13 @@ function inspSedan(ms) {
 }
 
 /* Det blå bandet överst på tentans sida och resultatsidan. */
+function inspFall(s) { s = String(s || ""); return s ? s.charAt(0) + s.slice(1).toLocaleLowerCase("sv") : s; }
 function inspBand(o) {
   return `<section class="insp-band">
     <button class="insp-tillbaka" data-go="${o.tillbaka || "/tenta"}">←&nbsp; Tillbaka till lista</button>
     <div class="insp-bandrad">
       <div class="insp-bandtext">
-        <div class="insp-taggar"><span class="insp-tagg ljus">${esc(o.typ || "INDIVIDUELL")}</span>${o.status ? `<span class="insp-tagg mork">${esc(o.status)}</span>` : ""}</div>
+        <div class="insp-taggar"><span class="insp-tagg ljus">${esc(inspFall(o.typ || "INDIVIDUELL"))}</span>${o.status ? `<span class="insp-tagg mork">${esc(inspFall(o.status))}</span>` : ""}</div>
         <h1 class="insp-bandtitel">${esc(o.titel)}</h1>
       </div>
       ${o.betyg ? `<div class="insp-betyg" title="${esc(o.betygTitel || "")}">${esc(o.betyg)}</div>` : ""}
@@ -24253,7 +24452,7 @@ const INSP_PAUS = {
 function inspRam(o) {
   return `<div class="insp" id="insp">
     <header class="insp-top">
-      <div class="insp-kid">Kandidat-ID</div>
+      <div class="insp-kid">Övningstenta</div>
       <div class="insp-tophoger">
         ${o.paus || ""}${o.timer || ""}
         <span class="insp-wifi" title="${o.live ? "Livematch – ansluten" : "Svaren sparas lokalt"}">${INSP_IKON.wifi}</span>
@@ -24410,6 +24609,7 @@ function viewTentaKor() {
     ${(() => { const u = [f.sort, String(f.avsnitt || "").replace(/^(Modul \d+) · .*$/s, "$1")].filter(Boolean).join(" · ");
       return u ? `<p class="insp-under">${esc(u)}</p>` : ""; })()}
     ${stamMedBilder(f, "insp-stam", "", "Figur till frågan")}
+    ${fragaVerktyg(t, f, a)}
     ${svar}
     ${ovnExtraHtml(a, f, fi, last, pos, n)}
     <div class="insp-linje"></div>
@@ -24687,7 +24887,7 @@ function viewTentaGranska(fid, posArg) {
     const facit = fler ? (Array.isArray(f.svar) ? f.svar : []) : [f.svar];
     const mina = fler ? (Array.isArray(v) ? v : []) : (v === undefined || v === null ? [] : [v]);
     svar = `<div class="insp-alt granska">${f.options.map((o, oi) => {
-      const mitt = mina.includes(oi), ratt = rad.bedombar && facit.includes(oi);
+      const mitt = mina.includes(oi), ratt = (rad.bedombar || rad.struken) && facit.includes(oi);
       return `<div class="insp-opt${mitt ? " vald" : ""}">
         <span class="${fler ? "insp-ruta" : "insp-radio"}">${fler && mitt ? INSP_IKON.bock : ""}</span>
         <span class="insp-opttext">${altHtml(f, oi, o)}</span>
@@ -24700,6 +24900,7 @@ function viewTentaGranska(fid, posArg) {
     <h2 class="insp-rubrik">Fråga ${pos + 1}</h2>
     ${f.sort || f.avsnitt ? `<p class="insp-under">${esc([f.sort, f.avsnitt].filter(Boolean).join(" · "))}</p>` : ""}
     ${stamMedBilder(f, "insp-stam", "", "Figur till frågan")}
+    ${fragaVerktyg(t, f, fo)}
     ${svar}
     <div class="insp-linje"></div>
     <p class="insp-totalpoang">${rad.bedomd ? `Din poäng: ${fmtPoang(rad.poangFatt)} &nbsp;·&nbsp; ` : ""}Totalpoäng: ${fmtPoang(rad.poangMax)}</p>
@@ -25039,7 +25240,7 @@ function gxAmnesnedbrytning(fo, t, r, hor) {
   const ix = (() => { try { return gxTaIndex(); } catch (e) { return null; } })();
   const fid = encodeURIComponent(fo.id);
   const antalFel = r.rader.filter(x => x.bedombar && (!x.harSvar || (x.bedomd && !x.ratt))).length;
-  const ankiKnapp = antalFel ? `<button class="btn primary" data-gx-anki="${fid}" data-gx-vad="alla" title="En .apkg-kortlek med frågorna du fick fel på, med facit, förklaring och bilder">Exportera felen till Anki (${antalFel} kort)</button>` : "";
+  const ankiKnapp = antalFel ? `<button class="btn" data-gx-anki="${fid}" data-gx-vad="alla" title="En .apkg-kortlek med frågorna du fick fel på, med facit, förklaring och bilder">Exportera felen till Anki (${antalFel} kort)</button>` : "";
   if (!hor) {
     const av = r.avsnitt.filter(a => a.testad && a.procent !== null);
     if (av.length < 2) return ankiKnapp ? `<div class="rule"></div><div class="gx-rubrik"><h2>Öva på felen</h2>${ankiKnapp}</div>` : "";
@@ -25048,15 +25249,18 @@ function gxAmnesnedbrytning(fo, t, r, hor) {
         <span class="gx-namn">${esc(a.namn)}</span>
         <span class="gx-tal">${a.procent === null ? "inget bedömt" : `${a.ratt} av ${a.grundbara} rätt`}</span></div>`).join("")}</div>`;
   }
-  const moduler = r.moduler.filter(m => m.testad);
+  /* samma räkning som totalen (obesvarade ger noll), svagast först */
+  const moduler = r.moduler.filter(m => m.testad).map(m => Object.assign({}, m, { vis: resDel(r, x => x.modulNr === m.modul.nr) }))
+    .sort((a, b) => (a.vis.p === null ? 999 : a.vis.p) - (b.vis.p === null ? 999 : b.vis.p) || a.modul.nr - b.modul.nr);
   if (!moduler.length) return "";
-  const kort = moduler.map(m => {
+  const VISA = 4;
+  const kort = moduler.map((m, mi) => {
     const felMal = gxFelPerMal(r, m.modul.nr);
-    return `<button class="gx-kort" data-gx-modul="${m.modul.nr}" aria-expanded="false" aria-controls="gx-panel-${m.modul.nr}">
-      ${gxMatare(m.procent)}
+    return `<button class="gx-kort" ${mi >= VISA ? "data-gx-extra hidden " : ""}data-gx-modul="${m.modul.nr}" aria-expanded="false" aria-controls="gx-panel-${m.modul.nr}">
+      ${gxMatare(m.vis.p)}
       <span class="gx-namn">Modul ${m.modul.nr}</span>
       <span class="gx-sub">${esc(m.modul.titel)}</span>
-      <span class="gx-tal">${m.procent === null ? "inga bedömda svar" : `${m.ratt} av ${m.grundbara} rätt`}${m.obesvarade ? ` · ${m.obesvarade} obesvarade` : ""}</span>
+      <span class="gx-tal">${m.vis.p === null ? "inga bedömda svar" : `${m.vis.ratt} av ${m.vis.n} rätt`}${m.obesvarade ? ` · ${m.obesvarade} obesvarad${m.obesvarade === 1 ? "" : "e"}` : ""}</span>
       <span class="gx-felmal">${felMal.length ? `${felMal.length} ${felMal.length === 1 ? "lärandemål" : "lärandemål"} att träna →` : "Inga fel"}</span>
     </button>`;
   }).join("");
@@ -25080,20 +25284,21 @@ function gxAmnesnedbrytning(fo, t, r, hor) {
     }).join("");
     return `<div class="gx-panel" id="gx-panel-${m.modul.nr}" data-gx-panel="${m.modul.nr}" hidden>
       <div class="gx-panelhuvud"><h3>Modul ${m.modul.nr} – ${esc(m.modul.titel)}</h3>
-        <span>${m.procent === null ? "" : m.procent + " % · "}${felMal.length ? `lärandemålen du fick fel på` : "inga fel i modulen"}</span></div>
+        <span>${m.vis.p === null ? "" : m.vis.p + " % · "}${felMal.length ? `lärandemålen du fick fel på` : "inga fel i modulen"}</span></div>
       ${felMal.length ? `<ul class="gx-mallista">${rader}</ul>` : `<p class="s">Alla bedömda frågor i modulen var rätt.</p>`}
       <div class="gx-panelfot">
         <button class="btn" data-go="/kurs/${t.kurs || "bv5"}/modul/${m.modul.nr}">Läs modulen</button>
         ${taMod ? `<button class="btn" data-go="/tentaanalys/m/${m.modul.nr}/standard">Modulen i Tentaanalys</button>` : ""}
-        ${felMal.length ? `<button class="btn primary" data-gx-anki="${fid}" data-gx-vad="${m.modul.nr}">Modulens fel till Anki</button>` : ""}
+        ${felMal.length ? `<button class="btn" data-gx-anki="${fid}" data-gx-vad="${m.modul.nr}">Modulens fel till Anki</button>` : ""}
       </div></div>`;
   }).join("");
   return `<div class="rule"></div>
-    <div class="gx-rubrik"><h2>Ämnesnedbrytning</h2>
+    <div class="gx-rubrik"><h2>Per modul</h2>
       ${ankiKnapp}</div>
-    <p style="font-size:14px; color:var(--ink-2); max-width:66ch; margin-top:4px">Rätt per modul. Klicka på en modul för att se
-      exakt vilka lärandemål du fick fel på, med länkar direkt till avsnitten.</p>
+    <p class="gx-intro">Svagast först, räknat som totalen: en obesvarad fråga räknas som fel. Tryck på en modul för lärandemålen du missade, med frågorna och länkar direkt till avsnitten.</p>
+    <p class="gx-intro gx-teckenrad"><span class="gx-teckn"><i class="ok"></i>minst ${godkantGrans()}&nbsp;%</span><span class="gx-teckn"><i class="nara"></i>upp till 10 under</span><span class="gx-teckn"><i class="lagt"></i>längre under</span></p>
     <div class="gx-grid">${kort}</div>
+    ${moduler.length > VISA ? `<button type="button" class="gx-visaalla" data-gx-visaalla>Visa alla ${moduler.length} moduler</button>` : ""}
     ${paneler}`;
 }
 
@@ -25362,6 +25567,7 @@ function viewTentaResultat(fid) {
   const t = forsokTenta(f);
   if (!t) { view.innerHTML = `${tentaCrumbs([{ t: "Saknas" }])}<h1>Tentan finns inte kvar</h1>
     <div class="empty"><b>Underlaget är borttaget</b>Resultatet kan inte visas i detalj.</div>`; return; }
+  if (!f.duell && !f.live && !forsokSparat(f.id)) sparaForsok(f.id);
   const r = ratta(f, t);
 
   /* Hör tentan till kursen visas modulanalysen. Gör den inte det redovisas
@@ -25431,15 +25637,16 @@ function viewTentaResultat(fid) {
       .filter(x => x !== null && x !== undefined && x !== "")
       .map(x => `${String.fromCharCode(65 + x)}. ${esc(f2.options[x] || "")}`).join("<br>");
     const dittSvar = rad.text ? "" : (rad.harSvar ? svarRad(rad.svarat) : "<i>obesvarad</i>");
-    const rattSvar = rad.text ? "" : (rad.bedombar ? svarRad(f2.svar) : "<i>facit saknas</i>");
+    const rattSvar = rad.text ? "" : (rad.bedombar || (rad.struken && f2.svar !== null && f2.svar !== undefined && !(Array.isArray(f2.svar) && !f2.svar.some(x => x !== null && x !== undefined))) ? svarRad(f2.svar) : "<i>facit saknas</i>");
     const match = f2.typ === "matchning";
     const delvis = match || f2.typ === "flerval";
     return `
-      <div class="qcard tres" data-status="${!rad.bedombar ? "obedomd"
-          : rad.ratt ? "ratt" : (delvis && rad.poangFatt > 0) ? "obedomd" : "fel"}" style="max-width:none">
+      <div class="qcard tres" data-status="${rad.struken ? "struken" : !rad.bedombar ? "obedomd"
+          : rad.ratt ? "ratt" : (delvis && rad.poangFatt > 0) ? "obedomd" : "fel"}" data-grupp="${resGrupp(rad)}" data-flagg="${rad.flaggad ? 1 : 0}" data-obesv="${rad.bedombar && !rad.harSvar ? 1 : 0}" style="max-width:none">
         <div class="qnum">Fråga ${rad.plats}${rad.poangMax > 1 || rad.text ? ` · ${fmtPoang(rad.poangMax)} p` : ""}${
             f2.sort ? ` · ${esc(f2.sort)}` : ""}
-          ${rad.text
+          ${rad.struken ? `<span class="chip struken-chip" style="margin-left:8px">struken</span>`
+            : rad.text
             ? (!rad.bedomd
                 ? `<span class="chip accent" style="margin-left:8px">${rad.harSvar ? "bedöms…" : "obesvarad"}</span>`
                 : `<span class="chip${rad.ratt ? " done" : ""}" style="margin-left:8px">${fmtPoang(rad.poangFatt)} av ${fmtPoang(rad.poangMax)} p</span>`)
@@ -25449,9 +25656,11 @@ function viewTentaResultat(fid) {
             : (delvis && rad.poangFatt > 0 && !rad.ratt)
               ? `<span class="chip accent" style="margin-left:8px">${fmtPoang(rad.poangFatt)} av ${fmtPoang(rad.poangMax)} p</span>`
             : rad.ratt ? `<span class="chip done" style="margin-left:8px">Rätt</span>`
+            : !rad.harSvar ? `<span class="chip obesvarad-chip" style="margin-left:8px">Obesvarad</span>`
             : `<span class="chip" style="margin-left:8px; background:color-mix(in srgb, var(--err) 12%, transparent); color:var(--err); border-color:transparent">Fel</span>`}
           ${rad.flaggad ? `<span class="chip accent" style="margin-left:6px">flaggad</span>` : ""}
           <button class="lankmal" style="margin-left:8px" data-go="/tenta/granska/${encodeURIComponent(f.id)}/${rad.plats - 1}">Visa i tentavyn</button>
+          ${origKnapp(f2) ? `<span class="fraga-verktyg liten">${origKnapp(f2)}</span>` : ""}${resStrykMeny(t, f2, f)}
         </div>
         ${stamMedBilder(f2, "qtext", "font-size:16px; white-space:pre-line", "Figur till frågan")}
         ${rad.text ? skrivsvarKort(rad, f.id)
@@ -25462,19 +25671,17 @@ function viewTentaResultat(fid) {
                   rattaMatchning(rad.svarat, f2.svar, rad.poangMax).av} rader rätt parade`
               : "Facit till rutnätet kunde inte läsas."}</p>`
           : `
-        <div class="tablewrap" style="margin:10px 0 0">
-          <table class="wtable">
-            <tr><td style="color:var(--ink-3); width:110px">Ditt svar</td>
-                <td style="text-align:left; font-family:inherit${rad.bedombar && !rad.ratt ? "; color:var(--err)" : ""}">${dittSvar}</td></tr>
-            <tr><td style="color:var(--ink-3)">Rätt svar</td>
-                <td style="text-align:left; font-family:inherit; color:var(--ok)">${rattSvar}</td></tr>
-          </table>
-        </div>`}
-        ${gxForklaringHtml(rad, t, hor, "res")}
+        <dl class="res-svar">
+          <div><dt>Ditt svar</dt><dd${rad.bedombar && rad.harSvar && !rad.ratt ? ' class="fel"' : ""}>${dittSvar}</dd></div>
+          <div><dt>Rätt svar</dt><dd class="ratt">${rattSvar}</dd></div>
+        </dl>`}
+        ${(() => { const h = gxForklaringHtml(rad, t, hor, "res"); return h
+          ? `<details class="gx-fold"><summary><span class="gx-fold-t">Förklaring</span><span class="gx-fold-k">${resKallaKort(h)}</span></summary>${h}</details>` : ""; })()}
       </div>`;
   }).join("");
 
   view.innerHTML = `
+    <a class="res-hopp" href="#fragorna" data-hopp="fragorna">Hoppa till frågorna</a>
     ${inspBand({ titel: f.titel, typ: f.duell || f.live ? duellTyp(f.duell, !!f.live) : "INDIVIDUELL", status: "INLÄMNAD",
       betyg: inspBetyg(r.totalProcent), betygTitel: `${r.totalProcent} %, gräns ${godkantGrans()} %`,
       tillbaka: f.duell ? "/duell/m/" + encodeURIComponent(f.duell.seed) : "/tenta/" + encodeURIComponent(t.id) })}
@@ -25482,14 +25689,13 @@ function viewTentaResultat(fid) {
       <div class="insp-kortrad"><div class="insp-tidrad"><span>Start- och sluttid</span>${INSP_IKON.kalender}
         <b>${fmtDatum(f.startad)} till ${fmtDatum(f.slutad)}</b></div></div>
       <div class="insp-gul"><span class="insp-gulikon">${INSP_IKON.bock}</span><span>Du lämnade in ${inspSedan(f.slutad)}</span></div>
-      <h3 class="insp-resrubrik">Tentamensresultat</h3>
+      <h2 class="insp-resrubrik">Tentamensresultat</h2>
       <div class="insp-streckad">
         <button class="insp-lank" data-go="/tenta/granska/${encodeURIComponent(f.id)}/0">${INSP_IKON.oga} Visa inlämnade svar</button>
-        ${(() => { const m = r.rader.filter(x => x.bedombar && (!x.harSvar || (x.bedomd && !x.ratt))).length;
-          return m ? `<span class="insp-skilj insp-skilj-bred"></span><button class="insp-lank" data-ova-missade="${esc(f.id)}">↻ Öva på de ${m} du missade</button>` : ""; })()}
         <span class="insp-resprocent">${r.totalProcent} % · ${r.godkand ? "Godkänd" : "Underkänd"}</span>
       </div>
     </section>
+    ${resPlanHtml(f, t, r, hor)}
 
     ${f.facitOk === false ? `<div class="note" style="background:color-mix(in srgb, var(--err) 10%, transparent)">
       <b>Facit ändrades under försöket.</b> Resultatet kan inte verifieras och bör tolkas med försiktighet.</div>` : ""}
@@ -25506,7 +25712,7 @@ function viewTentaResultat(fid) {
         <span class="tsum-l">${r.poangMax !== r.bedombara ? "poäng av bedömda" : "rätt av bedömningsbara frågor"}</span>
       </div>
       <div class="tsum-box">
-        <span class="tsum-n" style="color:${r.godkand ? "var(--ok)" : "var(--err)"}">${r.totalProcent} %</span>
+        <span class="tsum-n" style="color:${r.godkand ? "var(--ok)" : "inherit"}">${r.totalProcent} %</span>
         <span class="tsum-l">totalt resultat</span>
       </div>
       <div class="tsum-box">
@@ -25519,7 +25725,7 @@ function viewTentaResultat(fid) {
       </div>
     </div>
 
-    <div class="note" style="margin-top:16px; background:${r.godkand ? "var(--teal-soft)" : "var(--accent-soft)"}">
+    <div class="note" style="margin-top:16px; background:var(--teal-soft)"${r.godkand ? "" : " hidden"}>
       ${r.godkand
         ? `<b>Du klarade ${godkantGrans()} %-gränsen totalt.</b> ${hor
             ? `Kontrollera ändå modultabellen nedan — målet är minst ${godkantGrans()} % i <i>varje</i> modul.`
@@ -25545,17 +25751,8 @@ function viewTentaResultat(fid) {
       </div>` : ""}
 
     ${hor ? `
-    <div class="rule"></div>
-    <h2>Resultat per modul</h2>
-    <p style="font-size:14px; color:var(--ink-2); max-width:66ch">
-      Procenten räknas som <b>poäng delat med poäng på de besvarade och bedömda frågorna i modulen</b>.
-      Obesvarade frågor räknas alltså inte in i nämnaren men redovisas separat.</p>
-    <div class="tablewrap" style="margin-top:14px">
-      <table><thead><tr><th>Modul</th><th>Resultat</th><th></th><th>Status och testade mål</th></tr></thead>
-      <tbody>${modulRader || `<tr><td colspan="4" style="color:var(--ink-3)">Ingen fråga kunde kopplas till en modul — sätt kopplingarna på tentans startsida.</td></tr>`}</tbody></table>
-    </div>
-    ${otestade.length ? `<p style="font-size:13px; color:var(--ink-3); margin-top:12px">
-      <b>Modulen testades inte i den här tentan</b> — och får därför ingen procentsats:
+    ${!modulRader ? `<p class="res-otestade">Ingen fråga kunde kopplas till en modul — sätt kopplingarna på tentans startsida.</p>` : ""}
+    ${otestade.length ? `<p class="res-otestade">Testades inte i den här tentan och får därför ingen procentsats:
       ${otestade.map(m => `modul ${m.modul.nr}`).join(", ")}.</p>` : ""}` : `
     <div class="rule"></div>
     <div class="note">
@@ -25566,9 +25763,9 @@ function viewTentaResultat(fid) {
       Vill du ändå ha med enskilda frågor i modulanalysen kan du koppla dem för hand på tentans
       startsida.</div>`}
 
-    <div class="rule"></div>
+    ${!hor ? `<div class="rule"></div>
     <h2>Det här behöver du träna mer på</h2>
-    ${!hor ? `<div class="note">
+    <div class="note">
         <b>Gå igenom de frågor du fick fel på nedan.</b> Utan koppling till kursens lärandemål kan
         biblioteket inte peka ut vilket avsnitt du ska läsa om — men frågorna med facit bredvid är
         ändå det bästa underlaget du har.
@@ -25576,13 +25773,12 @@ function viewTentaResultat(fid) {
           ? ` Svagast just nu: ${r.avsnitt.filter(a => a.testad && a.procent !== null && a.procent < godkantGrans())
               .map(a => `<b>${esc(a.namn)}</b> (${a.procent} %)`).join(", ")}.` : ""}
       </div>`
-      : svaga.length ? `
+      : "" && svaga.length ? `
       <p style="font-size:14px; color:var(--ink-2); max-width:66ch">Följande moduler ligger under ${godkantGrans()} %.
       Klicka på lärandemålen för att gå direkt till avsnittet.</p>
       <div class="goals" style="margin-top:12px">
         ${svaga.map(m => `
-          <div class="goal">
-            <span class="check-slot"><span class="check-empty"></span></span>
+          <div class="goal res-svag">
             <button class="open" data-go="/kurs/${t.kurs}/modul/${m.modul.nr}">
               <span class="idx">${m.ratt}/${m.grundbara}</span>
               <span>
@@ -25592,27 +25788,22 @@ function viewTentaResultat(fid) {
               <span class="arrow" aria-hidden="true">→</span>
             </button>
           </div>
-          ${m.felMal.length ? `<div style="padding:4px 6px 14px 54px; font-size:13px; line-height:1.9">
+          ${m.felMal.length ? `<div class="res-felmal">
             <span style="color:var(--ink-3)">Mål med fel svar:</span>
             ${m.felMal.map(id => { const ref = malRef(id); return ref
               ? `<button class="lankmal" data-go="${malLank(ref)}">${esc(id)} ${esc(ref.mal.titel.slice(0, 46))}</button>` : ""; }).join(" ")}
           </div>` : ""}`).join("")}
       </div>`
-      : `<div class="note" style="background:var(--teal-soft)">
+      : "" ? `<div class="note" style="background:var(--teal-soft)">
           <b>Alla testade moduler ligger på minst ${godkantGrans()} %.</b> Det finns ingen modul som sticker ut som svag
           i den här tentan. Titta ändå på de enskilda frågor du svarade fel på nedan — och kom ihåg att
-          moduler som inte testades här inte säger något om hur du ligger till i dem.</div>`}
+          moduler som inte testades här inte säger något om hur du ligger till i dem.</div>` : ""}
 
     <div class="rule"></div>
-    <div class="qhead">
-      <h2>Alla frågor</h2>
-      <div class="seg" id="filter">
-        <button data-f="alla" aria-pressed="true">Alla</button>
-        <button data-f="fel">Endast fel</button>
-        <button data-f="ratt">Endast rätt</button>
-      </div>
-    </div>
+    <h2 id="fragorna" tabindex="-1">Frågorna</h2>
+    ${resFilterHtml(r)}
     <div id="fragelista">${fragelista}</div>
+    <p class="res-tomt" id="restomt" hidden>Inga frågor i det här urvalet.</p>
 
     ${aiRattningsPanel(t)}
     ${f.duell ? delningsVarning(f.duell.seed) : ""}
@@ -25624,7 +25815,7 @@ function viewTentaResultat(fid) {
         </div>` : ""}
 
     <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:26px">
-      ${tentaById(t.id) ? `<button class="btn primary" data-go="/tenta/${encodeURIComponent(t.id)}">Gör om tentan</button>` : ""}
+      ${tentaById(t.id) ? `<button class="btn" data-go="/tenta/${encodeURIComponent(t.id)}">Gör om tentan</button>` : ""}
       ${f.duell
         ? `<button class="btn" data-go="/duell/m/${encodeURIComponent(f.duell.seed)}">Se matchens ställning</button>`
         : `<button class="btn" data-go="/duell/dela/${encodeURIComponent(f.id)}">Dela resultatet med kursen</button>`}
@@ -25634,12 +25825,12 @@ function viewTentaResultat(fid) {
     ${f.duell || f.live ? "" : `
       <div class="panel" style="margin-top:22px" id="sparapanel">
         ${forsokSparat(f.id)
-          ? `<h4>Resultatet är sparat</h4>
+          ? `<h3 class="panelrubrik">Resultatet är sparat</h3>
              <p style="font-size:13.5px; color:var(--ink-2); margin:0 0 12px; max-width:66ch">
-               Det ligger under <b>Sparade resultat</b> i simulatorn. Vill du inte ha kvar det
-               raderar du det här — det går inte att ångra.</p>
-             <button class="btn" id="tradera">Radera resultatet</button>`
-          : `<h4>Spara resultatet?</h4>
+               Det sparades när du lämnade in och ligger under <b>Sparade resultat</b> i simulatorn.
+               Vill du inte ha kvar det raderar du det här — det går inte att ångra.</p>
+             <button class="btn fara-kant" id="tradera">Radera resultatet</button>`
+          : `<h3 class="panelrubrik">Spara resultatet?</h3>
              <p style="font-size:13.5px; color:var(--ink-2); margin:0 0 12px; max-width:66ch">
                Resultatet sparas inte av sig självt. Vill du ha kvar det i historiken trycker du
                här. Lämnar du sidan utan att spara försvinner det när du skriver nästa tenta.</p>
@@ -25654,7 +25845,7 @@ function viewTentaResultat(fid) {
   });
   const rad = document.getElementById("tradera");
   if (rad) rad.addEventListener("click", async () => {
-    if (!await bekrafta("Radera det sparade resultatet? Det går inte att ångra.", "Radera")) return;
+    if (!await bekrafta("Radera det sparade resultatet? Det går inte att ångra.", "Radera", true)) return;
     taBortForsok(f.id);
     go("#/tenta");
   });
@@ -25745,20 +25936,12 @@ function viewTentaResultat(fid) {
           : `${r2.antalRatt} / ${r2.bedombara}`;
         if (p[1]) {
           p[1].textContent = r2.totalProcent + " %";
-          p[1].style.color = r2.godkand ? "var(--ok)" : "var(--err)";
+          p[1].style.color = r2.godkand ? "var(--ok)" : "";
         }
       }
     });
   }
-  const filt = document.getElementById("filter");
-  filt.addEventListener("click", e => {
-    const b = e.target.closest("button"); if (!b) return;
-    filt.querySelectorAll("button").forEach(o => o.setAttribute("aria-pressed", String(o === b)));
-    const v = b.dataset.f;
-    view.querySelectorAll(".tres").forEach(c => {
-      c.hidden = v !== "alla" && c.dataset.status !== v;
-    });
-  });
+  resKopplaFilter();
 }
 
 /* ---------- manuella kopplingar ---------- */
@@ -26527,7 +26710,7 @@ function tentaSomBank(t) {
         && (f.matchrader || []).length >= 2 && (f.options || []).length >= 2)
     : (f.svar !== null && f.svar !== undefined && (f.options || []).length >= 2);
   return (t.fragor || [])
-    .filter(duger)
+    .filter(f => duger(f) && !arStruken(t, f))
     /* n = originalposition, b = figurernas medie-id. Utan dem tappade den
        delade tentan både ordning och bilder på vägen till duellen. */
     .map((f, i) => ({
@@ -38407,7 +38590,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261122-1622";
+const BYGGID = "20261123-2103";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
@@ -39367,7 +39550,7 @@ function fmtKommentarHtml(f, svar, bed) {
 
 /* ---------- 3. arkiv ---------- */
 const INSP_FARGER = [
-  { k: "inspera", n: "Inspera-blå", band: "#1c3f7b", bla: "#3b6894", marin: "#22406a", val: "#c3d7ec" },
+  { k: "inspera", n: "Marinblå", band: "#1f3557", bla: "#3b6894", marin: "#22406a", val: "#c3d7ec" },
   { k: "petrol", n: "Petrol", band: "#0e5866", bla: "#1d7484", marin: "#0b3f49", val: "#c2e2e7" },
   { k: "skog", n: "Skog", band: "#1f5a43", bla: "#2f7a5c", marin: "#173f30", val: "#c8e3d6" },
   { k: "plommon", n: "Plommon", band: "#4f2a6b", bla: "#6c4290", marin: "#36194c", val: "#dccbea" },
@@ -39735,6 +39918,17 @@ function parsaGenerell(raderIn, sidor) {
         nu.alt.push({ text: al[3].trim(), r, mark: "bokstav", x0: r.x0 });
         return;
       }
+      /* en bokstav hoppades över: raden före (som lagts till förra alternativet) var det saknade alternativet */
+      const sist2 = nu.alt[nu.alt.length - 1];
+      if (sist2 && sist2.mark === "bokstav" && b.charCodeAt(0) === vantad.charCodeAt(0) + 1 &&
+          ((sist2.forts && sist2.forts.length === 1) || sist2.forlorad)) {
+        const rad = sist2.forlorad || sist2.forts[0];
+        if (!sist2.forlorad) sist2.text = sist2.text.slice(0, sist2.text.length - rad.text.trim().length).trim();
+        sist2.forts = []; sist2.forlorad = null;
+        nu.alt.push({ text: rad.text.trim(), r: rad, mark: "bokstav", x0: rad.x0, aterskapad: true });
+        nu.alt.push({ text: al[3].trim(), r, mark: "bokstav", x0: r.x0 });
+        return;
+      }
     }
     const pu = t.match(GEN_PUNKT);
     if (pu && (nu.ankare || nu.q.some(x => /[?:]\s*$/.test(x.text)))) { nu.alt.push({ text: pu[1].trim(), r, mark: "punkt", x0: r.x0 }); return; }
@@ -39757,9 +39951,10 @@ function parsaGenerell(raderIn, sidor) {
         if (avst < Math.max(radh * 2.6, 32) && !/^[–—-]?\s*\d{1,3}\s*[–—-]?$/.test(t)) { (sist.rader = sist.rader || []).push(r); sist.matte = true; }
         return;
       }
-      if (gap < radh * 1.6 && (indrag || r.x0 > nu.alt[0].x0 + 2)) { sist.text = genFog(sist.text, t); sist.r = r; return; }
-      if (gap < radh * 1.6 && !GEN_ALT.test(t)) { sist.text = genFog(sist.text, t); sist.r = r; return; }
-      return;   // text efter alternativen som inte hör till dem
+      if (gap < radh * 1.6 && (indrag || r.x0 > nu.alt[0].x0 + 2)) { sist.text = genFog(sist.text, t); (sist.forts = sist.forts || []).push(r); sist.r = r; return; }
+      if (gap < radh * 1.6 && !GEN_ALT.test(t)) { sist.text = genFog(sist.text, t); (sist.forts = sist.forts || []).push(r); sist.r = r; return; }
+      sist.forlorad = r;   // en rad utan markör långt under: kanske ett alternativ vars bokstav inte gick att läsa
+      return;
     }
     /* efter "Välj ett alternativ:" är raderna alternativ även utan markör */
     if (nu.ankare) { nu.alt.push({ text: t, r, mark: "fri", x0: r.x0 }); return; }
@@ -39812,8 +40007,10 @@ function parsaGenerell(raderIn, sidor) {
     const union = (R, sida) => ({ sida, x0: Math.min(...R.map(r => r.x0)) - 8, x1: Math.max(...R.map(r => r.xe || r.x1 || r.x0)) + 8,
       y0: Math.min(...R.map(r => r.y)) - 7, y1: Math.max(...R.map(r => r.y + (r.h || 10))) + 5 });
     /* alternativ som är bilder eller formler: hela alternativdelen klipps ut, och man väljer bokstav */
-    const bildAlt = f.alt.length >= 2 && f.alt.every(a => a.mark === "bokstav") &&
-      f.alt.some(a => a.matte || !a.text || /^[\d\s,.−-]+$/.test(a.text) && /\d\s+\d/.test(a.text));
+    /* inskannat: en osäker alternativrad (index, grekiska, procent) – alternativen visas som bild av originalet */
+    const osakraAlt = f.alt.length >= 2 && f.alt.some(a => [a.r, a.r0].concat(a.rader || [], a.forts || []).some(r => r && r.osaker));
+    const bildAlt = f.alt.length >= 2 && (osakraAlt || (f.alt.every(a => a.mark === "bokstav") &&
+      f.alt.some(a => a.matte || !a.text || /^[\d\s,.−-]+$/.test(a.text) && /\d\s+\d/.test(a.text))));
     let altRuta = null;
     if (bildAlt) {
       const bok = f.alt.map(a => a.r0 || (a.rader && a.rader[0]) || a.r);
@@ -39827,7 +40024,7 @@ function parsaGenerell(raderIn, sidor) {
             /[=<>+−\-\/√·∙×^]|\d/.test(r.text)) { (f.alt[0].rader = f.alt[0].rader || [A]).push(r); return false; }
         return true;
       });
-      const R = f.alt.flatMap(a => a.rader || [a.r]);
+      const R = [...new Set(f.alt.flatMap(a => [a.r0 || a.r].concat(a.rader || [], a.forts || [], a.r ? [a.r] : [])).filter(Boolean))];
       const sida = R[0].sida;
       altRuta = union(R.filter(r => r.sida === sida), sida);
       if (f.alt.some(a => !a.text)) {
@@ -39922,7 +40119,7 @@ function tentaKvalitet(F) {
     else s -= 1;
     const pref = o.filter(x => /^\s*\(?[A-Ha-h][.)]\s/.test(x)).length;
     if (pref && pref < n) s -= 2;
-    if (o.some(x => /(?:^|\s)[B-H][).]\s\S/.test(x) || x.length > 400)) s -= 1.5;
+    if (o.some(x => /(?:^|\s)[B-Hb-h][).]\s\S/.test(x) || x.length > 400)) s -= 1.5;
     if (/\n\s*[A-H][.)]\s/.test(q)) s -= 2;
     if (q.length < 8) s -= 1;
   });
@@ -40285,7 +40482,558 @@ viewKurs = function (k) {
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); document.removeEventListener("keydown", tangent); vidare(); }
   };
   document.addEventListener("keydown", tangent);
-})();
+})();/* =====================================================================
+   SPECIALTECKEN I INSKANNADE TENTOR
+   Textigenkänningen läser upphöjda och nedsänkta tecken som vanliga tecken
+   eller som skräp ("Na'"", "Ca?”", "HCO3""). Varje tecken har dock en ruta
+   med läge, så ett litet tecken ovanför raden är upphöjt och ett under
+   raden nedsänkt. Ett plus är kvadratiskt, ett minus platt.
+   ===================================================================== */
+const OCR_UPP = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
+const OCR_NED = { "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄", "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉" };
+const OCR_LAGA = /^[acemnorsuvwxzåäö]$/;
+/* Radens mått ur tecknen: x-höjd, baslinje och versalhöjd. */
+function ocrRadMatt(ord) {
+  const sym = [];
+  (ord || []).forEach(w => (w.symbols || []).forEach(s => { if (s && s.bbox && s.text && String(s.text).length === 1) sym.push(s); }));
+  const med = a => a.slice().sort((x, y) => x - y)[Math.floor(a.length / 2)];
+  const laga = sym.filter(s => OCR_LAGA.test(s.text));
+  const stora = sym.filter(s => /^[A-ZÅÄÖ]$/.test(s.text));
+  if (laga.length < 3 && stora.length < 3) return null;
+  const xh = laga.length >= 3 ? med(laga.map(s => s.bbox.y1 - s.bbox.y0)) : med(stora.map(s => s.bbox.y1 - s.bbox.y0)) * 0.7;
+  const bas = laga.length >= 3 ? med(laga.map(s => s.bbox.y1)) : med(stora.map(s => s.bbox.y1));
+  return { xh: Math.max(3, xh), bas };
+}
+/* Ett ord med index tolkas om. Svarar { text, index: "ok" | "fel" | null }. */
+function ocrIndexOrd(w, M) {
+  const S = (w && w.symbols) || [];
+  if (!M || S.length < 2) return { text: w.text, index: null };
+  const { xh, bas } = M;
+  let ut = "", sag = 0, fel = 0, kem = false;
+  S.forEach((s, i) => {
+    const t = String(s.text || "");
+    const b = s.bbox; if (!b || t.length !== 1) { ut += t; return; }
+    const h = b.y1 - b.y0, br = b.x1 - b.x0;
+    const mitt = (b.y0 + b.y1) / 2;
+    /* bara siffror och laddningstecken kan vara index – inte komma, punkt eller bindestreck på x-höjden */
+    const kand = /[0-9+"'”“’‘*t^?\-–—~_=]/.test(t);
+    const uppe = kand && mitt < bas - xh * 0.8 && h < xh * 1.05;
+    const nere = /\d/.test(t) && mitt > bas - xh * 0.15 && h < xh * 1.05;
+    /* index räknas bara efter något som liknar en kemisk formel: Na, Cl, HCO3, Ca, ) eller ett index */
+    const fore = ut.replace(/[⁰¹²³⁴-⁹⁺⁻₀-₉]+$/, "");
+    const formel = /(?:^|[^a-zåäö])(?:[A-Z][a-z]?\d*)+\)?$/.test(fore) || /[⁰¹²³⁴-⁹₀-₉]$/.test(ut);
+    if ((uppe || nere) && i > 0 && formel) {
+      if (uppe) {
+        if (/\d/.test(t)) { ut += OCR_UPP[t]; sag++; kem = true; return; }
+        if (t === "?") { ut += "²"; sag++; kem = true; return; }
+        /* ett laddningstecken står sist (eller före bindestreck, snedstreck, komma) – inte mitt i ett ord */
+        const nasta = S[i + 1] ? String(S[i + 1].text || "") : "";
+        if (/[+"'”“’‘*t^\-–—~_=]/.test(t) && /[\p{L}\p{N}]/u.test(nasta) && !/[0-9]/.test(t)) { ut += t; return; }
+        if (/[+"'”“’‘*t^]/.test(t)) { ut += (br > h * 1.7 || h < xh * 0.3) ? "⁻" : "⁺"; sag++; kem = true; return; }
+        if (/[-–—~_=]/.test(t)) { ut += "⁻"; sag++; kem = true; return; }
+        fel++; ut += t; return;
+      }
+      if (/\d/.test(t)) { ut += OCR_NED[t]; sag++; kem = true; return; }
+      fel++; ut += t; return;
+    }
+    /* ett tecken som står ensamt efter formeln på rätt höjd ("Ca2+" i normalstorlek) lämnas */
+    ut += t;
+  });
+  if (!sag && !fel) return { text: w.text, index: null };
+  /* "'"" efter varandra (ett plus läst som två tecken) blir ett */
+  ut = ut.replace(/["'”’‘“`]+(?=[⁰¹²³⁴-⁹⁺⁻])/g, "").replace(/([⁺⁻])["'”’‘“`]+/g, "$1").replace(/⁺{2,}/g, "⁺").replace(/⁻{2,}/g, "⁻");
+  return { text: ut, index: fel ? "fel" : kem ? "ok" : null };
+}
+/* Kända felläsningar i medicin och kemi, när sammanhanget är tydligt. */
+function ocrRattaKemi(t) {
+  return String(t || "")
+    .replace(/\bHCOz(?=[₃3])/g, "HCO").replace(/\b[Bß]([₁₂₃])(?=\s?-?\s?(?:receptor|agonist|antagonist|adrenerg|blockerare|stimulerare|selektiv))/g, "β$1")
+    .replace(/\b[Bß][a2](?=-agonist)/g, "β₂")
+    .replace(/\bCI(?=⁻)/g, "Cl").replace(/\bHCO3(?=⁻)/g, "HCO₃").replace(/\b(Ca|Mg|Zn)⁺/g, "$1²⁺")
+    .replace(/\bC(AMP|GMP)\b/g, "c$1")
+    .replace(/\bHCO3\s?["”'’\-–]?(?=[\s,.;:)/]|$)/g, "HCO₃⁻")
+    .replace(/\bNH4\s?\+/g, "NH₄⁺").replace(/\bNH3\b/g, "NH₃")
+    .replace(/\bH2O\b/g, "H₂O")
+    .replace(/\b(Pa|Pv|Pa|PA|P|Sa|Sp|Fi|E?T)?(CO|O)2\b/g, (m, a, b) => (a || "") + b + "₂")
+    .replace(/\b(Ca|Mg|Zn|Cu|Fe)\s?([23])\s?[+*"”']+/g, (m, a, d) => a + OCR_UPP[d] + "⁺")
+    .replace(/\bC[lI]\s?[-–"”](?=[\s,.;:)/]|$)/g, "Cl⁻")
+    .replace(/\b[Bß]\s?([123])(?=\s?-?\s?(?:receptor|agonist|antagonist|adrenerg|blockerare|stimulerare|selektiv))/g, "β$1")
+    .replace(/\ba\s?([12])(?=\s?-?\s?(?:receptor|agonist|antagonist|adrenerg|blockerare))/g, "α$1")
+    .replace(/\bla(?=\s?-?\s?(?:inhibitorisk|afferent|fiber|fibrer|-fib))/g, "Ia")
+    .replace(/\b(andel|procent|procentandel|andelen)\s\((?:26|96|Yo|9o|%o|0\/0)\)/gi, "$1 (%)")
+    .replace(/(\d)\s?[*º]C\b/g, "$1 °C")
+    .replace(/\bug\/(kg|ml|mL|l|L|dl|dL)\b/g, "µg/$1");
+}
+
+/* =====================================================================
+   VISA ORIGINALET
+   Den uppladdade PDF:en sparas på enheten (IndexedDB). Varje fråga vet var
+   på sidan den står, och kan därför visas urklippt ur originalet – exakt som
+   på tentan, oavsett hur texten lästes in.
+   ===================================================================== */
+async function origHash(bytes) {
+  try {
+    const d = await crypto.subtle.digest("SHA-1", bytes);
+    return [...new Uint8Array(d)].slice(0, 10).map(b => b.toString(16).padStart(2, "0")).join("");
+  } catch (e) { return String(frohash(String(bytes.byteLength) + ":" + bytes[0] + bytes[bytes.length - 1])); }
+}
+/* Var varje fråga står: från frågans start till nästa frågas start. */
+function origPlatser(fragor, pdfId, ocr) {
+  const med = (fragor || []).filter(f => Number(f.sida) > 0 && typeof f.y === "number" && isFinite(f.y));
+  const ordn = med.slice().sort((a, b) => a.sida - b.sida || b.y - a.y);
+  ordn.forEach((f, i) => {
+    const n = ordn[i + 1];
+    f.orig = { pdf: pdfId, sida: f.sida, y: Math.round(f.y * 10) / 10 };
+    /* inskannade sidor: lägena är räknade i den renderade sidan, inte i PDF:ens egna koordinater */
+    if (ocr) f.orig.ocr = 1;
+    if (n) { f.orig.slutSida = n.sida; f.orig.slutY = Math.round(n.y * 10) / 10; }
+  });
+}
+const _origLas = pdfLasTenta;
+pdfLasTenta = async function (bytes) {
+  let kopia = null;
+  try { kopia = bytes instanceof Uint8Array ? bytes.slice() : new Uint8Array(bytes).slice(); } catch (e) { kopia = null; }
+  const r = await _origLas.apply(this, arguments);
+  try {
+    if (kopia && r && r.fragor && r.fragor.length) {
+      const id = "pdf-" + await origHash(kopia);
+      await mediaSpara({ id, kalla: "tenta-pdf", dokument: "pdf", sida: 0, data: kopia.buffer, bredd: 0, hojd: 0 });
+      origPlatser(r.fragor, id, !!(r.diagnos && r.diagnos.ocr));
+    }
+  } catch (e) {}
+  return r;
+};
+
+const _origDok = {};
+async function origDok(id) {
+  if (_origDok[id]) return _origDok[id];
+  const m = await mediaHamta(id);
+  if (!m || !m.data) return null;
+  const data = m.data instanceof ArrayBuffer ? new Uint8Array(m.data.slice(0)) : new Uint8Array(m.data);
+  _origDok[id] = pdfjsLib.getDocument({ data }).promise;
+  return _origDok[id];
+}
+/* Sidfoten (sidnummer, tentans namn) skärs bort när urklippet når sidans slut. */
+function origInkRader(k, B, H) {
+  const d = k.getImageData(0, 0, B, H).data;
+  const rad = new Uint8Array(H);
+  for (let y = 0; y < H; y++) {
+    let n = 0;
+    for (let x = 0, i = y * B * 4; x < B; x += 2, i += 8) {
+      if (d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11 < 190) { n++; if (n > 1) break; }
+    }
+    rad[y] = n > 1 ? 1 : 0;
+  }
+  return rad;
+}
+function origBand(rad, a, b) {
+  const ut = [];
+  for (let y = a; y < b; y++) {
+    if (!rad[y]) continue;
+    let e = y; while (e + 1 < b && rad[e + 1]) e++;
+    ut.push([y, e]); y = e;
+  }
+  return ut;
+}
+/* Sidhuvudet på en fortsättningssida känns igen på att samma rader står överst på frågans första sida. */
+function origUtanSidhuvud(rad, ref, y0, y1, H) {
+  if (!ref) return y0;
+  const zon = Math.min(y1, Math.floor(H * 0.1));
+  const egna = origBand(rad, y0, zon), dar = origBand(ref, 0, Math.floor(H * 0.1));
+  let ny = y0;
+  for (const [a, b] of egna) {
+    if (dar.some(([c, d]) => Math.abs(a - c) <= 2 && Math.abs(b - d) <= 2)) ny = b + 1; else break;
+  }
+  return ny;
+}
+function origUtanSidfot(rad, y0, y1, H) {
+  const G = Math.round(H * 0.02);
+  let ft = -1;
+  for (let y = Math.max(y0, Math.floor(H * 0.9)); y < y1; y++) if (rad[y]) { ft = y; break; }
+  if (ft < 0 || ft - G < y0) return y1;
+  for (let y = ft - G; y < ft; y++) if (rad[y]) return y1;
+  return ft - 1;
+}
+/* Under ett pågående försök döljs facit: gröna bockar och svarsrader. */
+const ORIG_FACITRAD = /^\s*(?:(?:det\s+)?rätt(?:a)?\s*svar(?:et)?|korrekt(?:a)?\s*svar(?:et)?|svar|svars?aspekt(?:er)?|svarsmall|svarsförslag|förslag till svar|modellsvar|svarsnyckel|bedömningskriterier|bedömningsmall|rättningsmall|rättningsanvisningar?|lösningsförslag|facit|(?:the\s+)?correct\s+answers?|model answer|suggested answer)\s*(?:är|is)?\s*(?:[:：]|$)/i;
+async function origDoljFacit(p, vp, k, B, y0, y1, skriv) {
+  /* gröna bockar till höger: rutor med gröna pixlar målas vita (även bockens kantutjämning) */
+  const x0 = Math.floor(B * 0.6), h = y1 - y0, C = 16;
+  if (h > 0) {
+    const bild = k.getImageData(x0, y0, B - x0, h), d = bild.data, w = B - x0;
+    const rutor = new Set();
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4, r = d[i], g = d[i + 1], b = d[i + 2];
+      if (g > 90 && g - r > 45 && g - b > 35) rutor.add(Math.floor(y / C) + ":" + Math.floor(x / C));
+    }
+    k.fillStyle = "#fff";
+    rutor.forEach(n => { const [ry, rx] = n.split(":").map(Number); k.fillRect(x0 + rx * C - 5, y0 + ry * C - 5, C + 10, C + 10); });
+  }
+  /* rader som börjar med Svar:, Facit:, Rätt svar … */
+  let slut = y1;
+  try {
+    const tc = await p.getTextContent();
+    const rader = [];
+    tc.items.forEach(it => {
+      if (!it.str || !it.str.trim()) return;
+      const y = it.transform[5];
+      let r = rader.find(x => Math.abs(x.y - y) < 3);
+      if (!r) { r = { y, del: [] }; rader.push(r); }
+      r.del.push({ x: it.transform[4], s: it.str, h: Math.abs(it.transform[3]) || 10 });
+    });
+    rader.forEach(r => {
+      const text = r.del.sort((a, b) => a.x - b.x).map(x => x.s).join(" ").replace(/\s+/g, " ");
+      if (!ORIG_FACITRAD.test(text)) return;
+      const hh = Math.max(...r.del.map(x => x.h));
+      const [, ya] = vp.convertToViewportPoint(0, r.y + hh * 1.1);
+      const [, yb] = vp.convertToViewportPoint(0, r.y - hh * 0.4);
+      const t0 = Math.max(y0, Math.floor(Math.min(ya, yb))), t1 = Math.min(y1, Math.ceil(Math.max(ya, yb)));
+      if (t1 <= y0 || t0 >= y1) return;
+      if (skriv) slut = Math.min(slut, t0);
+      else { k.fillStyle = "#fff"; k.fillRect(0, t0, B, t1 - t0); }
+    });
+  } catch (e) {}
+  return slut;
+}
+/* Frågans urklipp som en bild (data-URL). */
+async function origBild(o, val) {
+  const V = val || {};
+  const doc = await origDok(o.pdf);
+  if (!doc) return null;
+  const delar = [];
+  let ref = null;
+  const sista = Math.min(o.slutSida || o.sida, o.sida + 2, doc.numPages);
+  for (let s = o.sida; s <= sista; s++) {
+    const p = await doc.getPage(s);
+    const SK = Math.min(2.4, 1500 / p.getViewport({ scale: 1 }).width);
+    const vp = p.getViewport({ scale: SK });
+    const c = document.createElement("canvas");
+    c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
+    const k = c.getContext("2d", { willReadFrequently: true });
+    k.fillStyle = "#fff"; k.fillRect(0, 0, c.width, c.height);
+    await p.render({ canvasContext: k, viewport: vp }).promise;
+    /* PDF:ens y växer uppåt: överst på sidan är högst y */
+    const tillSlut = !(o.slutSida === s && typeof o.slutY === "number");
+    const topp = s === o.sida ? o.y + 18 : 1e6;
+    const botten = tillSlut ? -1e6 : o.slutY + 14;
+    const H1 = p.getViewport({ scale: 1 }).height;
+    const tillY = y => o.ocr ? (H1 - y) * SK : vp.convertToViewportPoint(0, y)[1];
+    const ya = tillY(topp), yb = tillY(botten);
+    let y0 = Math.max(0, Math.floor(Math.min(ya, yb))), y1 = Math.min(c.height, Math.ceil(Math.max(ya, yb)));
+    const rad = origInkRader(k, c.width, c.height);
+    if (s === o.sida) ref = rad;
+    else y0 = origUtanSidhuvud(rad, ref, y0, y1, c.height);
+    if (tillSlut && y1 - y0 > 12) y1 = origUtanSidfot(rad, y0, y1, c.height);
+    if (!origBand(rad, y0, y1).length) y1 = y0;
+    let stopp = false;
+    if (V.dold && y1 - y0 > 12) {
+      const ny = await origDoljFacit(p, vp, k, c.width, y0, y1, V.skriv);
+      if (ny < y1) { y1 = ny; stopp = true; }
+    }
+    if (y1 - y0 < 12) { try { p.cleanup(); } catch (e) {} if (stopp) break; continue; }
+    let ut = document.createElement("canvas");
+    ut.width = c.width; ut.height = y1 - y0;
+    ut.getContext("2d").drawImage(c, 0, y0, c.width, y1 - y0, 0, 0, c.width, y1 - y0);
+    if (typeof trimmaKanter === "function") ut = trimmaKanter(ut);
+    delar.push(ut);
+    try { p.cleanup(); } catch (e) {}
+    if (stopp) break;
+  }
+  if (!delar.length) return null;
+  const B = Math.max(...delar.map(d => d.width)), luft = 18;
+  const H = delar.reduce((n, d) => n + d.height, 0) + luft * (delar.length - 1);
+  const ut = document.createElement("canvas");
+  ut.width = B; ut.height = H;
+  const k = ut.getContext("2d");
+  k.fillStyle = "#fff"; k.fillRect(0, 0, B, H);
+  let y = 0;
+  delar.forEach((d, i) => {
+    if (i) { k.fillStyle = "#e3e3e3"; k.fillRect(0, y - luft / 2, B, 1); }
+    k.drawImage(d, 0, y); y += d.height + luft;
+  });
+  return ut.toDataURL("image/jpeg", 0.9);
+}
+function origKnapp(f, dold) {
+  if (!f || !f.orig || !f.orig.pdf) return "";
+  return `<button type="button" class="orig-knapp" data-orig="${esc(JSON.stringify(f.orig))}"${dold ? ` data-dold="${f.typ === "text" ? "skriv" : "1"}"` : ""} aria-label="Visa frågan som den står i originalet">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>
+    Visa originalet</button>`;
+}
+document.addEventListener("click", async e => {
+  const b = e.target.closest && e.target.closest(".orig-knapp");
+  if (!b || b.disabled) return;
+  e.preventDefault(); e.stopPropagation();
+  let o = null;
+  try { o = JSON.parse(b.dataset.orig); } catch (err) { return; }
+  const text = b.innerHTML;
+  b.disabled = true; b.textContent = "Hämtar originalet…";
+  let url = null;
+  try { url = await origBild(o, { dold: !!b.dataset.dold, skriv: b.dataset.dold === "skriv" }); } catch (err) { url = null; }
+  b.disabled = false; b.innerHTML = text;
+  if (url) visaStor(url, "Frågan i originalet");
+  else {
+    b.insertAdjacentHTML("afterend", `<span class="orig-saknas">Originalet finns bara på enheten där tentan laddades upp.</span>`);
+    b.remove();
+  }
+}, true);
+
+/* =====================================================================
+   STRYK EN FRÅGA
+   Ströks en fråga på den riktiga tentan stryks den här också: den räknas
+   inte i poäng eller procent, och den kommer inte med i dueller. Valet
+   sparas per tenta och fråga, så att även gamla resultat räknas om.
+   ===================================================================== */
+function struknaKarta() {
+  if (!tstore.strukna || typeof tstore.strukna !== "object") tstore.strukna = {};
+  return tstore.strukna;
+}
+function arStruken(t, f) {
+  if (!f) return false;
+  const k = t && t.id && tstore.strukna && tstore.strukna[t.id];
+  if (k && Object.prototype.hasOwnProperty.call(k, f.id)) return !!k[f.id];
+  return !!f.struken;
+}
+function strykbar(t) { return !!(t && t.id && !/^(duell-|live-|ta:)/.test(String(t.id))); }
+function sattStruken(tentaId, fragaId, pa) {
+  const K = struknaKarta();
+  K[tentaId] = K[tentaId] || {};
+  K[tentaId][fragaId] = !!pa;
+  /* egen tenta: flaggan följer med frågan, också när tentan delas */
+  const egen = (tstore.egna || []).find(x => x.id === tentaId);
+  if (egen) (egen.fragor || []).forEach(f => { if (f.id === fragaId) f.struken = !!pa; });
+  /* sparade resultat räknas om */
+  const lista = (tstore.forsok || []).slice();
+  if (tstore.senaste && !lista.includes(tstore.senaste)) lista.push(tstore.senaste);
+  lista.forEach(fo => {
+    if (!fo || fo.tentaId !== tentaId || fo.duell || fo.live || !fo.sammanfattning) return;
+    try {
+      const t = forsokTenta(fo);
+      if (!t) return;
+      const r = ratta(fo, t);
+      Object.assign(fo.sammanfattning, { ratt: r.antalRatt, antal: r.antalFragor, procent: r.totalProcent,
+        godkand: r.godkand, svarade: r.svarade, poang: r.poangFatt, poangAv: r.poangRaknad, obedomda: r.obedomda });
+    } catch (e) {}
+  });
+  tsave();
+}
+function strykKnapp(t, f, fo) {
+  if (!strykbar(t) || !f || (fo && (fo.duell || fo.live))) return "";
+  const pa = arStruken(t, f);
+  return `<button type="button" class="stryk-knapp${pa ? " pa" : ""}" data-stryk="${esc(t.id)}" data-strykf="${esc(f.id)}" aria-pressed="${pa}"
+    title="${pa ? "Frågan räknas inte. Klicka för att räkna den igen." : "Ströks frågan på den riktiga tentan? Då räknas den inte här heller."}">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12h16"/><path d="M7 6h10M7 18h10" opacity=".45"/></svg>
+    ${pa ? "Ångra strykning" : "Stryk frågan"}</button>`;
+}
+function fragaVerktyg(t, f, fo) {
+  const knappar = origKnapp(f, !!fo && fo === tstore.aktivt) + strykKnapp(t, f, fo);
+  const not = arStruken(t, f) ? `<p class="struken-not">Frågan är struken – den räknas inte i poängen.</p>` : "";
+  return knappar || not ? `<div class="fraga-verktyg">${knappar}</div>${not}` : "";
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest(".stryk-knapp");
+  if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const pa = b.getAttribute("aria-pressed") !== "true";
+  const rubrik = b.closest(".qcard, .insp-yta, main");
+  const nr = ((rubrik && (rubrik.querySelector(".qnum, .insp-rubrik") || {}).textContent || "").match(/Fråga (\d+)/) || [])[1] || "";
+  const kortet = b.closest("#fragelista .tres");
+  const idx = kortet ? [...document.querySelectorAll("#fragelista .tres:not([hidden])")].indexOf(kortet) : -1;
+  resStryk(b.dataset.stryk, b.dataset.strykf, pa, nr, idx);
+}, true);
+
+
+/* ---------- resultatsidan: besked, filter och genvägar ---------- */
+function resGrupp(rad) {
+  if (rad.struken) return "struken";
+  if (!rad.bedombar || (rad.text && rad.harSvar && !rad.bedomd)) return "ovrigt";
+  if (rad.ratt) return "ratt";
+  return "fel";
+}
+/* En moduls (eller ett avsnitts) resultat räknat som totalen: obesvarade frågor ger noll poäng. */
+function resDel(r, valj) {
+  const rader = r.rader.filter(x => valj(x) && x.bedombar && !(x.text && x.harSvar && !x.bedomd));
+  const max = rader.reduce((n, x) => n + x.poangMax, 0), fatt = rader.reduce((n, x) => n + (x.poangFatt || 0), 0);
+  return { p: max ? Math.round(fatt / max * 100) : null, ratt: rader.filter(x => x.ratt).length, n: rader.length };
+}
+function resKallaKort(h) {
+  const m = /<span class="gx-kalla">([^<]*)<\/span>/.exec(h);
+  return m ? m[1] : "";
+}
+/* Hur långt det var till godkänt, och de två svagaste modulerna (eller avsnitten). */
+function resPlanHtml(f, t, r, hor) {
+  const grans = godkantGrans();
+  const missade = r.rader.filter(x => x.bedombar && (!x.harSvar || (x.bedomd && !x.ratt))).length;
+  const fid = esc(f.id);
+  const missRad = x => x.bedombar && (!x.harSvar || (x.bedomd && !x.ratt));
+  /* kortare pass: den svagaste modulen med missar, och de flaggade */
+  const modMiss = hor ? r.moduler.filter(m => m.testad).map(m => ({ m, n: r.rader.filter(x => missRad(x) && x.modulNr === m.modul.nr).length, p: resDel(r, x => x.modulNr === m.modul.nr).p }))
+      .filter(x => x.n > 0 && x.n < missade).sort((a, b) => (a.p === null ? 999 : a.p) - (b.p === null ? 999 : b.p))[0] : null;
+  const flagg = r.rader.filter(x => x.flaggad && x.bedombar).length;
+  const val = [
+    modMiss ? `<button class="res-val" data-ova-missade="${fid}" data-ova-val='{"modul":${modMiss.m.modul.nr}}'>Bara Modul ${modMiss.m.modul.nr} (${modMiss.n})</button>` : "",
+    flagg ? `<button class="res-val" data-ova-missade="${fid}" data-ova-val='{"flaggade":1}'>Bara flaggade (${flagg})</button>` : "",
+    missade ? `<button class="res-val" data-ova-missade="${fid}" data-ova-val='{"anpassa":1}'>Anpassa…</button>` : ""].filter(Boolean).join("");
+  const knapp = missade ? `<button class="btn primary" data-ova-missade="${fid}">Öva på de ${missade} du missade</button>${val ? `<div class="res-valrad">${val}</div>` : ""}` : "";
+  const svaga = (hor ? r.moduler.filter(m => m.testad).map(m => ({ namn: `Modul ${m.modul.nr} ${m.modul.titel}`, p: resDel(r, x => x.modulNr === m.modul.nr).p }))
+      : r.avsnitt.filter(a => a.testad).map(a => ({ namn: a.namn, p: resDel(r, x => x.avsnitt === a.namn).p })))
+    .filter(x => x.p !== null && x.p < grans).sort((a, b) => a.p - b.p).slice(0, 2);
+  const svagText = svaga.length ? `Svagast: ${svaga.map(x => `<b>${esc(x.namn)}</b>&nbsp;${x.p}&nbsp;%`).join(", ")}.` : "";
+  if (r.godkand) {
+    return `<div class="res-plan ok"><p><b>Godkänt.</b> ${svagText || "Ingen modul ligger under gränsen."}</p>${knapp ? `<div class="res-plan-knappar">${knapp}</div>` : ""}</div>`;
+  }
+  /* poängen som fattas till gränsen, i hela frågor när alla frågor är värda 1 p */
+  const behov = Math.max(0, Math.ceil(grans / 100 * r.poangRaknad - 1e-9) - r.poangFatt);
+  const helaFragor = r.poangMax === r.bedombara;
+  const avstand = behov <= 0 ? "" : helaFragor
+    ? `${fmtPoang(behov)} rätt till hade gett godkänt`
+    : `${fmtPoang(behov)} poäng till hade gett godkänt`;
+  return `<div class="res-plan">
+    <p>${avstand ? `<b>${avstand}</b> (gränsen är ${grans}&nbsp;%).` : `<b>Gränsen är ${grans} %.</b>`} ${svagText}</p>
+    ${knapp ? `<div class="res-plan-knappar">${knapp}</div>` : ""}
+  </div>`;
+}
+function resFilterHtml(r) {
+  const n = g => r.rader.filter(x => resGrupp(x) === g).length;
+  const fel = n("fel"), ratt = n("ratt"), str = n("struken");
+  const flagg = r.rader.filter(x => x.flaggad).length, obesv = r.rader.filter(x => x.bedombar && !x.harSvar).length;
+  const start = fel ? "fel" : "alla";
+  const knapp = (v, namn, antal) => `<button data-f="${v}" aria-pressed="${v === start}">${namn} <span class="res-antal">${antal}</span></button>`;
+  return `<div class="res-filter" id="resfilter">
+    <div class="seg" id="filter" role="group" aria-label="Visa frågor">
+      ${knapp("fel", "Fel", fel)}${knapp("ratt", "Rätt", ratt)}${flagg ? knapp("flagg", "Flaggade", flagg) : ""}${obesv ? knapp("obesv", "Obesvarade", obesv) : ""}${str ? knapp("struken", "Strukna", str) : ""}${knapp("alla", "Alla", r.rader.length)}
+    </div>
+    <div class="res-hopp-knappar" id="reshopp"${fel ? "" : " hidden"}>
+      <button class="btn res-forra" id="resforra" type="button" aria-label="Föregående fel" title="Föregående fel (k)"><span aria-hidden="true">↑</span></button>
+      <button class="btn res-nasta" id="resnasta" type="button" aria-label="Nästa fel" title="Nästa fel (j)"><span class="res-nasta-t">Nästa fel</span> <span aria-hidden="true">↓</span></button>
+    </div>
+  </div>`;
+}
+function resVisa(v) {
+  const filt = document.getElementById("filter");
+  if (!filt) return;
+  filt.querySelectorAll("button").forEach(o => o.setAttribute("aria-pressed", String(o.dataset.f === v)));
+  let syns = 0;
+  const passar = c => v === "alla" || (v === "flagg" ? c.dataset.flagg === "1" : v === "obesv" ? c.dataset.obesv === "1" : c.dataset.grupp === v);
+  document.querySelectorAll("#fragelista .tres").forEach(c => { c.hidden = !passar(c); if (!c.hidden) syns++; });
+  const tomt = document.getElementById("restomt"); if (tomt) tomt.hidden = syns > 0;
+  const hopp = document.getElementById("reshopp");
+  if (hopp) hopp.hidden = !(v === "fel" || v === "alla") || !document.querySelector('#fragelista .tres[data-grupp="fel"]');
+  try { sessionStorage.setItem("lmb.resfilter", location.hash + "|" + v); } catch (e) {}
+}
+function resKopplaFilter() {
+  const filt = document.getElementById("filter");
+  if (!filt) return;
+  /* samma urval som sist på den här sidan (t.ex. efter Stryk), annars Fel om det finns några */
+  let v = (filt.querySelector('[aria-pressed="true"]') || {}).dataset;
+  v = v ? v.f : "alla";
+  try { const sp = String(sessionStorage.getItem("lmb.resfilter") || ""), i = sp.lastIndexOf("|"), sparat = sp.slice(i + 1);
+    if (i > 0 && sp.slice(0, i) === location.hash && filt.querySelector(`[data-f="${sparat}"]`)) v = sparat; } catch (e) {}
+  resVisa(v);
+  filt.addEventListener("click", e => { const b = e.target.closest("button"); if (b) resVisa(b.dataset.f); });
+  const nasta = document.getElementById("resnasta"), forra = document.getElementById("resforra");
+  if (nasta) nasta.addEventListener("click", () => resHoppa(1));
+  if (forra) forra.addEventListener("click", () => resHoppa(-1));
+  /* filterraden tonar ut i kanten när det finns fler val att skrolla fram */
+  const tona = () => filt.classList.toggle("slut", filt.scrollLeft + filt.clientWidth >= filt.scrollWidth - 2);
+  filt.addEventListener("scroll", tona, { passive: true }); tona();
+}
+document.addEventListener("click", e => {
+  const a = e.target.closest && e.target.closest("[data-hopp]");
+  if (!a) return;
+  e.preventDefault();
+  const mal = document.getElementById(a.dataset.hopp);
+  if (mal) { mal.scrollIntoView({ block: "start" }); mal.focus({ preventScroll: true }); }
+});
+
+/* ---------- omgång 3: kortare pass, meny för Stryk, föregående fel ---------- */
+function resStrykMeny(t, f, fo) {
+  const k = strykKnapp(t, f, fo);
+  if (!k) return "";
+  if (arStruken(t, f)) return `<span class="fraga-verktyg liten">${k}</span>`;
+  return `<details class="kortmeny"><summary aria-label="Fler val för frågan" title="Fler val">⋯</summary>
+    <div class="kortmeny-panel"><p>Ströks frågan på den riktiga tentan? Då räknas den inte i poängen här heller. Det går att ångra.</p>${k}</div></details>`;
+}
+document.addEventListener("click", e => {
+  document.querySelectorAll("details.kortmeny[open]").forEach(d => { if (!d.contains(e.target)) d.open = false; });
+});
+function resHoppa(steg) {
+  const hojd = (document.querySelector(".top") || { offsetHeight: 0 }).offsetHeight + (document.getElementById("resfilter") || { offsetHeight: 0 }).offsetHeight + 12;
+  const kort = [...document.querySelectorAll('#fragelista .tres[data-grupp="fel"]')].filter(c => !c.hidden);
+  if (!kort.length) return;
+  let nu;
+  if (steg > 0) nu = kort.find(c => c.getBoundingClientRect().top > hojd + 4) || kort[0];
+  else { const fore = kort.filter(c => c.getBoundingClientRect().top < hojd - 4); nu = fore[fore.length - 1] || kort[kort.length - 1]; }
+  window.scrollTo({ top: window.scrollY + nu.getBoundingClientRect().top - hojd, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  const fokus = nu.querySelector(".qnum");
+  if (fokus) { fokus.setAttribute("tabindex", "-1"); fokus.focus({ preventScroll: true }); }
+}
+/* j och k hoppar mellan felen på resultatsidan */
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || !/^#\/tenta\/resultat\//.test(location.hash)) return;
+  const m = e.target && e.target.closest && e.target.closest("input, textarea, select, [contenteditable]");
+  if (m) return;
+  if (e.key === "j") { e.preventDefault(); resHoppa(1); }
+  else if (e.key === "k") { e.preventDefault(); resHoppa(-1); }
+});
+/* Stryk: ritar om, behåller läget och visar ett besked med Ångra */
+function resStryk(tentaId, fragaId, pa, nr, idx) {
+  sattStruken(tentaId, fragaId, pa);
+  const y = window.scrollY;
+  render();
+  requestAnimationFrame(() => {
+    window.scrollTo(0, y);
+    if (typeof idx === "number" && idx >= 0) {
+      const kort = [...document.querySelectorAll("#fragelista .tres:not([hidden])")];
+      const mal = kort[Math.min(idx, kort.length - 1)];
+      const q = mal && mal.querySelector(".qnum");
+      if (q) { q.setAttribute("tabindex", "-1"); q.focus({ preventScroll: true }); }
+    }
+  });
+  const tot = document.querySelectorAll(".tsum-n")[1];
+  const text = `Fråga ${nr ? nr + " " : ""}${pa ? "struken" : "räknas igen"}${tot ? ` · nu ${tot.textContent}` : ""}`;
+  resMeddela(text + ".");
+  resToast(text, () => resStryk(tentaId, fragaId, !pa, nr));
+}
+let _resToastTid = null;
+function resToast(text, angra) {
+  let el = document.getElementById("restoast");
+  if (!el) { el = document.createElement("div"); el.id = "restoast"; el.className = "res-toast"; document.body.appendChild(el); }
+  el.innerHTML = `<span>${esc(text)}</span>${angra ? `<button type="button">Ångra</button>` : ""}`;
+  if (angra) el.querySelector("button").addEventListener("click", () => { el.classList.remove("syns"); angra(); });
+  el.classList.add("syns");
+  clearTimeout(_resToastTid);
+  _resToastTid = setTimeout(() => el.classList.remove("syns"), 6000);
+}
+/* ett nytt resultat efter Stryk läses upp */
+function resMeddela(text) {
+  let el = document.getElementById("lmblive");
+  if (!el) { el = document.createElement("div"); el.id = "lmblive"; el.className = "sr-only"; el.setAttribute("aria-live", "polite"); document.body.appendChild(el); }
+  el.textContent = ""; setTimeout(() => { el.textContent = text; }, 60);
+}
+
+
+/* "Visa originalet" kräver att PDF:en finns i den här webbläsaren. */
+const _origFinns = {};
+async function origKontrollera() {
+  const knappar = [...document.querySelectorAll(".orig-knapp[data-orig]")];
+  for (const b of knappar) {
+    let o = null; try { o = JSON.parse(b.dataset.orig); } catch (e) {}
+    if (!o || !o.pdf) continue;
+    if (!(o.pdf in _origFinns)) { try { const m = await mediaHamta(o.pdf); _origFinns[o.pdf] = !!(m && m.data); } catch (e) { _origFinns[o.pdf] = false; } }
+    if (!_origFinns[o.pdf]) { const v = b.closest(".fraga-verktyg"); b.remove(); if (v && !v.children.length) v.remove(); }
+  }
+}
+const _renderRes = render;
+render = function () { const x = _renderRes.apply(this, arguments); setTimeout(origKontrollera, 0); return x; };
+
+
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest("[data-gx-visaalla]");
+  if (!b) return;
+  document.querySelectorAll("[data-gx-extra]").forEach(k => { k.hidden = false; });
+  b.remove();
+});
+
 window.addEventListener("hashchange", render);
 appMenyStarta();
 render();
