@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="bygg" content="20261124-0931">
+<meta name="bygg" content="20261124-0951">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lärandemålsbiblioteket</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -101,6 +101,9 @@ button{font:inherit; color:inherit}
 .aidlg-text pre{white-space:pre-wrap; font:12.5px/1.5 var(--mono); background:var(--surface-2); border-radius:9px; padding:10px; margin:6px 0 0; max-height:180px; overflow:auto; color:var(--ink-2)}
 .aidlg-sido{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-2); margin:0 0 12px; cursor:pointer}
 .aidlg-not{font-size:13px !important; background:var(--surface-2); border-radius:9px; padding:9px 11px; margin:0 0 12px !important}
+.aidlg-prog{font-size:13px; line-height:1.5; color:var(--ink-2); border-top:1px solid var(--line); padding:11px 0 2px; margin:0 0 12px}
+.aidlg-prog b{color:var(--ink)}
+.aidlg-prog a{color:var(--accent-ink); font-weight:700}
 .aitoast{position:fixed; left:50%; bottom:90px; transform:translateX(-50%); z-index:130; background:var(--ink); color:var(--paper); border-radius:10px; padding:10px 14px; font-size:14px; box-shadow:var(--shadow); max-width:calc(100vw - 32px)}
 /* ---------- resultatsidan, omgång 3 ---------- */
 .res-plan{margin-top:0; margin-bottom:22px}
@@ -38629,7 +38632,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261124-0931";
+const BYGGID = "20261124-0951";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
@@ -41152,6 +41155,23 @@ document.addEventListener("click", e => {
     return { kopierad, oppnad: !!w || !sido, url };
   }
 
+  /* Nedladdning av datorprogrammet, där AI:n sitter i en panel inuti appen.
+     Filerna ligger under GitHub Releases med fasta namn. */
+  const REL = "https://github.com/ybgdon7/bibliotek/releases/latest/download/";
+  function programRad() {
+    if (D || !matchMedia("(pointer: fine)").matches) return "";
+    const ua = navigator.userAgent || "", pf = navigator.platform || "";
+    let lankar = "";
+    if (/Mac/i.test(pf) || /Macintosh/i.test(ua))
+      lankar = `<a href="${REL}Larandemalsbiblioteket-mac-apple-chip.zip">Ladda ner för Mac med Apple-chip</a>
+        · <a href="${REL}Larandemalsbiblioteket-mac-intel.zip">Mac med Intel</a>`;
+    else if (/Win/i.test(pf) || /Windows/i.test(ua))
+      lankar = `<a href="${REL}Larandemalsbiblioteket-windows.zip">Ladda ner för Windows</a>`;
+    else return "";
+    return `<div class="aidlg-prog"><b>Vill du ha AI:n inuti appen, bredvid biblioteket?</b>
+      Det går i datorprogrammet. ${lankar}</div>`;
+  }
+
   function aiDialog({ rubrik, text, egenFraga }) {
     const val = lasVal();
     let tj = AI_TJ[val.tjanst] ? val.tjanst : "claude";
@@ -41174,6 +41194,7 @@ document.addEventListener("click", e => {
           <textarea id="aidlg-in" rows="2" placeholder="Till exempel: kan du ge ett kliniskt exempel?"></textarea>` : ""}
         ${kanSido ? `<label class="aidlg-sido"><input type="checkbox" id="aidlg-sido"${sido ? " checked" : ""}> Öppna som sidofönster till höger</label>` : ""}
         <p class="aidlg-not" id="aidlg-not" hidden></p>
+        ${programRad()}
         <div class="dlgknappar"><button class="btn" data-stang>Avbryt</button>
           <button class="btn primary" id="aidlg-ok"></button></div>
       </div>`;

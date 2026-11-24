@@ -1,5 +1,5 @@
 {
-  "bygg": "20261124-0931",
-  "namn": "Fråga AI överallt: på webben och i mobilen öppnar Fråga-knappen och knappen under varje quizfråga Claude, ChatGPT eller Gemini med frågan ifylld, med ditt eget konto. Ingen API-nyckel behövs.",
-  "nar": "2026-11-24T09:40:34+00:00"
+  "bygg": "20261124-0951",
+  "namn": "Fråga AI-rutan på datorn länkar till datorprogrammet (Mac och Windows), där AI:n sitter i en panel inuti appen.",
+  "nar": "2026-11-24T09:55:49+00:00"
 }
