@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="bygg" content="20261123-2157">
+<meta name="bygg" content="20261124-0908">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lärandemålsbiblioteket</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -81,6 +81,9 @@ button{font:inherit; color:inherit}
   background:linear-gradient(150deg, var(--accent), var(--teal));
 }
 .brand b{font-family:var(--display); font-weight:600; font-size:17px}
+/* datorprogrammet: knappen under quizförklaringen */
+#view .qcard .ai-fraga{margin-top:10px; border-color:var(--accent); color:var(--accent); font-weight:700}
+#view .qcard .ai-fraga:hover{background:var(--accent-soft)}
 /* ---------- resultatsidan, omgång 3 ---------- */
 .res-plan{margin-top:0; margin-bottom:22px}
 .res-plan-knappar{flex-direction:column; align-items:flex-end; gap:8px}
@@ -38608,7 +38611,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261123-2157";
+const BYGGID = "20261124-0908";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
@@ -41051,6 +41054,83 @@ document.addEventListener("click", e => {
   document.querySelectorAll("[data-gx-extra]").forEach(k => { k.hidden = false; });
   b.remove();
 });
+
+/* ---------- Datorprogrammet: "Fråga AI" i sidopanelen ----------
+   Körs bara när biblioteket är öppet i datorprogrammet, som lägger till
+   window.bibliotekDesktop. På webben och i mobilen händer ingenting här.
+   Tentarättningen av skrivfrågor berörs inte. */
+(function () {
+  const D = window.bibliotekDesktop;
+  if (!D || typeof D.fraga !== "function") return;
+  document.documentElement.classList.add("i-programmet");
+
+  const ren = t => String(t || "").replace(/\s+/g, " ").trim();
+  const kurs = () => { try { return aktuellKursTitel(); } catch (e) { return ""; } };
+  function plats() {
+    const h1 = document.querySelector("#view h1");
+    const eb = document.querySelector("#view .eyebrow");
+    return { titel: h1 ? ren(h1.textContent) : "", plats: eb ? ren(eb.textContent) : "" };
+  }
+  function inledning() {
+    const p = plats(), k = kurs();
+    return `Jag är läkarstudent på Karolinska Institutet${k ? " och pluggar " + k : ""}.` +
+      (p.titel ? ` Avsnitt: ${p.titel}${p.plats ? " (" + p.plats + ")" : ""}.` : "");
+  }
+
+  /* En quizfråga som just besvarats blir en färdig fråga till AI:n */
+  function quizText(card) {
+    const q = ren(card.querySelector(".qtext")?.textContent);
+    const opts = [...card.querySelectorAll(".opt")];
+    const rad = b => ren(b.querySelector(".lt")?.textContent) + ") " + ren([...b.children].slice(1).map(x => x.textContent).join(" "));
+    const ratt = opts.find(b => b.classList.contains("correct"));
+    const fel = opts.find(b => b.classList.contains("wrong"));
+    const bokstav = b => b ? ren(b.querySelector(".lt")?.textContent) : "";
+    const expl = card.querySelector(".expl");
+    let forkl = expl ? ren(expl.textContent).replace(/^(Rätt|Fel)\.\s*/, "") : "";
+    return [
+      inledning(),
+      "",
+      "Fråga: " + q,
+      ...opts.map(rad),
+      "",
+      fel ? `Jag svarade ${bokstav(fel)}. Rätt svar är ${bokstav(ratt)}.` : `Jag svarade ${bokstav(ratt)}, vilket var rätt.`,
+      forkl ? "Bibliotekets förklaring: " + forkl : "",
+      "",
+      fel ? `Förklara på svenska varför ${bokstav(ratt)} är rätt och varför ${bokstav(fel)} är fel. Var kort och förklara mekanismen.`
+          : `Förklara kort på svenska mekanismen bakom rätt svar, och varför de andra alternativen är fel.`
+    ].filter((x, i, a) => !(x === "" && a[i - 1] === "")).join("\n");
+  }
+
+  function laggTillKnapp(card) {
+    if (card.querySelector(".ai-fraga")) return;
+    const expl = card.querySelector(".expl");
+    if (!expl || expl.hidden) return;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "btn ai-fraga";
+    b.textContent = "✦ Fråga AI om den här frågan";
+    b.addEventListener("click", () => D.fraga(quizText(card)));
+    expl.insertAdjacentElement("afterend", b);
+  }
+  function skanna(rot) {
+    (rot || document).querySelectorAll(".qcard[data-done]").forEach(laggTillKnapp);
+  }
+  const vy = document.getElementById("view");
+  if (vy) new MutationObserver(() => skanna(vy)).observe(vy, { subtree: true, childList: true, attributes: true, attributeFilter: ["hidden", "data-done"] });
+
+  /* Den runda Fråga-knappen öppnar AI-panelen och kopierar avsnittets
+     sammanhang, så att man kan klistra in det om man vill. */
+  const fk = document.getElementById("fragaknapp");
+  if (fk) {
+    fk.addEventListener("click", e => {
+      e.preventDefault(); e.stopImmediatePropagation();
+      const delmal = [...document.querySelectorAll("#view .delmal li")].map(li => "- " + ren(li.textContent)).join("\n");
+      D.kopiera(inledning() + (delmal ? "\nDelmål:\n" + delmal : "") + "\n\nMin fråga: ");
+    }, true);
+    fk.setAttribute("aria-label", "Öppna AI-panelen");
+    fk.title = "Öppnar AI-panelen till höger (⌘J)";
+  }
+})();
 
 window.addEventListener("hashchange", render);
 appMenyStarta();
