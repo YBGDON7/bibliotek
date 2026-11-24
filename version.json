@@ -1,5 +1,5 @@
 {
-  "bygg": "20261124-0908",
-  "namn": "Datorprogrammet: knappen Fråga AI om den här frågan skickar quizfrågan till AI-panelen, och Fråga-knappen öppnar panelen. Webben är oförändrad.",
-  "nar": "2026-11-24T09:26:28+00:00"
+  "bygg": "20261124-0931",
+  "namn": "Fråga AI överallt: på webben och i mobilen öppnar Fråga-knappen och knappen under varje quizfråga Claude, ChatGPT eller Gemini med frågan ifylld, med ditt eget konto. Ingen API-nyckel behövs.",
+  "nar": "2026-11-24T09:40:34+00:00"
 }

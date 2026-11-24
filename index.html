@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="bygg" content="20261124-0908">
+<meta name="bygg" content="20261124-0931">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lärandemålsbiblioteket</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -84,6 +84,24 @@ button{font:inherit; color:inherit}
 /* datorprogrammet: knappen under quizförklaringen */
 #view .qcard .ai-fraga{margin-top:10px; border-color:var(--accent); color:var(--accent); font-weight:700}
 #view .qcard .ai-fraga:hover{background:var(--accent-soft)}
+/* Fråga AI-dialogen (webben) */
+.aidlg .dlgruta{max-width:520px; max-height:calc(100vh - 40px); overflow:auto}
+.aidlg-huvud{display:flex; align-items:center; gap:10px}
+.aidlg-huvud h2{flex:1; margin:0; font-family:var(--display); font-size:21px; font-weight:600}
+.aidlg-x{border:0; background:transparent; color:var(--ink-2); font-size:16px; width:36px; height:36px; border-radius:8px; cursor:pointer}
+.aidlg-x:hover{background:var(--surface-2)}
+.aidlg-under{font-size:13px !important; color:var(--ink-2) !important; margin:4px 0 14px !important}
+.aidlg-val{display:flex; gap:6px; margin-bottom:14px}
+.aidlg-val button{flex:1; min-height:40px; border:1px solid var(--line-strong); background:var(--surface); color:var(--ink-2); border-radius:9px; font:700 14px var(--body); cursor:pointer}
+.aidlg-val button.pa{border-color:var(--accent); background:var(--accent-soft); color:var(--accent-ink)}
+.aidlg-etikett{display:block; font-size:13px; font-weight:700; margin:0 0 6px}
+.aidlg textarea{width:100%; box-sizing:border-box; border:1px solid var(--line-strong); border-radius:9px; padding:9px 10px; font:15px/1.45 var(--body); color:var(--ink); background:var(--surface); resize:vertical; margin-bottom:12px}
+.aidlg-text{margin-bottom:12px; font-size:13px}
+.aidlg-text summary{cursor:pointer; color:var(--ink-2); font-weight:700; padding:4px 0}
+.aidlg-text pre{white-space:pre-wrap; font:12.5px/1.5 var(--mono); background:var(--surface-2); border-radius:9px; padding:10px; margin:6px 0 0; max-height:180px; overflow:auto; color:var(--ink-2)}
+.aidlg-sido{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-2); margin:0 0 12px; cursor:pointer}
+.aidlg-not{font-size:13px !important; background:var(--surface-2); border-radius:9px; padding:9px 11px; margin:0 0 12px !important}
+.aitoast{position:fixed; left:50%; bottom:90px; transform:translateX(-50%); z-index:130; background:var(--ink); color:var(--paper); border-radius:10px; padding:10px 14px; font-size:14px; box-shadow:var(--shadow); max-width:calc(100vw - 32px)}
 /* ---------- resultatsidan, omgång 3 ---------- */
 .res-plan{margin-top:0; margin-bottom:22px}
 .res-plan-knappar{flex-direction:column; align-items:flex-end; gap:8px}
@@ -38611,7 +38629,7 @@ document.addEventListener("click", e => {
      att den inte hittar en version.json som inte finns där.
    ===================================================================== */
 
-const BYGGID = "20261124-0908";
+const BYGGID = "20261124-0931";
 const VERSIONSFIL = "version.json";
 const VERSIONSINTERVALL = 20 * 60000;
 let _nyttBygg = "";
@@ -41055,14 +41073,24 @@ document.addEventListener("click", e => {
   b.remove();
 });
 
-/* ---------- Datorprogrammet: "Fråga AI" i sidopanelen ----------
-   Körs bara när biblioteket är öppet i datorprogrammet, som lägger till
-   window.bibliotekDesktop. På webben och i mobilen händer ingenting här.
-   Tentarättningen av skrivfrågor berörs inte. */
+/* ---------- "Fråga AI" med användarens eget AI-konto ----------
+   I datorprogrammet (window.bibliotekDesktop finns) skickas frågan till AI-panelen.
+   På webben och i mobilen öppnas vald AI (Claude, ChatGPT eller Gemini) i en ny
+   flik, eller som sidofönster på datorn, med frågan ifylld. Ingen API-nyckel
+   behövs och ingenting skickas via appen. Tentarättningen av skrivfrågor berörs inte. */
 (function () {
-  const D = window.bibliotekDesktop;
-  if (!D || typeof D.fraga !== "function") return;
-  document.documentElement.classList.add("i-programmet");
+  const D = window.bibliotekDesktop && typeof window.bibliotekDesktop.fraga === "function" ? window.bibliotekDesktop : null;
+  if (D) document.documentElement.classList.add("i-programmet");
+
+  const AI_TJ = {
+    claude:  { namn: "Claude",  hem: "https://claude.ai/new",         url: t => "https://claude.ai/new?q=" + encodeURIComponent(t) },
+    chatgpt: { namn: "ChatGPT", hem: "https://chatgpt.com/",          url: t => "https://chatgpt.com/?q=" + encodeURIComponent(t) },
+    gemini:  { namn: "Gemini",  hem: "https://gemini.google.com/app", url: null }
+  };
+  const MAX_URL = 6000;
+  const LS = "bib-ai-val";
+  const lasVal = () => { try { return JSON.parse(localStorage.getItem(LS)) || {}; } catch (e) { return {}; } };
+  const sparaVal = v => { try { localStorage.setItem(LS, JSON.stringify({ ...lasVal(), ...v })); } catch (e) {} };
 
   const ren = t => String(t || "").replace(/\s+/g, " ").trim();
   const kurs = () => { try { return aktuellKursTitel(); } catch (e) { return ""; } };
@@ -41076,31 +41104,122 @@ document.addEventListener("click", e => {
     return `Jag är läkarstudent på Karolinska Institutet${k ? " och pluggar " + k : ""}.` +
       (p.titel ? ` Avsnitt: ${p.titel}${p.plats ? " (" + p.plats + ")" : ""}.` : "");
   }
+  const tomraderIhop = rader => rader.filter((x, i, a) => !(x === "" && (i === 0 || a[i - 1] === ""))).join("\n").trim();
 
   /* En quizfråga som just besvarats blir en färdig fråga till AI:n */
   function quizText(card) {
     const q = ren(card.querySelector(".qtext")?.textContent);
     const opts = [...card.querySelectorAll(".opt")];
-    const rad = b => ren(b.querySelector(".lt")?.textContent) + ") " + ren([...b.children].slice(1).map(x => x.textContent).join(" "));
+    const bokstav = b => b ? ren(b.querySelector(".lt")?.textContent) : "";
+    const rad = b => bokstav(b) + ") " + ren([...b.children].slice(1).map(x => x.textContent).join(" "));
     const ratt = opts.find(b => b.classList.contains("correct"));
     const fel = opts.find(b => b.classList.contains("wrong"));
-    const bokstav = b => b ? ren(b.querySelector(".lt")?.textContent) : "";
     const expl = card.querySelector(".expl");
-    let forkl = expl ? ren(expl.textContent).replace(/^(Rätt|Fel)\.\s*/, "") : "";
-    return [
-      inledning(),
-      "",
-      "Fråga: " + q,
-      ...opts.map(rad),
-      "",
+    const forkl = expl ? ren(expl.textContent).replace(/^(Rätt|Fel)\.\s*/, "") : "";
+    return tomraderIhop([
+      inledning(), "",
+      "Fråga: " + q, ...opts.map(rad), "",
       fel ? `Jag svarade ${bokstav(fel)}. Rätt svar är ${bokstav(ratt)}.` : `Jag svarade ${bokstav(ratt)}, vilket var rätt.`,
-      forkl ? "Bibliotekets förklaring: " + forkl : "",
-      "",
+      forkl ? "Bibliotekets förklaring: " + forkl : "", "",
       fel ? `Förklara på svenska varför ${bokstav(ratt)} är rätt och varför ${bokstav(fel)} är fel. Var kort och förklara mekanismen.`
-          : `Förklara kort på svenska mekanismen bakom rätt svar, och varför de andra alternativen är fel.`
-    ].filter((x, i, a) => !(x === "" && a[i - 1] === "")).join("\n");
+          : "Förklara kort på svenska mekanismen bakom rätt svar, och varför de andra alternativen är fel."
+    ]);
+  }
+  function avsnittText() {
+    const delmal = [...document.querySelectorAll("#view .delmal li")].map(li => "- " + ren(li.textContent));
+    return tomraderIhop([inledning(), delmal.length ? "Delmål:" : "", ...delmal]);
   }
 
+  /* ---------- webben: öppna vald AI ---------- */
+  const somSidofonster = () => matchMedia("(pointer: fine)").matches && screen.availWidth >= 1000;
+  function oppnaAI(tjanst, text, sido) {
+    const t = AI_TJ[tjanst] || AI_TJ.claude;
+    let url = t.url ? t.url(text) : null;
+    let kopierad = false;
+    if (!url || url.length > MAX_URL) {
+      try { navigator.clipboard.writeText(text).catch(() => {}); kopierad = true; } catch (e) {}
+      url = t.hem;
+    }
+    let w = null;
+    if (sido) {
+      const b = Math.min(480, Math.round(screen.availWidth * 0.36)), h = screen.availHeight;
+      const x = (screen.availLeft || 0) + screen.availWidth - b, y = screen.availTop || 0;
+      w = window.open(url, "bib-ai", `popup=yes,width=${b},height=${h},left=${x},top=${y}`);
+    } else {
+      w = window.open(url, "_blank", "noopener");
+    }
+    if (w) { try { w.opener = null; } catch (e) {} }
+    return { kopierad, oppnad: !!w || !sido, url };
+  }
+
+  function aiDialog({ rubrik, text, egenFraga }) {
+    const val = lasVal();
+    let tj = AI_TJ[val.tjanst] ? val.tjanst : "claude";
+    const kanSido = somSidofonster();
+    let sido = kanSido && val.sido !== false;
+    const d = document.createElement("div");
+    d.className = "dlg aidlg";
+    d.innerHTML = `<div class="dlgruta" role="dialog" aria-modal="true" aria-labelledby="aidlg-t">
+        <div class="aidlg-huvud"><h2 id="aidlg-t">${esc(rubrik)}</h2>
+          <button class="aidlg-x" data-stang aria-label="Stäng">✕</button></div>
+        <p class="aidlg-under">Öppnas med ditt eget konto. Inget skickas via appen och ingen API-nyckel behövs.</p>
+        <div class="aidlg-val" role="radiogroup" aria-label="Välj AI">
+          ${Object.entries(AI_TJ).map(([k, t]) => `<button type="button" role="radio" data-tj="${k}">${t.namn}</button>`).join("")}
+        </div>
+        ${egenFraga ? `<label class="aidlg-etikett" for="aidlg-in">Din fråga</label>
+          <textarea id="aidlg-in" rows="3" placeholder="Skriv vad du undrar över i avsnittet…"></textarea>` : ""}
+        <details class="aidlg-text"${egenFraga ? "" : " open"}><summary>${egenFraga ? "Sammanhang som skickas med" : "Texten som skickas"}</summary>
+          <pre>${esc(text)}</pre></details>
+        ${!egenFraga ? `<label class="aidlg-etikett" for="aidlg-in">Lägg till en egen fråga (valfritt)</label>
+          <textarea id="aidlg-in" rows="2" placeholder="Till exempel: kan du ge ett kliniskt exempel?"></textarea>` : ""}
+        ${kanSido ? `<label class="aidlg-sido"><input type="checkbox" id="aidlg-sido"${sido ? " checked" : ""}> Öppna som sidofönster till höger</label>` : ""}
+        <p class="aidlg-not" id="aidlg-not" hidden></p>
+        <div class="dlgknappar"><button class="btn" data-stang>Avbryt</button>
+          <button class="btn primary" id="aidlg-ok"></button></div>
+      </div>`;
+    const ok = d.querySelector("#aidlg-ok"), not = d.querySelector("#aidlg-not"), inp = d.querySelector("#aidlg-in");
+    const ritaVal = () => {
+      d.querySelectorAll("[data-tj]").forEach(b => { const pa = b.dataset.tj === tj; b.classList.toggle("pa", pa); b.setAttribute("aria-checked", pa); });
+      ok.textContent = "Öppna i " + AI_TJ[tj].namn + " ↗";
+      not.hidden = !!AI_TJ[tj].url;
+      not.textContent = AI_TJ[tj].url ? "" : "Gemini kan inte ta emot en ifylld fråga. Texten kopieras, så du klistrar in den (⌘V eller håll inne och välj Klistra in).";
+    };
+    ritaVal();
+    const stang = () => { d.remove(); document.removeEventListener("keydown", tang); };
+    const tang = e => { if (e.key === "Escape") { e.preventDefault(); stang(); } };
+    d.addEventListener("click", e => {
+      if (e.target === d || e.target.closest("[data-stang]")) return stang();
+      const b = e.target.closest("[data-tj]");
+      if (b) { tj = b.dataset.tj; sparaVal({ tjanst: tj }); ritaVal(); }
+    });
+    const sidoRuta = d.querySelector("#aidlg-sido");
+    if (sidoRuta) sidoRuta.addEventListener("change", () => { sido = sidoRuta.checked; sparaVal({ sido }); });
+    ok.addEventListener("click", () => {
+      const egen = ren(inp ? inp.value : "");
+      if (egenFraga && !egen) { inp.focus(); inp.placeholder = "Skriv din fråga här först…"; return; }
+      const allt = egenFraga ? text + "\n\nMin fråga: " + egen : (egen ? text + "\n\n" + egen : text);
+      sparaVal({ tjanst: tj });
+      const r = oppnaAI(tj, allt, sido);
+      if (!r.oppnad) {
+        not.hidden = false;
+        not.innerHTML = `Webbläsaren stoppade fönstret. <a href="${esc(r.url)}" target="_blank" rel="noopener">Öppna ${AI_TJ[tj].namn} här</a>.`;
+        return;
+      }
+      stang();
+      if (r.kopierad) visaAiToast("Frågan är kopierad. Klistra in den i " + AI_TJ[tj].namn + ".");
+    });
+    document.addEventListener("keydown", tang);
+    document.body.appendChild(d);
+    (egenFraga && inp ? inp : ok).focus();
+  }
+  function visaAiToast(t) {
+    const el = document.createElement("div");
+    el.className = "aitoast"; el.setAttribute("role", "status"); el.textContent = t;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 5000);
+  }
+
+  /* ---------- knappen under varje besvarad quizfråga ---------- */
   function laggTillKnapp(card) {
     if (card.querySelector(".ai-fraga")) return;
     const expl = card.querySelector(".expl");
@@ -41109,26 +41228,29 @@ document.addEventListener("click", e => {
     b.type = "button";
     b.className = "btn ai-fraga";
     b.textContent = "✦ Fråga AI om den här frågan";
-    b.addEventListener("click", () => D.fraga(quizText(card)));
+    b.addEventListener("click", () => {
+      const text = quizText(card);
+      if (D) D.fraga(text);
+      else aiDialog({ rubrik: "Fråga AI om frågan", text });
+    });
     expl.insertAdjacentElement("afterend", b);
   }
-  function skanna(rot) {
-    (rot || document).querySelectorAll(".qcard[data-done]").forEach(laggTillKnapp);
-  }
   const vy = document.getElementById("view");
-  if (vy) new MutationObserver(() => skanna(vy)).observe(vy, { subtree: true, childList: true, attributes: true, attributeFilter: ["hidden", "data-done"] });
+  if (vy) new MutationObserver(() => vy.querySelectorAll(".qcard[data-done]").forEach(laggTillKnapp))
+    .observe(vy, { subtree: true, childList: true, attributes: true, attributeFilter: ["hidden", "data-done"] });
 
-  /* Den runda Fråga-knappen öppnar AI-panelen och kopierar avsnittets
-     sammanhang, så att man kan klistra in det om man vill. */
+  /* ---------- den runda Fråga-knappen ----------
+     Programmet: öppnar AI-panelen och kopierar avsnittets sammanhang.
+     Webben: frågar vad man undrar och öppnar vald AI med sammanhanget ifyllt. */
   const fk = document.getElementById("fragaknapp");
   if (fk) {
     fk.addEventListener("click", e => {
       e.preventDefault(); e.stopImmediatePropagation();
-      const delmal = [...document.querySelectorAll("#view .delmal li")].map(li => "- " + ren(li.textContent)).join("\n");
-      D.kopiera(inledning() + (delmal ? "\nDelmål:\n" + delmal : "") + "\n\nMin fråga: ");
+      if (D) D.kopiera(avsnittText() + "\n\nMin fråga: ");
+      else aiDialog({ rubrik: "Fråga AI om avsnittet", text: avsnittText(), egenFraga: true });
     }, true);
-    fk.setAttribute("aria-label", "Öppna AI-panelen");
-    fk.title = "Öppnar AI-panelen till höger (⌘J)";
+    fk.setAttribute("aria-label", D ? "Öppna AI-panelen" : "Fråga AI om avsnittet");
+    fk.title = D ? "Öppnar AI-panelen till höger (⌘J)" : "Fråga Claude, ChatGPT eller Gemini om avsnittet";
   }
 })();
 
